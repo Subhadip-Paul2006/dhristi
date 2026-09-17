@@ -1,0 +1,78 @@
+/* ============================================================
+ Glass Card — Premium Glassmorphism
+ ============================================================ */
+
+.glass-card {
+ position: relative;
+ padding: 1.75rem;
+ background: rgba(255, 255, 255, 0.65);
+ backdrop-filter: blur(20px);
+ -webkit-backdrop-filter: blur(20px);
+ border: 1px solid rgba(255, 255, 255, 0.4);
+ border-radius: var(--radius-card);
+ box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+ overflow: hidden;
+ transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+ box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+ border-color 0.3s ease;
+}
+
+.glass-card::before {
+ content: "";
+ position: absolute;
+ top: 0;
+ left: 0;
+ right: 0;
+ height: 2px;
+ background: linear-gradient(
+ 90deg,
+ transparent,
+ var(--glass-accent, #ea580c),
+ transparent
+ );
+ opacity: 0;
+ transition: opacity 0.3s ease;
+}
+
+.glass-card--hoverable:hover {
+ transform: translateY(-4px);
+ box-shadow: 0 16px 48px rgba(0, 0, 0, 0.12);
+ border-color: rgba(234, 88, 12, 0.3);
+}
+
+.glass-card--hoverable:hover::before {
+ opacity: 1;
+}
+
+.glass-card__icon {
+ display: flex;
+ align-items: center;
+ justify-content: center;
+ width: 40px;
+ height: 40px;
+ border-radius: 10px;
+ margin-bottom: 1rem;
+ background: var(--color-accent-soft);
+ border: 1px solid var(--color-accent-border);
+}
+
+/* Dark variant */
+.glass-card--dark {
+ background: rgba(15, 17, 14, 0.75);
+ border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.glass-card--dark::before {
+ background: linear-gradient(
+ 90deg,
+ transparent,
+ var(--glass-accent, #ea580c),
+ transparent
+ );
+}
+
+@media (max-width: 768px) {
+ .glass-card {
+ padding: 1.25rem;
+ }
+}

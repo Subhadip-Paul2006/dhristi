@@ -1,0 +1,13 @@
+.neural-bg-container {
+ position: absolute;
+ inset: 0;
+ overflow: hidden;
+ pointer-events: none;
+}
+
+.neural-bg-container canvas {
+ position: absolute;
+ inset: 0;
+ width: 100% !important;
+ height: 100% !important;
+}

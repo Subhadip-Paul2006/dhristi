@@ -1,0 +1,85 @@
+/* ============================================================
+ Network Graph — Interactive 3D Topology
+ ============================================================ */
+
+.network-graph {
+ position: relative;
+ border-radius: var(--radius-card);
+ overflow: hidden;
+ background: #080a0d;
+ border: 1px solid rgba(255, 255, 255, 0.08);
+ box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+}
+
+.network-graph canvas {
+ display: block;
+ cursor: crosshair;
+}
+
+/* Legend */
+.network-graph__legend {
+ position: absolute;
+ bottom: 1rem;
+ left: 1.25rem;
+ display: flex;
+ gap: 1.25rem;
+ padding: 0.6rem 1rem;
+ background: rgba(15, 17, 14, 0.8);
+ backdrop-filter: blur(12px);
+ -webkit-backdrop-filter: blur(12px);
+ border: 1px solid rgba(255, 255, 255, 0.1);
+ border-radius: var(--radius-pill);
+ font-family: var(--font-family-mono);
+ font-size: 10px;
+ color: #94a3b8;
+ letter-spacing: 0.05em;
+ text-transform: uppercase;
+}
+
+.network-graph__legend-item {
+ display: flex;
+ align-items: center;
+ gap: 6px;
+}
+
+.network-graph__legend-dot {
+ width: 8px;
+ height: 8px;
+ border-radius: 50%;
+ box-shadow: 0 0 6px currentColor;
+}
+
+/* Tooltip */
+.network-graph__tooltip {
+ position: absolute;
+ padding: 0.5rem 0.85rem;
+ background: rgba(15, 17, 14, 0.92);
+ backdrop-filter: blur(12px);
+ -webkit-backdrop-filter: blur(12px);
+ border: 1px solid rgba(234, 88, 12, 0.4);
+ border-radius: 8px;
+ pointer-events: none;
+ z-index: 10;
+ animation: tooltipFadeIn 0.2s ease;
+}
+
+.network-graph__tooltip-label {
+ font-family: var(--font-family-primary);
+ font-size: 13px;
+ font-weight: 700;
+ color: #ffffff;
+ white-space: nowrap;
+}
+
+.network-graph__tooltip-type {
+ font-family: var(--font-family-mono);
+ font-size: 9px;
+ color: var(--color-accent);
+ letter-spacing: 0.08em;
+ margin-top: 2px;
+}
+
+@keyframes tooltipFadeIn {
+ from { opacity: 0; transform: translateY(4px); }
+ to { opacity: 1; transform: translateY(0); }
+}

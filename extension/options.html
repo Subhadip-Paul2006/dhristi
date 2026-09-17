@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Drishti Web Guard — Options</title>
+    <style>
+      :root {
+        --bg: #0b0f14;
+        --surface: #121821;
+        --hairline: #223047;
+        --ink: #e8eef6;
+        --ink-muted: #8595ab;
+        --teal: #2ec27e;
+        --amber: #f59e42;
+        --coral: #ef4655;
+        --accent: #38c6f4;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        padding: 28px;
+      }
+      .wrap { max-width: 520px; margin: 0 auto; }
+      .brand {
+        display: flex; align-items: center; gap: 8px;
+        font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase;
+        color: var(--ink-muted); margin-bottom: 6px;
+      }
+      .brand .dot {
+        width: 8px; height: 8px; border-radius: 50%;
+        background: var(--accent); box-shadow: 0 0 0 4px rgba(56, 198, 244, 0.15);
+      }
+      h1 { font-size: 22px; margin: 0 0 20px; }
+      .card {
+        background: var(--surface); border: 1px solid var(--hairline);
+        border-radius: 14px; padding: 18px; margin-bottom: 16px;
+      }
+      .card h2 {
+        font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em;
+        color: var(--ink-muted); margin: 0 0 12px;
+      }
+      label { display: block; font-size: 12px; color: var(--ink-muted); margin: 10px 0 4px; }
+      input[type="text"], input[type="email"], input[type="password"] {
+        width: 100%; padding: 10px 12px; border-radius: 8px;
+        border: 1px solid var(--hairline); background: var(--bg); color: var(--ink);
+        font-family: ui-monospace, Menlo, monospace; font-size: 13px;
+      }
+      input:focus { outline: none; border-color: var(--accent); }
+      button {
+        padding: 9px 14px; border-radius: 8px; font-size: 13px; font-weight: 600;
+        cursor: pointer; border: 1px solid var(--hairline); background: var(--accent);
+        color: #04121a; border-color: transparent; margin-top: 12px;
+      }
+      button.ghost { background: transparent; color: var(--ink-muted); }
+      button.ghost:hover { color: var(--coral); border-color: var(--coral); }
+      .row { display: flex; align-items: center; gap: 10px; justify-content: space-between; }
+      .toggle { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--ink); }
+      .status { font-size: 13px; padding: 8px 10px; border-radius: 8px; margin-top: 6px; }
+      .status.in { background: rgba(46, 194, 126, 0.12); color: var(--teal); }
+      .status.out { background: rgba(245, 158, 66, 0.12); color: var(--amber); }
+      .saved { color: var(--teal); font-size: 12px; margin-left: 8px; opacity: 0; transition: opacity 0.2s; }
+      .saved.show { opacity: 1; }
+      .hint { font-size: 11px; color: var(--ink-muted); margin-top: 8px; line-height: 1.5; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="brand"><span class="dot"></span> Drishti Web Guard</div>
+      <h1>Options</h1>
+
+      <div class="card">
+        <h2>Drishti server</h2>
+        <label for="serverBaseUrl">Base URL</label>
+        <input type="text" id="serverBaseUrl" placeholder="http://localhost:8000" />
+        <button id="saveServer">Save<span class="saved" id="serverSaved">saved ✓</span></button>
+        <p class="hint">
+          The extension only ever calls this server. Default is the local Drishti backend. Changing
+          this to a non-localhost host may require granting a matching host permission (see README).
+        </p>
+      </div>
+
+      <div class="card">
+        <h2>Account</h2>
+        <div id="statusBox"></div>
+        <div id="loginForm">
+          <label for="email">Email</label>
+          <input type="email" id="email" placeholder="analyst@acme-retail.dev" autocomplete="username" />
+          <label for="password">Password</label>
+          <input type="password" id="password" placeholder="••••••••" autocomplete="current-password" />
+          <button id="login">Log in</button>
+        </div>
+        <button class="ghost" id="logout" style="display: none">Log out</button>
+        <p class="hint">
+          The analyzer requires a signed-in Drishti user. Access tokens expire in ~15 minutes; the
+          extension refreshes them automatically. Tokens are stored in extension-local storage.
+        </p>
+      </div>
+
+      <div class="card">
+        <h2>Protection</h2>
+        <div class="row">
+          <span class="toggle">
+            <input type="checkbox" id="blockingEnabled" />
+            <label for="blockingEnabled" style="margin: 0">Warn before high-risk sites</label>
+          </span>
+        </div>
+        <button class="ghost" id="clearAllow">Clear session allowlist</button>
+        <p class="hint">
+          "Proceed anyway" trusts a hostname for the current browser session. Clearing the allowlist
+          makes those sites prompt again.
+        </p>
+      </div>
+    </div>
+    <script src="options.js"></script>
+  </body>
+</html>

@@ -1,0 +1,31 @@
+{
+  "agent_id": "agent-demo",
+  "org_slug": "acme-retail",
+  "collected_at": "2026-07-06T10:20:00Z",
+  "host": {
+    "hostname": "web-app-01",
+    "ip": "10.0.1.11",
+    "os": "Ubuntu 22.04",
+    "asset_type": "webapp",
+    "zone_hint": "dmz",
+    "criticality_hint": "medium"
+  },
+  "services": [
+    { "port": 443, "protocol": "tcp", "name": "node-express", "version": "4.18.2" },
+    { "port": 22, "protocol": "tcp", "name": "openssh", "version": "8.9" }
+  ],
+  "vulnerabilities": [
+    {
+      "cve_id": "CVE-2024-0001",
+      "title": "Web app unauthenticated RCE",
+      "cvss": 9.8,
+      "severity": "critical",
+      "exploitability": 0.9,
+      "port": 443,
+      "summary": "Unauthenticated remote code execution in the public storefront application."
+    }
+  ],
+  "connectivity": [
+    { "to_ip": "10.0.2.10", "via": "network", "note": "app calls internal APIs" }
+  ]
+}

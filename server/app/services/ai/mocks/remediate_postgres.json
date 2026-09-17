@@ -1,0 +1,16 @@
+{
+  "refused": false,
+  "kind": "ansible",
+  "title": "Patch PostgreSQL and enforce least-privilege roles",
+  "summary": "Updates PostgreSQL to the patched build, revokes SUPERUSER from the application role, and restricts pg_hba.conf to the application subnet so the privilege-escalation path on db-prod-01 is closed.",
+  "script": "---\n- name: Remediate CVE-2024-0005 on db-prod-01\n  hosts: db-prod-01\n  become: true\n  tasks:\n    - name: Update PostgreSQL to the patched package\n      ansible.builtin.apt:\n        name: postgresql-14\n        state: latest\n        update_cache: true\n\n    - name: Revoke SUPERUSER from the application role\n      community.postgresql.postgresql_user:\n        name: app_service\n        role_attr_flags: NOSUPERUSER,NOCREATEDB\n\n    - name: Restrict pg_hba.conf to the application subnet\n      ansible.builtin.copy:\n        dest: /etc/postgresql/14/main/pg_hba.conf\n        content: |\n          # Managed by Drishti remediation - review before applying\n          local   all   all                    peer\n          host    all   app_service  10.0.2.0/24  scram-sha-256\n        owner: postgres\n        group: postgres\n        mode: '0640'\n      notify: reload postgresql\n\n  handlers:\n    - name: reload postgresql\n      ansible.builtin.service:\n        name: postgresql\n        state: reloaded\n",
+  "steps": [
+    "Update postgresql-14 to the patched version",
+    "Revoke SUPERUSER from the application role",
+    "Restrict pg_hba.conf to the app subnet (10.0.2.0/24)",
+    "Reload PostgreSQL to apply the new host-based access rules"
+  ],
+  "estimated_risk_reduction": 22.5,
+  "requires_restart": false,
+  "disclaimer": "Generated suggestion — review and test before running in production."
+}

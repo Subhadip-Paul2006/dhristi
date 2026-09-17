@@ -1,0 +1,12 @@
+{
+  "refused": false,
+  "impact_usd": 0,
+  "headline": "Public web app exposes the customer database to a multi-million-dollar breach path.",
+  "narrative": "An attacker reaching our public storefront could chain three weaknesses to arrive at the customer database, which holds our most sensitive records. Because each step is relatively easy to traverse, the likelihood of a full breach is meaningfully high, and the value of the data drives the exposure into the range shown. Closing the privilege-escalation step on the database tier would break the chain and remove the single most valuable target from reach.",
+  "drivers": [
+    "Unauthenticated remote code execution on the public web app",
+    "Trust relationship from the jump host into the database tier",
+    "Privilege escalation on PostgreSQL (db-prod-01)"
+  ],
+  "highest_leverage_action": "Patch the PostgreSQL privilege-escalation issue on db-prod-01 to sever the final hop."
+}

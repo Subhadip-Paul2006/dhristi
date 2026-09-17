@@ -1,0 +1,829 @@
+@import "./tokens.css";
+
+/* ============================================================
+ GSAP SECTION REVEAL ANIMATIONS
+ ============================================================ */
+
+[data-reveal] {
+ opacity: 0;
+ will-change: transform;
+}
+
+/* Stagger children */
+[data-stagger] > * {
+ opacity: 0;
+ will-change: transform;
+}
+
+/* ============================================================
+ COUNTER STATS
+ ============================================================ */
+.hml-counter {
+ font-family: var(--font-family-mono);
+ font-size: clamp(1.75rem, 2.5vw, 2.5rem);
+ font-weight: 800;
+ color: var(--color-accent);
+ letter-spacing: -0.03em;
+ line-height: 1;
+ margin-bottom: 0.5rem;
+ text-shadow: 0 2px 20px rgba(234, 88, 12, 0.3);
+}
+
+.hml-stat-label {
+ font-size: 0.8rem;
+ font-weight: 600;
+ color: var(--color-text-muted);
+ text-transform: uppercase;
+ letter-spacing: 0.05em;
+}
+
+/* ============================================================
+ INTEGRATION STRIP
+ ============================================================ */
+.hml-integration-strip {
+ padding: 1.5rem 0;
+ border-bottom: 1px solid var(--color-border-subtle);
+ background: var(--color-surface-base);
+ overflow: hidden;
+}
+
+.hml-marquee-track {
+ display: flex;
+ gap: 3rem;
+ animation: marqueeScroll 20s linear infinite;
+ white-space: nowrap;
+}
+
+@keyframes marqueeScroll {
+ 0% { transform: translateX(0); }
+ 100% { transform: translateX(-50%); }
+}
+
+.hml-marquee-item {
+ display: inline-flex;
+ align-items: center;
+ gap: 0.5rem;
+ font-family: var(--font-family-mono);
+ font-size: 0.85rem;
+ font-weight: 700;
+ color: var(--color-text-muted);
+ letter-spacing: 0.03em;
+ text-transform: uppercase;
+}
+
+/* ============================================================
+ SCROLL INDICATOR
+ ============================================================ */
+.hml-scroll-indicator {
+ position: absolute;
+ bottom: 2rem;
+ left: 50%;
+ transform: translateX(-50%);
+ display: flex;
+ flex-direction: column;
+ align-items: center;
+ gap: 0.5rem;
+ color: rgba(255, 255, 255, 0.5);
+ font-size: 0.75rem;
+ font-weight: 600;
+ letter-spacing: 0.08em;
+ text-transform: uppercase;
+ font-family: var(--font-family-mono);
+ z-index: 5;
+ animation: scrollBounce 2s ease-in-out infinite;
+}
+
+@keyframes scrollBounce {
+ 0%, 100% { transform: translateX(-50%) translateY(0); }
+ 50% { transform: translateX(-50%) translateY(8px); }
+}
+
+/* ============================================================
+ TESTIMONIALS
+ ============================================================ */
+.hml-testimonials-grid {
+ display: grid;
+ grid-template-columns: repeat(3, 1fr);
+ gap: 1.5rem;
+}
+
+.hml-testimonial-card {
+ padding: 2rem;
+ background: var(--color-surface-raised);
+ border: 1px solid var(--color-border-default);
+ border-radius: var(--radius-card);
+ box-shadow: var(--shadow-sm);
+ transition: all 0.3s ease;
+ position: relative;
+ overflow: hidden;
+}
+
+.hml-testimonial-card::before {
+ content: '';
+ position: absolute;
+ top: 0;
+ left: 0;
+ right: 0;
+ height: 3px;
+ background: linear-gradient(90deg, var(--color-accent), #fb923c);
+ opacity: 0;
+ transition: opacity 0.3s ease;
+}
+
+.hml-testimonial-card:hover {
+ transform: translateY(-4px);
+ box-shadow: var(--shadow-lift);
+ border-color: rgba(234, 88, 12, 0.2);
+}
+
+.hml-testimonial-card:hover::before {
+ opacity: 1;
+}
+
+/* ============================================================
+ FAQ ACCORDION
+ ============================================================ */
+.hml-faq-item {
+ border: 1px solid var(--color-border-default);
+ border-radius: var(--radius-card);
+ background: var(--color-surface-raised);
+ overflow: hidden;
+ transition: all 0.3s ease;
+}
+
+.hml-faq-item:hover {
+ border-color: rgba(234, 88, 12, 0.2);
+}
+
+.hml-faq-item--open {
+ box-shadow: var(--shadow-sm);
+ border-color: rgba(234, 88, 12, 0.25);
+}
+
+/* ============================================================
+ CTA BAND
+ ============================================================ */
+.hml-cta-band {
+ position: relative;
+ padding: clamp(4rem, 8vw, 6rem) 1.5rem;
+ background: var(--color-surface-dark);
+ text-align: center;
+ overflow: hidden;
+}
+
+.hml-gradient-text-ember {
+ background: linear-gradient(135deg, var(--color-accent), #fb923c);
+ -webkit-background-clip: text;
+ -webkit-text-fill-color: transparent;
+ background-clip: text;
+}
+
+.hml-cta-glow {
+ position: relative;
+ z-index: 2;
+ box-shadow: 0 0 40px rgba(234, 88, 12, 0.3), 0 4px 20px rgba(234, 88, 12, 0.2);
+}
+
+.hml-cta-glow:hover {
+ box-shadow: 0 0 60px rgba(234, 88, 12, 0.4), 0 6px 30px rgba(234, 88, 12, 0.3);
+}
+
+.hml-noise-overlay {
+ position: absolute;
+ inset: 0;
+ background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+ opacity: 0.03;
+ pointer-events: none;
+ z-index: 1;
+}
+
+/* ============================================================
+ RESPONSIVE
+ ============================================================ */
+@media (max-width: 1024px) {
+ .hml-testimonials-grid {
+ grid-template-columns: repeat(2, 1fr);
+ }
+
+ .hml-nav-links {
+ display: none;
+ }
+}
+
+@media (max-width: 640px) {
+ .hml-testimonials-grid {
+ grid-template-columns: 1fr;
+ }
+
+ .hml-counter {
+ font-size: 1.5rem;
+ }
+
+ .hml-cta-band h2 {
+ font-size: 1.75rem;
+ }
+}
+
+/* ============================================================
+ GRADIENT MESH BACKGROUND
+ ============================================================ */
+.hml-gradient-mesh {
+ position: absolute;
+ inset: 0;
+ z-index: 0;
+ pointer-events: none;
+ overflow: hidden;
+}
+
+.hml-mesh-blob {
+ position: absolute;
+ border-radius: 50%;
+ filter: blur(80px);
+ opacity: 0.4;
+ animation: meshFloat 15s ease-in-out infinite;
+}
+
+.hml-mesh-blob-1 {
+ width: 500px;
+ height: 500px;
+ top: -10%;
+ right: -5%;
+ background: radial-gradient(circle, rgba(234, 88, 12, 0.25), transparent);
+}
+
+.hml-mesh-blob-2 {
+ width: 400px;
+ height: 400px;
+ bottom: 10%;
+ left: -8%;
+ background: radial-gradient(circle, rgba(56, 198, 244, 0.15), transparent);
+ animation-delay: 5s;
+}
+
+.hml-mesh-blob-3 {
+ width: 300px;
+ height: 300px;
+ top: 40%;
+ left: 50%;
+ background: radial-gradient(circle, rgba(124, 58, 237, 0.12), transparent);
+ animation-delay: 10s;
+}
+
+@keyframes meshFloat {
+ 0%, 100% { transform: translate(0, 0) scale(1); }
+ 33% { transform: translate(30px, -40px) scale(1.1); }
+ 66% { transform: translate(-20px, 30px) scale(0.95); }
+}
+
+/* ============================================================
+ HERO CINEMATIC ENHANCEMENTS
+ ============================================================ */
+.hml-hero-master-wrap {
+ position: relative;
+}
+
+.hml-hero-content-wrapper {
+ position: relative;
+ z-index: 10;
+}
+
+/* Ambient light rays */
+.hml-hero-rays {
+ position: absolute;
+ inset: 0;
+ background: linear-gradient(
+ 180deg,
+ transparent 0%,
+ rgba(234, 88, 12, 0.03) 50%,
+ transparent 100%
+ );
+ pointer-events: none;
+ z-index: 2;
+}
+
+/* ============================================================
+ SECTION ENHANCEMENTS
+ ============================================================ */
+.hml-section {
+ position: relative;
+ padding: clamp(4rem, 8vw, 6rem) 0;
+ overflow: hidden;
+}
+
+.hml-section::before {
+ content: '';
+ position: absolute;
+ top: 0;
+ left: 50%;
+ transform: translateX(-50%);
+ width: 60%;
+ height: 1px;
+ background: linear-gradient(
+ 90deg,
+ transparent,
+ var(--color-border-subtle),
+ transparent
+ );
+}
+
+.hml-section-header {
+ text-align: center;
+ margin-bottom: clamp(3rem, 6vw, 4rem);
+}
+
+.hml-section-tag {
+ display: inline-block;
+ padding: 0.35rem 1rem;
+ background: rgba(234, 88, 12, 0.08);
+ border: 1px solid rgba(234, 88, 12, 0.2);
+ border-radius: var(--radius-pill);
+ color: var(--color-accent);
+ font-size: 0.75rem;
+ font-weight: 700;
+ letter-spacing: 0.08em;
+ text-transform: uppercase;
+ margin-bottom: 1rem;
+ font-family: var(--font-family-mono);
+}
+
+.hml-section-title {
+ font-size: clamp(2rem, 3.5vw, 2.75rem);
+ font-weight: 800;
+ color: var(--color-text-primary);
+ margin-bottom: 1rem;
+ letter-spacing: -0.03em;
+}
+
+.hml-section-desc {
+ font-size: clamp(1rem, 1.2vw, 1.125rem);
+ color: var(--color-text-muted);
+ max-width: 48rem;
+ margin-inline: auto;
+ line-height: 1.7;
+}
+
+/* ============================================================
+ GRID HELPERS
+ ============================================================ */
+.hml-grid-3 {
+ display: grid;
+ grid-template-columns: repeat(3, 1fr);
+ gap: 1.5rem;
+}
+
+@media (max-width: 1024px) {
+ .hml-grid-3 {
+ grid-template-columns: repeat(2, 1fr);
+ }
+}
+
+@media (max-width: 640px) {
+ .hml-grid-3 {
+ grid-template-columns: 1fr;
+ }
+}
+
+/* ============================================================
+ PILLAR CARDS ACCENT BORDERS
+ ============================================================ */
+.hml-grid-3 > * {
+ position: relative;
+ overflow: hidden;
+}
+
+.hml-grid-3 > *::after {
+ content: '';
+ position: absolute;
+ top: 0;
+ left: 0;
+ right: 0;
+ height: 2px;
+ background: linear-gradient(90deg, var(--color-accent), transparent);
+ opacity: 0;
+ transition: opacity 0.3s ease;
+}
+
+.hml-grid-3 > *:hover::after {
+ opacity: 1;
+}
+
+/* ============================================================
+ PIPELINE CARDS
+ ============================================================ */
+.hml-pipeline-card {
+ min-width: 380px;
+ max-width: 420px;
+ flex-shrink: 0;
+ background: var(--color-surface-raised);
+ border: 1px solid var(--color-border-default);
+ border-radius: var(--radius-card);
+ overflow: hidden;
+ box-shadow: var(--shadow-card);
+ transition: all 0.3s ease;
+ position: relative;
+}
+
+.hml-pipeline-card:hover {
+ box-shadow: var(--shadow-lift);
+ border-color: rgba(234, 88, 12, 0.2);
+}
+
+.hml-card-accent-line {
+ height: 3px;
+ width: 100%;
+}
+
+.hml-card-top-meta {
+ display: flex;
+ justify-content: space-between;
+ align-items: center;
+ margin-bottom: 0.75rem;
+ flex-wrap: wrap;
+ gap: 0.5rem;
+}
+
+.hml-stage-chip {
+ display: inline-flex;
+ align-items: center;
+ gap: 4px;
+ padding: 0.25rem 0.6rem;
+ border-radius: var(--radius-sm);
+ font-size: 0.7rem;
+ font-weight: 700;
+ letter-spacing: 0.05em;
+ border: 1px solid;
+ font-family: var(--font-family-mono);
+}
+
+.hml-meta-badge {
+ font-size: 0.7rem;
+ font-family: var(--font-family-mono);
+ color: var(--color-text-muted);
+ padding: 0.2rem 0.5rem;
+ background: var(--color-surface-base);
+ border-radius: var(--radius-sm);
+ border: 1px solid var(--color-border-subtle);
+}
+
+.hml-card-heading {
+ font-size: 1.15rem;
+ font-weight: 800;
+ color: var(--color-text-primary);
+ margin: 0 0 0.5rem;
+ letter-spacing: -0.02em;
+}
+
+.hml-card-body {
+ font-size: 0.9rem;
+ color: var(--color-text-muted);
+ line-height: 1.6;
+ margin: 0 0 1.25rem;
+}
+
+.hml-card-visual-box {
+ border-radius: var(--radius-sm);
+ border: 1px solid var(--color-border-subtle);
+ padding: 1rem;
+ overflow: hidden;
+}
+
+/* ============================================================
+ COMPARISON TABLE
+ ============================================================ */
+.hml-comparison-row {
+ display: grid;
+ grid-template-columns: 1.2fr 1.4fr 1.4fr;
+ padding: 1.25rem 1.75rem;
+ border-bottom: 1px solid var(--color-border-subtle);
+ font-size: 0.9rem;
+ align-items: center;
+ gap: 1rem;
+ transition: background 0.2s ease;
+}
+
+.hml-comparison-row:hover {
+ background: var(--color-surface-raised);
+}
+
+/* ============================================================
+ PLAYBOOK TERMINAL
+ ============================================================ */
+.hml-terminal {
+ border-radius: var(--radius-card);
+ background: #0f110e;
+ border: 1px solid rgba(255, 255, 255, 0.12);
+ overflow: hidden;
+ box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.5);
+}
+
+.hml-terminal-header {
+ display: flex;
+ justify-content: space-between;
+ align-items: center;
+ padding: 0.85rem 1.25rem;
+ background: rgba(255, 255, 255, 0.04);
+ border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.hml-terminal-dot {
+ width: 11px;
+ height: 11px;
+ border-radius: 50%;
+}
+
+.hml-terminal-body {
+ margin: 0;
+ padding: 1.5rem;
+ color: #f2efe7;
+ font-family: var(--font-family-mono);
+ font-size: 0.85rem;
+ line-height: 1.6;
+ overflow-x: auto;
+}
+
+.hml-terminal-tab {
+ padding: 0.35rem 0.85rem;
+ border-radius: 6px;
+ border: 1px solid transparent;
+ background: transparent;
+ color: #8b8f87;
+ font-family: var(--font-family-mono);
+ font-size: 0.75rem;
+ font-weight: 700;
+ cursor: pointer;
+ text-transform: uppercase;
+ transition: all 0.2s ease;
+}
+
+.hml-terminal-tab--active {
+ border-color: var(--color-accent);
+ background: rgba(234, 88, 12, 0.15);
+ color: #fb923c;
+}
+
+.hml-terminal-tab:hover:not(.hml-terminal-tab--active) {
+ background: rgba(255, 255, 255, 0.05);
+ color: #e2e8f0;
+}
+
+/* ============================================================
+ GRAPH PIPELINE VISUAL
+ ============================================================ */
+.hml-graph-pipeline {
+ display: flex;
+ align-items: center;
+ justify-content: center;
+ gap: 0.75rem;
+ flex-wrap: wrap;
+}
+
+.hml-node-pill {
+ padding: 0.5rem 0.75rem;
+ border-radius: var(--radius-sm);
+ border: 1px solid;
+ text-align: center;
+ min-width: 80px;
+}
+
+.hml-node-arrow {
+ display: flex;
+ flex-direction: column;
+ align-items: center;
+ gap: 2px;
+}
+
+.hml-arrow-line {
+ width: 20px;
+ height: 1px;
+ background: var(--color-border-default);
+ position: relative;
+}
+
+.hml-arrow-line::after {
+ content: '';
+ position: absolute;
+ right: -1px;
+ top: -2px;
+ width: 5px;
+ height: 5px;
+ border-right: 1px solid var(--color-border-default);
+ border-top: 1px solid var(--color-border-default);
+ transform: rotate(45deg);
+}
+
+.hml-arrow-label {
+ font-size: 9px;
+ font-family: var(--font-family-mono);
+ color: #64748b;
+ font-weight: 600;
+}
+
+/* ============================================================
+ FOOTER
+ ============================================================ */
+.hml-footer {
+ padding: 3rem 0;
+ background: var(--color-surface-dark);
+ border-top: 1px solid var(--color-border-subtle);
+}
+
+.hml-footer-inner {
+ max-width: 76rem;
+ margin-inline: auto;
+ padding-inline: clamp(var(--space-4), 4vw, var(--space-9));
+}
+
+/* ============================================================
+ ANIMATIONS
+ ============================================================ */
+@keyframes fadeInUp {
+ from {
+ opacity: 0;
+ transform: translateY(30px);
+ }
+ to {
+ opacity: 1;
+ transform: translateY(0);
+ }
+}
+
+.hml-animate-fade-in-up {
+ animation: fadeInUp 0.7s ease-out forwards;
+}
+
+/* ============================================================
+ NETWORK GRAPH (Canvas Container)
+ ============================================================ */
+.hml-network-graph-container {
+ position: relative;
+ width: 100%;
+ border-radius: var(--radius-card);
+ border: 1px solid var(--color-border-default);
+ background: var(--color-surface-raised);
+ overflow: hidden;
+ box-shadow: var(--shadow-lift);
+}
+
+.hml-network-graph-legend {
+ position: absolute;
+ bottom: 1rem;
+ left: 50%;
+ transform: translateX(-50%);
+ display: flex;
+ gap: 1.5rem;
+ padding: 0.5rem 1.25rem;
+ background: rgba(255, 255, 255, 0.85);
+ backdrop-filter: blur(12px);
+ border: 1px solid var(--color-border-default);
+ border-radius: var(--radius-pill);
+ font-size: 0.75rem;
+ font-weight: 600;
+ font-family: var(--font-family-mono);
+ color: var(--color-text-primary);
+ z-index: 10;
+}
+
+.hml-network-graph-tooltip {
+ position: absolute;
+ padding: 0.5rem 0.75rem;
+ background: var(--color-surface-raised);
+ border: 1px solid var(--color-border-default);
+ border-radius: var(--radius-sm);
+ font-size: 0.75rem;
+ font-weight: 600;
+ color: var(--color-text-primary);
+ box-shadow: var(--shadow-card);
+ pointer-events: none;
+ z-index: 20;
+ font-family: var(--font-family-mono);
+ opacity: 0;
+ transition: opacity 0.2s ease;
+}
+
+.hml-network-graph-tooltip--visible {
+ opacity: 1;
+}
+
+/* ============================================================
+ MAGNETIC BUTTON
+ ============================================================ */
+.hml-magnetic-btn {
+ position: relative;
+ display: inline-flex;
+ align-items: center;
+ justify-content: center;
+ transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.hml-magnetic-btn__ripple {
+ position: absolute;
+ inset: 0;
+ border-radius: inherit;
+ background: radial-gradient(circle, rgba(255, 255, 255, 0.3) 0%, transparent 70%);
+ opacity: 0;
+ transform: scale(0);
+ transition: all 0.5s ease;
+}
+
+.hml-magnetic-btn:active .hml-magnetic-btn__ripple {
+ opacity: 1;
+ transform: scale(1);
+}
+
+/* ============================================================
+ GLASS CARD
+ ============================================================ */
+.hml-glass-card {
+ background: rgba(255, 255, 255, 0.65);
+ backdrop-filter: blur(20px);
+ -webkit-backdrop-filter: blur(20px);
+ border: 1px solid rgba(255, 255, 255, 0.2);
+ border-radius: var(--radius-card);
+ padding: 1.5rem;
+ box-shadow: var(--shadow-sm);
+ position: relative;
+ overflow: hidden;
+ transition: all 0.3s ease;
+}
+
+.hml-glass-card::before {
+ content: '';
+ position: absolute;
+ top: 0;
+ left: 0;
+ right: 0;
+ height: 3px;
+ background: linear-gradient(90deg, var(--glass-accent, var(--color-accent)), transparent);
+ opacity: 0;
+ transition: opacity 0.3s ease;
+}
+
+.hml-glass-card:hover {
+ background: rgba(255, 255, 255, 0.75);
+ box-shadow: var(--shadow-lift);
+ transform: translateY(-2px);
+}
+
+.hml-glass-card:hover::before {
+ opacity: 1;
+}
+
+.hml-glass-card--dark {
+ background: rgba(15, 17, 14, 0.75);
+ border-color: rgba(255, 255, 255, 0.1);
+}
+
+.hml-glass-card--dark:hover {
+ background: rgba(15, 17, 14, 0.85);
+}
+
+/* ============================================================
+ SCROLL REVEAL
+ ============================================================ */
+.hml-reveal {
+ opacity: 0;
+ will-change: transform;
+}
+
+.hml-reveal--up {
+ transform: translateY(30px);
+}
+
+.hml-reveal--down {
+ transform: translateY(-30px);
+}
+
+.hml-reveal--left {
+ transform: translateX(-30px);
+}
+
+.hml-reveal--right {
+ transform: translateX(30px);
+}
+
+.hml-reveal--visible {
+ opacity: 1;
+ transform: translate(0, 0);
+ transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ============================================================
+ HORIZONTAL SCROLL SECTION
+ ============================================================ */
+.hml-horizontal-scroll-section {
+ height: auto;
+}
+
+.hml-horizontal-sticky {
+ position: sticky;
+ top: 0;
+ overflow: hidden;
+ padding-top: 1rem;
+}
+
+.hml-horizontal-track {
+ display: flex;
+ gap: 1.5rem;
+ padding: 1rem 0;
+ will-change: transform;
+}

@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "Drishti Web Guard",
+  "version": "0.1.0",
+  "description": "Warns before you open a suspicious website, using the Drishti URL Trust Analyzer as the single verdict source. Inspect-and-warn only; never attacks.",
+  "permissions": ["webNavigation", "storage", "tabs"],
+  "host_permissions": ["http://localhost:8000/*"],
+  "optional_host_permissions": ["http://*/*", "https://*/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "options_page": "options.html",
+  "action": {
+    "default_title": "Drishti Web Guard"
+  }
+}

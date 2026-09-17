@@ -1,0 +1,124 @@
+/* ============================================================
+ Magnetic Button — Drishti Theme
+ ============================================================ */
+
+.magnetic-btn-wrapper {
+ display: inline-block;
+ position: relative;
+}
+
+.magnetic-btn {
+ position: relative;
+ display: inline-flex;
+ align-items: center;
+ justify-content: center;
+ gap: 0.5rem;
+ border: none;
+ border-radius: var(--radius-pill);
+ cursor: pointer;
+ font-family: var(--font-family-primary);
+ font-weight: 700;
+ text-decoration: none;
+ overflow: hidden;
+ transition: box-shadow 0.3s ease;
+ white-space: nowrap;
+ -webkit-user-select: none;
+ user-select: none;
+}
+
+/* Ripple effect */
+.magnetic-btn__ripple {
+ position: absolute;
+ inset: 0;
+ pointer-events: none;
+ overflow: hidden;
+ border-radius: inherit;
+}
+
+.magnetic-btn--hovering .magnetic-btn__ripple::after {
+ content: "";
+ position: absolute;
+ inset: 0;
+ background: radial-gradient(circle at var(--ripple-x, 50%) var(--ripple-y, 50%),
+ rgba(255, 255, 255, 0.3) 0%,
+ transparent 60%);
+ opacity: 0;
+ animation: magneticRipple 0.6s ease-out forwards;
+}
+
+@keyframes magneticRipple {
+ 0% { opacity: 1; transform: scale(0.8); }
+ 100% { opacity: 0; transform: scale(1.2); }
+}
+
+/* Sizes */
+.magnetic-btn--sm {
+ padding: 0.5rem 1.25rem;
+ font-size: var(--font-size-xl);
+}
+
+.magnetic-btn--md {
+ padding: 0.75rem 2rem;
+ font-size: var(--font-size-2xl);
+}
+
+.magnetic-btn--lg {
+ padding: 1rem 2.5rem;
+ font-size: var(--font-size-3xl);
+}
+
+/* Primary Variant — Ember Orange */
+.magnetic-btn--primary {
+ background: var(--color-accent);
+ color: #ffffff;
+ box-shadow: var(--shadow-accent);
+}
+
+.magnetic-btn--primary:hover {
+ background: var(--color-accent-hover);
+ box-shadow: 0 6px 24px rgba(234, 88, 12, 0.4);
+}
+
+.magnetic-btn--primary:active {
+ transform: scale(0.97);
+}
+
+/* Outline Variant */
+.magnetic-btn--outline {
+ background: transparent;
+ color: var(--color-text-primary);
+ border: 1.5px solid var(--color-border-default);
+ box-shadow: none;
+}
+
+.magnetic-btn--outline:hover {
+ background: var(--color-surface-raised);
+ border-color: var(--color-border-hover);
+ box-shadow: var(--shadow-card);
+}
+
+/* Ghost Variant */
+.magnetic-btn--ghost {
+ background: transparent;
+ color: var(--color-text-muted);
+ box-shadow: none;
+}
+
+.magnetic-btn--ghost:hover {
+ color: var(--color-accent);
+ background: var(--color-accent-soft);
+}
+
+/* Content transition */
+.magnetic-btn__content {
+ position: relative;
+ z-index: 1;
+ transition: transform 0.2s ease;
+}
+
+@media (max-width: 768px) {
+ .magnetic-btn--lg {
+ padding: 0.8rem 1.8rem;
+ font-size: var(--font-size-2xl);
+ }
+}

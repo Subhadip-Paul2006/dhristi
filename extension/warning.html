@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Drishti Web Guard — Warning</title>
+    <link rel="stylesheet" href="warning.css" />
+  </head>
+  <body>
+    <div class="wrap">
+      <main class="card">
+        <div class="brand"><span class="dot"></span> Drishti Web Guard</div>
+        <h1>This site was flagged as high risk</h1>
+        <p class="sub">
+          Drishti's URL Trust Analyzer scored this destination before it loaded. Review the reasons
+          below before continuing.
+        </p>
+
+        <div class="score-row">
+          <div class="score">
+            <b id="score">—</b>
+            <span>/ 100</span>
+          </div>
+          <div class="url" id="url">—</div>
+        </div>
+
+        <span class="badge" id="verdict">High Risk</span>
+
+        <section class="reasons">
+          <h2>Why it was flagged</h2>
+          <ul id="reasons"></ul>
+        </section>
+
+        <div class="actions">
+          <button class="btn-back" id="back">← Go back to safety</button>
+          <button class="btn-proceed" id="proceed">Proceed anyway</button>
+        </div>
+
+        <p class="foot">
+          Drishti is a defensive tool — it inspects and warns, it never attacks. "Proceed anyway"
+          trusts this site for the rest of this browser session only.
+        </p>
+      </main>
+    </div>
+    <script src="warning.js"></script>
+  </body>
+</html>

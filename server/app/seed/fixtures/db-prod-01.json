@@ -1,0 +1,31 @@
+{
+  "agent_id": "agent-demo",
+  "org_slug": "acme-retail",
+  "collected_at": "2026-07-06T10:15:00Z",
+  "host": {
+    "hostname": "db-prod-01",
+    "ip": "10.0.3.11",
+    "os": "Ubuntu 22.04",
+    "asset_type": "database",
+    "zone_hint": "crown_jewel",
+    "criticality_hint": "critical"
+  },
+  "services": [
+    { "port": 5432, "protocol": "tcp", "name": "postgresql", "version": "14.2" },
+    { "port": 22, "protocol": "tcp", "name": "openssh", "version": "8.9" }
+  ],
+  "vulnerabilities": [
+    {
+      "cve_id": "CVE-2024-0005",
+      "title": "PostgreSQL priv-esc",
+      "cvss": 8.8,
+      "severity": "high",
+      "exploitability": 0.7,
+      "port": 5432,
+      "summary": "Privilege escalation in PostgreSQL 14.2 allowing an application role to gain superuser."
+    }
+  ],
+  "connectivity": [
+    { "to_ip": "10.0.3.12", "via": "network", "note": "same subnet" }
+  ]
+}

@@ -1,0 +1,1368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+ <meta charset="UTF-8">
+ <meta name="viewport" content="width=device-width, initial-scale=1.0">
+ <title>Nexus — Modern Digital Platform</title>
+ <link rel="preconnect" href="https://fonts.googleapis.com">
+ <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+ <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+ <style>
+ :root {
+ --bg-primary: #0a0a0a;
+ --bg-secondary: #0f0f0f;
+ --bg-card: #141414;
+ --bg-card-hover: #1a1a1a;
+ --accent: #f59e0b;
+ --accent-light: #fbbf24;
+ --accent-glow: rgba(245, 158, 11, 0.15);
+ --accent-glow-strong: rgba(245, 158, 11, 0.3);
+ --text-primary: #ffffff;
+ --text-secondary: #a3a3a3;
+ --text-muted: #737373;
+ --border: #1f1f1f;
+ --border-hover: #2a2a2a;
+ }
+
+ * {
+ margin: 0;
+ padding: 0;
+ box-sizing: border-box;
+ }
+
+ html {
+ scroll-behavior: smooth;
+ }
+
+ body {
+ font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+ background: var(--bg-primary);
+ color: var(--text-primary);
+ overflow-x: hidden;
+ line-height: 1.6;
+ }
+
+ ::-webkit-scrollbar {
+ width: 6px;
+ }
+ ::-webkit-scrollbar-track {
+ background: var(--bg-primary);
+ }
+ ::-webkit-scrollbar-thumb {
+ background: var(--accent);
+ border-radius: 3px;
+ }
+
+ /* Navigation */
+ nav {
+ position: fixed;
+ top: 0;
+ left: 0;
+ right: 0;
+ z-index: 1000;
+ padding: 1.25rem 2rem;
+ transition: all 0.4s ease;
+ backdrop-filter: blur(0px);
+ }
+
+ nav.scrolled {
+ background: rgba(10, 10, 10, 0.85);
+ backdrop-filter: blur(20px);
+ border-bottom: 1px solid var(--border);
+ padding: 1rem 2rem;
+ }
+
+ .nav-container {
+ max-width: 1400px;
+ margin: 0 auto;
+ display: flex;
+ justify-content: space-between;
+ align-items: center;
+ }
+
+ .logo {
+ font-family: 'Space Grotesk', sans-serif;
+ font-size: 1.5rem;
+ font-weight: 700;
+ color: var(--text-primary);
+ text-decoration: none;
+ display: flex;
+ align-items: center;
+ gap: 0.5rem;
+ }
+
+ .logo-icon {
+ width: 32px;
+ height: 32px;
+ background: var(--accent);
+ border-radius: 8px;
+ display: flex;
+ align-items: center;
+ justify-content: center;
+ font-size: 1rem;
+ font-weight: 800;
+ color: var(--bg-primary);
+ }
+
+ .nav-links {
+ display: flex;
+ gap: 2.5rem;
+ list-style: none;
+ }
+
+ .nav-links a {
+ color: var(--text-secondary);
+ text-decoration: none;
+ font-size: 0.9rem;
+ font-weight: 500;
+ transition: color 0.3s ease;
+ position: relative;
+ }
+
+ .nav-links a:hover {
+ color: var(--accent);
+ }
+
+ .nav-links a::after {
+ content: '';
+ position: absolute;
+ bottom: -4px;
+ left: 0;
+ width: 0;
+ height: 2px;
+ background: var(--accent);
+ transition: width 0.3s ease;
+ }
+
+ .nav-links a:hover::after {
+ width: 100%;
+ }
+
+ .nav-cta {
+ background: var(--accent);
+ color: var(--bg-primary);
+ padding: 0.65rem 1.5rem;
+ border-radius: 8px;
+ text-decoration: none;
+ font-weight: 600;
+ font-size: 0.9rem;
+ transition: all 0.3s ease;
+ border: none;
+ cursor: pointer;
+ }
+
+ .nav-cta:hover {
+ background: var(--accent-light);
+ transform: translateY(-1px);
+ box-shadow: 0 4px 20px var(--accent-glow-strong);
+ }
+
+ .mobile-menu-btn {
+ display: none;
+ background: none;
+ border: none;
+ color: var(--text-primary);
+ font-size: 1.5rem;
+ cursor: pointer;
+ }
+
+ /* Hero Section */
+ .hero {
+ min-height: 100vh;
+ display: flex;
+ align-items: center;
+ justify-content: center;
+ position: relative;
+ padding: 8rem 2rem 4rem;
+ overflow: hidden;
+ }
+
+ .hero-bg {
+ position: absolute;
+ inset: 0;
+ overflow: hidden;
+ }
+
+ .hero-gradient {
+ position: absolute;
+ top: -20%;
+ right: -10%;
+ width: 700px;
+ height: 700px;
+ background: radial-gradient(circle, var(--accent-glow-strong) 0%, transparent 70%);
+ filter: blur(60px);
+ animation: pulse 8s ease-in-out infinite;
+ }
+
+ .hero-gradient-2 {
+ position: absolute;
+ bottom: -10%;
+ left: -10%;
+ width: 500px;
+ height: 500px;
+ background: radial-gradient(circle, rgba(245, 158, 11, 0.1) 0%, transparent 70%);
+ filter: blur(80px);
+ animation: pulse 10s ease-in-out infinite reverse;
+ }
+
+ @keyframes pulse {
+ 0%, 100% { transform: scale(1); opacity: 1; }
+ 50% { transform: scale(1.1); opacity: 0.7; }
+ }
+
+ .hero-grid {
+ position: absolute;
+ inset: 0;
+ background-image:
+ linear-gradient(rgba(245, 158, 11, 0.03) 1px, transparent 1px),
+ linear-gradient(90deg, rgba(245, 158, 11, 0.03) 1px, transparent 1px);
+ background-size: 60px 60px;
+ mask-image: radial-gradient(ellipse at center, black 30%, transparent 80%);
+ }
+
+ .hero-content {
+ max-width: 900px;
+ text-align: center;
+ position: relative;
+ z-index: 2;
+ }
+
+ .hero-badge {
+ display: inline-flex;
+ align-items: center;
+ gap: 0.5rem;
+ background: var(--accent-glow);
+ border: 1px solid rgba(245, 158, 11, 0.2);
+ padding: 0.5rem 1rem;
+ border-radius: 50px;
+ font-size: 0.85rem;
+ color: var(--accent-light);
+ margin-bottom: 2rem;
+ font-weight: 500;
+ }
+
+ .hero-badge-dot {
+ width: 6px;
+ height: 6px;
+ background: var(--accent);
+ border-radius: 50%;
+ animation: blink 2s ease-in-out infinite;
+ }
+
+ @keyframes blink {
+ 0%, 100% { opacity: 1; }
+ 50% { opacity: 0.3; }
+ }
+
+ .hero h1 {
+ font-family: 'Space Grotesk', sans-serif;
+ font-size: clamp(2.5rem, 6vw, 4.5rem);
+ font-weight: 700;
+ line-height: 1.1;
+ margin-bottom: 1.5rem;
+ letter-spacing: -0.02em;
+ }
+
+ .hero h1 .highlight {
+ background: linear-gradient(135deg, var(--accent), var(--accent-light));
+ -webkit-background-clip: text;
+ -webkit-text-fill-color: transparent;
+ background-clip: text;
+ }
+
+ .hero p {
+ font-size: 1.15rem;
+ color: var(--text-secondary);
+ max-width: 600px;
+ margin: 0 auto 2.5rem;
+ line-height: 1.7;
+ }
+
+ .hero-buttons {
+ display: flex;
+ gap: 1rem;
+ justify-content: center;
+ flex-wrap: wrap;
+ }
+
+ .btn-primary {
+ background: var(--accent);
+ color: var(--bg-primary);
+ padding: 0.9rem 2rem;
+ border-radius: 10px;
+ text-decoration: none;
+ font-weight: 600;
+ font-size: 1rem;
+ transition: all 0.3s ease;
+ border: none;
+ cursor: pointer;
+ display: inline-flex;
+ align-items: center;
+ gap: 0.5rem;
+ }
+
+ .btn-primary:hover {
+ background: var(--accent-light);
+ transform: translateY(-2px);
+ box-shadow: 0 8px 30px var(--accent-glow-strong);
+ }
+
+ .btn-secondary {
+ background: transparent;
+ color: var(--text-primary);
+ padding: 0.9rem 2rem;
+ border-radius: 10px;
+ text-decoration: none;
+ font-weight: 600;
+ font-size: 1rem;
+ transition: all 0.3s ease;
+ border: 1px solid var(--border);
+ cursor: pointer;
+ display: inline-flex;
+ align-items: center;
+ gap: 0.5rem;
+ }
+
+ .btn-secondary:hover {
+ border-color: var(--accent);
+ color: var(--accent);
+ transform: translateY(-2px);
+ }
+
+ /* Stats Bar */
+ .stats-bar {
+ max-width: 900px;
+ margin: 4rem auto 0;
+ display: flex;
+ justify-content: center;
+ gap: 3rem;
+ padding: 2rem;
+ border-top: 1px solid var(--border);
+ }
+
+ .stat-item {
+ text-align: center;
+ }
+
+ .stat-number {
+ font-family: 'Space Grotesk', sans-serif;
+ font-size: 2rem;
+ font-weight: 700;
+ color: var(--accent);
+ }
+
+ .stat-label {
+ font-size: 0.85rem;
+ color: var(--text-muted);
+ margin-top: 0.25rem;
+ }
+
+ /* Section Styles */
+ section {
+ padding: 6rem 2rem;
+ position: relative;
+ }
+
+ .section-container {
+ max-width: 1200px;
+ margin: 0 auto;
+ }
+
+ .section-header {
+ text-align: center;
+ margin-bottom: 4rem;
+ }
+
+ .section-tag {
+ font-size: 0.85rem;
+ font-weight: 600;
+ color: var(--accent);
+ text-transform: uppercase;
+ letter-spacing: 0.1em;
+ margin-bottom: 1rem;
+ }
+
+ .section-header h2 {
+ font-family: 'Space Grotesk', sans-serif;
+ font-size: clamp(2rem, 4vw, 3rem);
+ font-weight: 700;
+ margin-bottom: 1rem;
+ letter-spacing: -0.02em;
+ }
+
+ .section-header p {
+ color: var(--text-secondary);
+ font-size: 1.1rem;
+ max-width: 550px;
+ margin: 0 auto;
+ }
+
+ /* Features Section */
+ .features-grid {
+ display: grid;
+ grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+ gap: 1.5rem;
+ }
+
+ .feature-card {
+ background: var(--bg-card);
+ border: 1px solid var(--border);
+ border-radius: 16px;
+ padding: 2rem;
+ transition: all 0.4s ease;
+ position: relative;
+ overflow: hidden;
+ }
+
+ .feature-card::before {
+ content: '';
+ position: absolute;
+ top: 0;
+ left: 0;
+ right: 0;
+ height: 2px;
+ background: linear-gradient(90deg, transparent, var(--accent), transparent);
+ opacity: 0;
+ transition: opacity 0.4s ease;
+ }
+
+ .feature-card:hover {
+ background: var(--bg-card-hover);
+ border-color: var(--border-hover);
+ transform: translateY(-4px);
+ box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+ }
+
+ .feature-card:hover::before {
+ opacity: 1;
+ }
+
+ .feature-icon {
+ width: 48px;
+ height: 48px;
+ background: var(--accent-glow);
+ border: 1px solid rgba(245, 158, 11, 0.2);
+ border-radius: 12px;
+ display: flex;
+ align-items: center;
+ justify-content: center;
+ font-size: 1.25rem;
+ margin-bottom: 1.25rem;
+ }
+
+ .feature-card h3 {
+ font-family: 'Space Grotesk', sans-serif;
+ font-size: 1.15rem;
+ font-weight: 600;
+ margin-bottom: 0.75rem;
+ }
+
+ .feature-card p {
+ color: var(--text-secondary);
+ font-size: 0.95rem;
+ line-height: 1.7;
+ }
+
+ /* Showcase Section */
+ .showcase {
+ background: var(--bg-secondary);
+ }
+
+ .showcase-grid {
+ display: grid;
+ grid-template-columns: 1fr 1fr;
+ gap: 4rem;
+ align-items: center;
+ }
+
+ .showcase-content h2 {
+ font-family: 'Space Grotesk', sans-serif;
+ font-size: clamp(2rem, 4vw, 2.75rem);
+ font-weight: 700;
+ margin-bottom: 1.25rem;
+ letter-spacing: -0.02em;
+ }
+
+ .showcase-content p {
+ color: var(--text-secondary);
+ font-size: 1.05rem;
+ margin-bottom: 1.5rem;
+ line-height: 1.7;
+ }
+
+ .showcase-list {
+ list-style: none;
+ display: flex;
+ flex-direction: column;
+ gap: 1rem;
+ }
+
+ .showcase-list li {
+ display: flex;
+ align-items: center;
+ gap: 0.75rem;
+ color: var(--text-secondary);
+ font-size: 0.95rem;
+ }
+
+ .showcase-list li .check {
+ width: 20px;
+ height: 20px;
+ background: var(--accent-glow);
+ border-radius: 50%;
+ display: flex;
+ align-items: center;
+ justify-content: center;
+ color: var(--accent);
+ font-size: 0.75rem;
+ flex-shrink: 0;
+ }
+
+ .showcase-visual {
+ background: var(--bg-card);
+ border: 1px solid var(--border);
+ border-radius: 20px;
+ padding: 2rem;
+ position: relative;
+ }
+
+ .showcase-visual-inner {
+ background: linear-gradient(135deg, var(--bg-primary), var(--bg-card));
+ border: 1px solid var(--border);
+ border-radius: 12px;
+ padding: 1.5rem;
+ }
+
+ .visual-line {
+ height: 8px;
+ background: var(--bg-card);
+ border-radius: 4px;
+ margin-bottom: 0.75rem;
+ }
+
+ .visual-line:nth-child(1) { width: 80%; }
+ .visual-line:nth-child(2) { width: 60%; }
+ .visual-line:nth-child(3) { width: 70%; }
+ .visual-line:nth-child(4) { width: 45%; }
+
+ .visual-accent {
+ height: 8px;
+ background: linear-gradient(90deg, var(--accent), var(--accent-light));
+ border-radius: 4px;
+ margin-bottom: 1rem;
+ width: 40%;
+ }
+
+ /* Pricing Section */
+ .pricing-grid {
+ display: grid;
+ grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+ gap: 1.5rem;
+ }
+
+ .pricing-card {
+ background: var(--bg-card);
+ border: 1px solid var(--border);
+ border-radius: 16px;
+ padding: 2.5rem 2rem;
+ transition: all 0.4s ease;
+ position: relative;
+ }
+
+ .pricing-card:hover {
+ border-color: var(--border-hover);
+ transform: translateY(-4px);
+ }
+
+ .pricing-card.featured {
+ border-color: var(--accent);
+ background: linear-gradient(135deg, var(--bg-card), rgba(245, 158, 11, 0.05));
+ }
+
+ .pricing-card.featured::before {
+ content: 'POPULAR';
+ position: absolute;
+ top: -12px;
+ left: 50%;
+ transform: translateX(-50%);
+ background: var(--accent);
+ color: var(--bg-primary);
+ padding: 0.25rem 1rem;
+ border-radius: 50px;
+ font-size: 0.7rem;
+ font-weight: 700;
+ letter-spacing: 0.1em;
+ }
+
+ .pricing-card h3 {
+ font-family: 'Space Grotesk', sans-serif;
+ font-size: 1.1rem;
+ font-weight: 600;
+ margin-bottom: 0.5rem;
+ }
+
+ .pricing-card .price {
+ font-family: 'Space Grotesk', sans-serif;
+ font-size: 3rem;
+ font-weight: 700;
+ margin: 1rem 0;
+ color: var(--text-primary);
+ }
+
+ .pricing-card .price span {
+ font-size: 1rem;
+ color: var(--text-muted);
+ font-weight: 400;
+ }
+
+ .pricing-card .desc {
+ color: var(--text-secondary);
+ font-size: 0.9rem;
+ margin-bottom: 1.5rem;
+ padding-bottom: 1.5rem;
+ border-bottom: 1px solid var(--border);
+ }
+
+ .pricing-features {
+ list-style: none;
+ display: flex;
+ flex-direction: column;
+ gap: 0.75rem;
+ margin-bottom: 2rem;
+ }
+
+ .pricing-features li {
+ display: flex;
+ align-items: center;
+ gap: 0.75rem;
+ color: var(--text-secondary);
+ font-size: 0.9rem;
+ }
+
+ .pricing-features li .check {
+ color: var(--accent);
+ font-size: 1rem;
+ }
+
+ .pricing-card .btn-primary,
+ .pricing-card .btn-secondary {
+ width: 100%;
+ justify-content: center;
+ }
+
+ /* Testimonials */
+ .testimonials-grid {
+ display: grid;
+ grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+ gap: 1.5rem;
+ }
+
+ .testimonial-card {
+ background: var(--bg-card);
+ border: 1px solid var(--border);
+ border-radius: 16px;
+ padding: 2rem;
+ transition: all 0.3s ease;
+ }
+
+ .testimonial-card:hover {
+ border-color: var(--border-hover);
+ }
+
+ .testimonial-stars {
+ color: var(--accent);
+ font-size: 0.9rem;
+ margin-bottom: 1rem;
+ letter-spacing: 0.1em;
+ }
+
+ .testimonial-text {
+ color: var(--text-secondary);
+ font-size: 0.95rem;
+ line-height: 1.7;
+ margin-bottom: 1.5rem;
+ font-style: italic;
+ }
+
+ .testimonial-author {
+ display: flex;
+ align-items: center;
+ gap: 0.75rem;
+ }
+
+ .testimonial-avatar {
+ width: 40px;
+ height: 40px;
+ border-radius: 50%;
+ background: linear-gradient(135deg, var(--accent), var(--accent-light));
+ display: flex;
+ align-items: center;
+ justify-content: center;
+ font-weight: 700;
+ color: var(--bg-primary);
+ font-size: 0.85rem;
+ }
+
+ .testimonial-info h4 {
+ font-size: 0.9rem;
+ font-weight: 600;
+ }
+
+ .testimonial-info span {
+ font-size: 0.8rem;
+ color: var(--text-muted);
+ }
+
+ /* CTA Section */
+ .cta-section {
+ padding: 6rem 2rem;
+ }
+
+ .cta-box {
+ max-width: 900px;
+ margin: 0 auto;
+ background: linear-gradient(135deg, var(--bg-card), rgba(245, 158, 11, 0.05));
+ border: 1px solid var(--border);
+ border-radius: 24px;
+ padding: 4rem;
+ text-align: center;
+ position: relative;
+ overflow: hidden;
+ }
+
+ .cta-box::before {
+ content: '';
+ position: absolute;
+ top: -50%;
+ left: 50%;
+ transform: translateX(-50%);
+ width: 600px;
+ height: 600px;
+ background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+ filter: blur(80px);
+ }
+
+ .cta-box > * {
+ position: relative;
+ z-index: 2;
+ }
+
+ .cta-box h2 {
+ font-family: 'Space Grotesk', sans-serif;
+ font-size: clamp(2rem, 4vw, 2.75rem);
+ font-weight: 700;
+ margin-bottom: 1rem;
+ }
+
+ .cta-box p {
+ color: var(--text-secondary);
+ font-size: 1.1rem;
+ max-width: 500px;
+ margin: 0 auto 2rem;
+ }
+
+ .cta-form {
+ display: flex;
+ gap: 0.75rem;
+ max-width: 480px;
+ margin: 0 auto;
+ }
+
+ .cta-form input {
+ flex: 1;
+ padding: 0.9rem 1.25rem;
+ background: var(--bg-primary);
+ border: 1px solid var(--border);
+ border-radius: 10px;
+ color: var(--text-primary);
+ font-size: 0.95rem;
+ outline: none;
+ transition: border-color 0.3s ease;
+ font-family: 'Inter', sans-serif;
+ }
+
+ .cta-form input:focus {
+ border-color: var(--accent);
+ }
+
+ .cta-form input::placeholder {
+ color: var(--text-muted);
+ }
+
+ /* Footer */
+ footer {
+ border-top: 1px solid var(--border);
+ padding: 4rem 2rem 2rem;
+ background: var(--bg-secondary);
+ }
+
+ .footer-container {
+ max-width: 1200px;
+ margin: 0 auto;
+ }
+
+ .footer-grid {
+ display: grid;
+ grid-template-columns: 2fr repeat(3, 1fr);
+ gap: 3rem;
+ margin-bottom: 3rem;
+ }
+
+ .footer-brand p {
+ color: var(--text-secondary);
+ font-size: 0.9rem;
+ margin-top: 1rem;
+ line-height: 1.7;
+ max-width: 300px;
+ }
+
+ .footer-col h4 {
+ font-family: 'Space Grotesk', sans-serif;
+ font-size: 0.85rem;
+ font-weight: 600;
+ text-transform: uppercase;
+ letter-spacing: 0.1em;
+ color: var(--text-muted);
+ margin-bottom: 1.25rem;
+ }
+
+ .footer-col ul {
+ list-style: none;
+ display: flex;
+ flex-direction: column;
+ gap: 0.75rem;
+ }
+
+ .footer-col a {
+ color: var(--text-secondary);
+ text-decoration: none;
+ font-size: 0.9rem;
+ transition: color 0.3s ease;
+ }
+
+ .footer-col a:hover {
+ color: var(--accent);
+ }
+
+ .footer-bottom {
+ border-top: 1px solid var(--border);
+ padding-top: 2rem;
+ display: flex;
+ justify-content: space-between;
+ align-items: center;
+ flex-wrap: wrap;
+ gap: 1rem;
+ }
+
+ .footer-bottom p {
+ color: var(--text-muted);
+ font-size: 0.85rem;
+ }
+
+ .footer-socials {
+ display: flex;
+ gap: 1rem;
+ }
+
+ .footer-socials a {
+ width: 36px;
+ height: 36px;
+ border: 1px solid var(--border);
+ border-radius: 8px;
+ display: flex;
+ align-items: center;
+ justify-content: center;
+ color: var(--text-muted);
+ text-decoration: none;
+ font-size: 0.85rem;
+ transition: all 0.3s ease;
+ }
+
+ .footer-socials a:hover {
+ border-color: var(--accent);
+ color: var(--accent);
+ background: var(--accent-glow);
+ }
+
+ /* Animations */
+ .fade-in {
+ opacity: 0;
+ transform: translateY(30px);
+ transition: all 0.8s ease;
+ }
+
+ .fade-in.visible {
+ opacity: 1;
+ transform: translateY(0);
+ }
+
+ /* Responsive */
+ @media (max-width: 768px) {
+ .nav-links {
+ display: none;
+ }
+
+ .mobile-menu-btn {
+ display: block;
+ }
+
+ .hero {
+ padding: 6rem 1.5rem 3rem;
+ }
+
+ .stats-bar {
+ flex-direction: column;
+ gap: 1.5rem;
+ }
+
+ .showcase-grid {
+ grid-template-columns: 1fr;
+ gap: 2rem;
+ }
+
+ .footer-grid {
+ grid-template-columns: 1fr;
+ gap: 2rem;
+ }
+
+ .footer-bottom {
+ flex-direction: column;
+ text-align: center;
+ }
+
+ .cta-box {
+ padding: 2.5rem 1.5rem;
+ }
+
+ .cta-form {
+ flex-direction: column;
+ }
+
+ section {
+ padding: 4rem 1.5rem;
+ }
+ }
+
+ /* Mobile nav */
+ .mobile-nav {
+ display: none;
+ position: fixed;
+ top: 0;
+ left: 0;
+ right: 0;
+ bottom: 0;
+ background: rgba(10, 10, 10, 0.98);
+ backdrop-filter: blur(20px);
+ z-index: 999;
+ flex-direction: column;
+ align-items: center;
+ justify-content: center;
+ gap: 2rem;
+ }
+
+ .mobile-nav.active {
+ display: flex;
+ }
+
+ .mobile-nav a {
+ color: var(--text-primary);
+ text-decoration: none;
+ font-size: 1.5rem;
+ font-weight: 600;
+ font-family: 'Space Grotesk', sans-serif;
+ }
+
+ .mobile-nav-close {
+ position: absolute;
+ top: 1.5rem;
+ right: 1.5rem;
+ background: none;
+ border: none;
+ color: var(--text-primary);
+ font-size: 2rem;
+ cursor: pointer;
+ }
+ </style>
+</head>
+<body>
+ <!-- Navigation -->
+ <nav id="navbar">
+ <div class="nav-container">
+ <a href="#" class="logo">
+ <div class="logo-icon">N</div>
+ Nexus
+ </a>
+ <ul class="nav-links">
+ <li><a href="#features">Features</a></li>
+ <li><a href="#about">About</a></li>
+ <li><a href="#pricing">Pricing</a></li>
+ <li><a href="#testimonials">Reviews</a></li>
+ </ul>
+ <a href="#cta" class="nav-cta">Get Started</a>
+ <button class="mobile-menu-btn" onclick="toggleMobileNav()">&#9776;</button>
+ </div>
+ </nav>
+
+ <!-- Mobile Navigation -->
+ <div class="mobile-nav" id="mobileNav">
+ <button class="mobile-nav-close" onclick="toggleMobileNav()">&times;</button>
+ <a href="#features" onclick="toggleMobileNav()">Features</a>
+ <a href="#about" onclick="toggleMobileNav()">About</a>
+ <a href="#pricing" onclick="toggleMobileNav()">Pricing</a>
+ <a href="#testimonials" onclick="toggleMobileNav()">Reviews</a>
+ <a href="#cta" onclick="toggleMobileNav()">Get Started</a>
+ </div>
+
+ <!-- Hero Section -->
+ <section class="hero">
+ <div class="hero-bg">
+ <div class="hero-gradient"></div>
+ <div class="hero-gradient-2"></div>
+ <div class="hero-grid"></div>
+ </div>
+ <div class="hero-content">
+ <div class="hero-badge">
+ <span class="hero-badge-dot"></span>
+ Now in Public Beta
+ </div>
+ <h1>
+ Build the future<br>
+ with <span class="highlight">intelligent</span> tools
+ </h1>
+ <p>
+ Nexus empowers teams to ship faster with AI-powered workflows,
+ real-time collaboration, and enterprise-grade security — all in one platform.
+ </p>
+ <div class="hero-buttons">
+ <a href="#cta" class="btn-primary">
+ Start Building Free
+ <span>&rarr;</span>
+ </a>
+ <a href="#features" class="btn-secondary">
+ &#9654; Watch Demo
+ </a>
+ </div>
+ <div class="stats-bar">
+ <div class="stat-item">
+ <div class="stat-number">50K+</div>
+ <div class="stat-label">Active Users</div>
+ </div>
+ <div class="stat-item">
+ <div class="stat-number">99.9%</div>
+ <div class="stat-label">Uptime SLA</div>
+ </div>
+ <div class="stat-item">
+ <div class="stat-number">4.9/5</div>
+ <div class="stat-label">User Rating</div>
+ </div>
+ </div>
+ </div>
+ </section>
+
+ <!-- Features Section -->
+ <section id="features">
+ <div class="section-container">
+ <div class="section-header fade-in">
+ <div class="section-tag">Features</div>
+ <h2>Everything you need,<br>nothing you don't</h2>
+ <p>Powerful features designed to streamline your workflow and boost productivity.</p>
+ </div>
+ <div class="features-grid">
+ <div class="feature-card fade-in">
+ <div class="feature-icon">&#9889;</div>
+ <h3>Lightning Fast</h3>
+ <p>Optimized performance with sub-100ms response times. Built on edge infrastructure for global speed.</p>
+ </div>
+ <div class="feature-card fade-in">
+ <div class="feature-icon">&#128737;</div>
+ <h3>Enterprise Security</h3>
+ <p>SOC 2 Type II certified. End-to-end encryption, SSO, and advanced access controls out of the box.</p>
+ </div>
+ <div class="feature-card fade-in">
+ <div class="feature-icon">&#129302;</div>
+ <h3>AI-Powered</h3>
+ <p>Smart automation and intelligent suggestions that learn from your team's patterns and preferences.</p>
+ </div>
+ <div class="feature-card fade-in">
+ <div class="feature-icon">&#9851;</div>
+ <h3>Real-time Sync</h3>
+ <p>Instant collaboration with conflict-free syncing. See changes as they happen, across all devices.</p>
+ </div>
+ <div class="feature-card fade-in">
+ <div class="feature-icon">&#128274;</div>
+ <h3>Seamless Integrations</h3>
+ <p>Connect with 200+ tools you already use. Slack, GitHub, Figma, Notion, and many more.</p>
+ </div>
+ <div class="feature-card fade-in">
+ <div class="feature-icon">&#128200;</div>
+ <h3>Advanced Analytics</h3>
+ <p>Deep insights into your workflow. Track metrics, identify bottlenecks, and optimize continuously.</p>
+ </div>
+ </div>
+ </div>
+ </section>
+
+ <!-- Showcase Section -->
+ <section id="about" class="showcase">
+ <div class="section-container">
+ <div class="showcase-grid">
+ <div class="showcase-content fade-in">
+ <div class="section-tag">Why Nexus</div>
+ <h2>Designed for teams that move fast</h2>
+ <p>We built Nexus from the ground up to handle the demands of modern product teams. Speed, reliability, and developer experience are not afterthoughts — they're the foundation.</p>
+ <ul class="showcase-list">
+ <li>
+ <span class="check">&#10003;</span>
+ Zero-config deployment in under 60 seconds
+ </li>
+ <li>
+ <span class="check">&#10003;</span>
+ Built-in CI/CD with automatic rollbacks
+ </li>
+ <li>
+ <span class="check">&#10003;</span>
+ Infinite scalability without infrastructure headaches
+ </li>
+ <li>
+ <span class="check">&#10003;</span>
+ 24/7 priority support from real engineers
+ </li>
+ </ul>
+ </div>
+ <div class="showcase-visual fade-in">
+ <div class="showcase-visual-inner">
+ <div class="visual-line"></div>
+ <div class="visual-line"></div>
+ <div class="visual-accent"></div>
+ <div class="visual-line"></div>
+ <div class="visual-line"></div>
+ <div class="visual-line" style="width: 50%"></div>
+ <div class="visual-accent" style="width: 25%; margin-top: 1rem;"></div>
+ </div>
+ </div>
+ </div>
+ </div>
+ </section>
+
+ <!-- Pricing Section -->
+ <section id="pricing">
+ <div class="section-container">
+ <div class="section-header fade-in">
+ <div class="section-tag">Pricing</div>
+ <h2>Simple, transparent pricing</h2>
+ <p>Start free, upgrade when you need more. No hidden fees, no surprises.</p>
+ </div>
+ <div class="pricing-grid">
+ <div class="pricing-card fade-in">
+ <h3>Starter</h3>
+ <div class="price">$0<span>/month</span></div>
+ <p class="desc">Perfect for side projects and experimentation.</p>
+ <ul class="pricing-features">
+ <li><span class="check">&#10003;</span> 3 projects</li>
+ <li><span class="check">&#10003;</span> 1GB storage</li>
+ <li><span class="check">&#10003;</span> Community support</li>
+ <li><span class="check">&#10003;</span> Basic analytics</li>
+ </ul>
+ <a href="#" class="btn-secondary">Get Started Free</a>
+ </div>
+ <div class="pricing-card featured fade-in">
+ <h3>Pro</h3>
+ <div class="price">$29<span>/month</span></div>
+ <p class="desc">For professionals and growing teams.</p>
+ <ul class="pricing-features">
+ <li><span class="check">&#10003;</span> Unlimited projects</li>
+ <li><span class="check">&#10003;</span> 50GB storage</li>
+ <li><span class="check">&#10003;</span> Priority support</li>
+ <li><span class="check">&#10003;</span> Advanced analytics</li>
+ <li><span class="check">&#10003;</span> Team collaboration</li>
+ <li><span class="check">&#10003;</span> Custom domains</li>
+ </ul>
+ <a href="#cta" class="btn-primary">Start Pro Trial</a>
+ </div>
+ <div class="pricing-card fade-in">
+ <h3>Enterprise</h3>
+ <div class="price">$99<span>/month</span></div>
+ <p class="desc">For organizations that need it all.</p>
+ <ul class="pricing-features">
+ <li><span class="check">&#10003;</span> Everything in Pro</li>
+ <li><span class="check">&#10003;</span> Unlimited storage</li>
+ <li><span class="check">&#10003;</span> Dedicated support</li>
+ <li><span class="check">&#10003;</span> SSO &amp; SAML</li>
+ <li><span class="check">&#10003;</span> Custom SLA</li>
+ <li><span class="check">&#10003;</span> On-prem option</li>
+ </ul>
+ <a href="#" class="btn-secondary">Contact Sales</a>
+ </div>
+ </div>
+ </div>
+ </section>
+
+ <!-- Testimonials Section -->
+ <section id="testimonials" class="showcase">
+ <div class="section-container">
+ <div class="section-header fade-in">
+ <div class="section-tag">Testimonials</div>
+ <h2>Loved by developers worldwide</h2>
+ <p>Join thousands of teams who've made Nexus their go-to platform.</p>
+ </div>
+ <div class="testimonials-grid">
+ <div class="testimonial-card fade-in">
+ <div class="testimonial-stars">&#11088;&#11088;&#11088;&#11088;&#11088;</div>
+ <p class="testimonial-text">"Nexus completely transformed our deployment workflow. We went from hours to minutes. The DX is incredible."</p>
+ <div class="testimonial-author">
+ <div class="testimonial-avatar">SK</div>
+ <div class="testimonial-info">
+ <h4>Sarah Kim</h4>
+ <span>CTO at Vercel</span>
+ </div>
+ </div>
+ </div>
+ <div class="testimonial-card fade-in">
+ <div class="testimonial-stars">&#11088;&#11088;&#11088;&#11088;&#11088;</div>
+ <p class="testimonial-text">"The best developer platform I've used. Period. The attention to detail and performance is unmatched."</p>
+ <div class="testimonial-author">
+ <div class="testimonial-avatar">RJ</div>
+ <div class="testimonial-info">
+ <h4>Rahul Jain</h4>
+ <span>Senior Engineer at Stripe</span>
+ </div>
+ </div>
+ </div>
+ <div class="testimonial-card fade-in">
+ <div class="testimonial-stars">&#11088;&#11088;&#11088;&#11088;&#11088;</div>
+ <p class="testimonial-text">"We evaluated 12 platforms before choosing Nexus. It wasn't even close. The AI features alone are worth it."</p>
+ <div class="testimonial-author">
+ <div class="testimonial-avatar">AM</div>
+ <div class="testimonial-info">
+ <h4>Aisha Malik</h4>
+ <span>VP Engineering at Linear</span>
+ </div>
+ </div>
+ </div>
+ </div>
+ </div>
+ </section>
+
+ <!-- CTA Section -->
+ <section id="cta" class="cta-section">
+ <div class="cta-box fade-in">
+ <h2>Ready to get started?</h2>
+ <p>Join 50,000+ developers building the future on Nexus. Free to start, no credit card required.</p>
+ <form class="cta-form" onsubmit="handleSubmit(event)">
+ <input type="email" placeholder="Enter your email" required>
+ <button type="submit" class="btn-primary">Get Started &rarr;</button>
+ </form>
+ </div>
+ </section>
+
+ <!-- Footer -->
+ <footer>
+ <div class="footer-container">
+ <div class="footer-grid">
+ <div class="footer-brand">
+ <a href="#" class="logo">
+ <div class="logo-icon">N</div>
+ Nexus
+ </a>
+ <p>Build, deploy, and scale modern applications with the platform developers love.</p>
+ </div>
+ <div class="footer-col">
+ <h4>Product</h4>
+ <ul>
+ <li><a href="#">Features</a></li>
+ <li><a href="#">Pricing</a></li>
+ <li><a href="#">Changelog</a></li>
+ <li><a href="#">Docs</a></li>
+ </ul>
+ </div>
+ <div class="footer-col">
+ <h4>Company</h4>
+ <ul>
+ <li><a href="#">About</a></li>
+ <li><a href="#">Blog</a></li>
+ <li><a href="#">Careers</a></li>
+ <li><a href="#">Contact</a></li>
+ </ul>
+ </div>
+ <div class="footer-col">
+ <h4>Legal</h4>
+ <ul>
+ <li><a href="#">Privacy</a></li>
+ <li><a href="#">Terms</a></li>
+ <li><a href="#">Security</a></li>
+ <li><a href="#">Cookies</a></li>
+ </ul>
+ </div>
+ </div>
+ <div class="footer-bottom">
+ <p>&copy; 2026 Nexus Inc. All rights reserved.</p>
+ <div class="footer-socials">
+ <a href="#" title="Twitter">&#120143;</a>
+ <a href="#" title="GitHub">&#8963;</a>
+ <a href="#" title="Discord">&#9671;</a>
+ <a href="#" title="LinkedIn">in</a>
+ </div>
+ </div>
+ </div>
+ </footer>
+
+ <script>
+ // Navbar scroll effect
+ const navbar = document.getElementById('navbar');
+ window.addEventListener('scroll', () => {
+ if (window.scrollY > 50) {
+ navbar.classList.add('scrolled');
+ } else {
+ navbar.classList.remove('scrolled');
+ }
+ });
+
+ // Mobile nav toggle
+ function toggleMobileNav() {
+ document.getElementById('mobileNav').classList.toggle('active');
+ }
+
+ // Form submit
+ function handleSubmit(e) {
+ e.preventDefault();
+ const input = e.target.querySelector('input');
+ const btn = e.target.querySelector('button');
+ const originalText = btn.innerHTML;
+ btn.innerHTML = '&#10003; Welcome aboard!';
+ btn.style.background = '#22c55e';
+ input.value = '';
+ setTimeout(() => {
+ btn.innerHTML = originalText;
+ btn.style.background = '';
+ }, 3000);
+ }
+
+ // Fade in animation on scroll
+ const observer = new IntersectionObserver((entries) => {
+ entries.forEach(entry => {
+ if (entry.isIntersecting) {
+ entry.target.classList.add('visible');
+ }
+ });
+ }, {
+ threshold: 0.1,
+ rootMargin: '0px 0px -50px 0px'
+ });
+
+ document.querySelectorAll('.fade-in').forEach(el => {
+ observer.observe(el);
+ });
+
+ // Smooth scroll for nav links
+ document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+ anchor.addEventListener('click', function(e) {
+ e.preventDefault();
+ const target = document.querySelector(this.getAttribute('href'));
+ if (target) {
+ target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+ }
+ });
+ });
+ </script>
+</body>
+</html>

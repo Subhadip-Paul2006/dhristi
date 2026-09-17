@@ -1,0 +1,84 @@
+/* Drishti Token-Driven UI Foundations — Warm Alabaster & Ember Orange Smooth Palette */
+.hml {
+  /* Surfaces */
+  --color-surface-base: #f4f1ea;        /* Smooth warm alabaster canvas */
+  --color-surface-raised: #ffffff;      /* Pure white smooth cards */
+  --color-surface-elevated: #eae5dc;    /* Elevated surface badge */
+  --color-surface-dark: #0f110e;        /* Dark terminal & HUD container */
+  
+  /* Text & Ink Tokens */
+  --color-text-primary: #171916;        /* Deep charcoal ink */
+  --color-text-secondary: #f2efe7;      /* Warm alabaster text for dark surfaces */
+  --color-text-tertiary: #221f1a;       /* Dark neutral accent */
+  --color-text-inverse: #555951;        /* Medium grey/olive descriptor text */
+  --color-text-muted: #6b7280;          /* Secondary reading muted text */
+  --color-text-light: #ffffff;          /* Crisp white */
+
+  /* Borders & Dividers */
+  --color-border-subtle: rgba(23, 25, 22, 0.06);
+  --color-border-default: rgba(23, 25, 22, 0.12);
+  --color-border-hover: rgba(23, 25, 22, 0.25);
+  --color-border-dark: #221f1a;
+
+  /* Signature Ember / Warm Terracotta Orange */
+  --color-accent: #ea580c;              /* Vibrant Ember Orange */
+  --color-accent-hover: #c2410c;
+  --color-accent-soft: rgba(234, 88, 12, 0.08);
+  --color-accent-border: rgba(234, 88, 12, 0.25);
+  --color-focus: #ea580c;
+  
+  --color-status-danger: #e11d48;
+  --color-status-danger-bg: rgba(225, 29, 72, 0.08);
+  --color-status-warning: #d97706;
+  --color-status-warning-bg: rgba(217, 119, 6, 0.08);
+  --color-status-success: #15803d;
+  --color-status-success-bg: rgba(21, 128, 61, 0.08);
+
+  /* Overlays */
+  --color-nav-veil: rgba(244, 241, 234, 0.94);
+
+  /* Typography (Manrope Primary) */
+  --font-family-primary: "Manrope", sans-serif;
+  --font-family-mono: "JetBrains Mono", "SF Mono", Consolas, monospace;
+
+  /* Typography Scale */
+  --font-size-xs: 9px;
+  --font-size-sm: 10px;
+  --font-size-md: 11px;
+  --font-size-lg: 12px;
+  --font-size-xl: 15.5px;
+  --font-size-2xl: 16px;
+  --font-size-3xl: 20px;
+  --font-size-4xl: 32px;
+  --font-size-display: clamp(32px, 5.2vw + 12px, 56px);
+
+  /* Spacing Scale */
+  --space-1: 4px;
+  --space-2: 9px;
+  --space-3: 12px;
+  --space-4: 17px;
+  --space-5: 18px;
+  --space-6: 19px;
+  --space-7: 20px;
+  --space-8: 22px;
+  --space-9: 32px;
+  --space-10: 48px;
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-card: 14px;
+  --radius-pill: 999px;
+
+  /* Motion */
+  --motion-duration-instant: 200ms;
+  --motion-ease: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(23, 25, 22, 0.04);
+  --shadow-card: 0 4px 20px rgba(23, 25, 22, 0.05);
+  --shadow-lift: 0 16px 36px rgba(23, 25, 22, 0.08);
+  --shadow-accent: 0 4px 18px rgba(234, 88, 12, 0.25);
+
+  /* Z-Index */
+  --z-sticky: 100;
+}

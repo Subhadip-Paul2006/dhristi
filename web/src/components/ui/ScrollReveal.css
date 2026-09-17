@@ -1,0 +1,7 @@
+.scroll-reveal {
+ position: relative;
+}
+
+.scroll-reveal > * {
+ will-change: transform, opacity;
+}

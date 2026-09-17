@@ -1,0 +1,76 @@
+/* Ultra-Sleek Minimalist (Apple/Linear Style) Entrance Styles - Matched to Drishti Palette */
+
+.sleek-entry-curtain {
+ position: fixed;
+ inset: 0;
+ z-index: 999999;
+ background: #0d0f0c;
+ display: flex;
+ align-items: center;
+ justify-content: center;
+ overflow: hidden;
+ user-select: none;
+ pointer-events: all;
+}
+
+/* Deep Ambient Caustic Light matching website Alabaster/Ember/Cyan */
+.sleek-ambient-glow {
+ position: absolute;
+ width: 650px;
+ height: 650px;
+ border-radius: 50%;
+ background: radial-gradient(
+ circle,
+ rgba(234, 88, 12, 0.16) 0%,
+ rgba(56, 198, 244, 0.1) 40%,
+ rgba(13, 15, 12, 0) 70%
+ );
+ filter: blur(90px);
+ pointer-events: none;
+}
+
+/* Light Sweep Text Effect */
+.sleek-shimmer-text {
+ background: linear-gradient(
+ 105deg,
+ #d4cfc5 0%,
+ #ffffff 35%,
+ #ea580c 50%,
+ #38c6f4 65%,
+ #f4f1ea 100%
+ );
+ background-size: 220% auto;
+ color: transparent;
+ -webkit-background-clip: text;
+ background-clip: text;
+ animation: sleekShimmer 2.4s ease-in-out infinite;
+}
+
+@keyframes sleekShimmer {
+ 0% {
+ background-position: 180% center;
+ }
+ 100% {
+ background-position: -60% center;
+ }
+}
+
+/* Subtle Skip Button */
+.sleek-skip-hint {
+ position: absolute;
+ bottom: 32px;
+ font-family: var(--font-family-mono, monospace);
+ font-size: 10px;
+ letter-spacing: 0.2em;
+ color: rgba(212, 207, 197, 0.45);
+ text-transform: uppercase;
+ transition: color 0.2s ease;
+ cursor: pointer;
+ background: none;
+ border: none;
+ padding: 6px 14px;
+}
+
+.sleek-skip-hint:hover {
+ color: #ea580c;
+}

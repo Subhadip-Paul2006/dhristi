@@ -1,0 +1,18 @@
+{
+  "refused": false,
+  "from_asset": "jump-01",
+  "predictions": [
+    {
+      "asset": "db-prod-01",
+      "likelihood": 0.78,
+      "reason": "Admin trust path to a critical database with a known privilege-escalation issue.",
+      "defensive_action": "Patch the priv-esc and restrict admin access to a bastion with MFA."
+    },
+    {
+      "asset": "db-replica-01",
+      "likelihood": 0.41,
+      "reason": "Network-reachable secondary datastore holding a copy of sensitive data.",
+      "defensive_action": "Segment the replica and monitor for unexpected lateral connections."
+    }
+  ]
+}

@@ -1,0 +1,257 @@
+/* Drishti — global design tokens and base styles | Cybersecurity Matrix + SOC Command Center */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    background-color: #050706;
+    color: #e6edf3;
+    @apply font-body antialiased;
+    color-scheme: dark;
+  }
+  body {
+    @apply min-h-screen;
+    background-color: #050706;
+    color: #e6edf3;
+    font-feature-settings: "cv01", "cv05", "cv09", "cv11", "ss03", "ss07", "dlig", "tnum";
+  }
+  ::selection {
+    background-color: rgba(0, 255, 102, 0.25); /* Matrix green phosphor wash */
+    color: #ffffff;
+  }
+  
+  /* Visible cyber keyboard focus everywhere */
+  :focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px #00ff66;
+    border-radius: inherit;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: #1e3828 #050706;
+  }
+  
+  /* Terminal dark gradients */
+  .framer-gradient-violet {
+    background: linear-gradient(135deg, #080b09 0%, #0c100e 100%);
+  }
+  .framer-gradient-magenta {
+    background: linear-gradient(135deg, #0c100e 0%, #050706 100%);
+  }
+  .framer-gradient-orange {
+    background: linear-gradient(135deg, #101612 0%, #080b09 100%);
+  }
+  .framer-gradient-coral {
+    background: linear-gradient(135deg, #080b09 0%, #050706 100%);
+  }
+
+  /* Matrix terminal text glow */
+  .text-glow-matrix {
+    text-shadow: 0 0 8px rgba(0, 255, 102, 0.6), 0 0 18px rgba(0, 255, 102, 0.3);
+  }
+  .text-glow-threat {
+    text-shadow: 0 0 8px rgba(239, 68, 68, 0.6), 0 0 18px rgba(239, 68, 68, 0.3);
+  }
+}
+
+/* ── Threat-instrument console language ─────────────────────────────────────
+   Cybersecurity command center: fine coordinate hairline grid, registration ticks,
+   matrix phosphor bloom, faint CRT scanlines. */
+
+/* Ambient coordinate grid + one contained phosphor bloom, per page root. */
+.console-atmos {
+  position: relative;
+  isolation: isolate;
+}
+.console-atmos::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(0, 255, 102, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 255, 102, 0.04) 1px, transparent 1px);
+  background-size: 36px 36px;
+  -webkit-mask-image: radial-gradient(120% 80% at 50% 0%, #000 0%, transparent 80%);
+  mask-image: radial-gradient(120% 80% at 50% 0%, #000 0%, transparent 80%);
+}
+.console-atmos::after {
+  content: "";
+  position: absolute;
+  top: -8%;
+  left: 50%;
+  width: min(960px, 92%);
+  height: 340px;
+  transform: translateX(-50%);
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(60% 100% at 50% 0%, rgba(0, 255, 102, 0.07), transparent 75%);
+}
+
+/* Registration ticks — four L-shaped corner brackets on framed panels. */
+.reg-frame { position: relative; }
+.reg-tick {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border-color: #1e3828;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+  pointer-events: none;
+}
+.reg-frame:hover .reg-tick {
+  border-color: #00ff66;
+  box-shadow: 0 0 6px rgba(0, 255, 102, 0.4);
+}
+.reg-tl { top: 6px; left: 6px; border-top: 1.5px solid; border-left: 1.5px solid; }
+.reg-tr { top: 6px; right: 6px; border-top: 1.5px solid; border-right: 1.5px solid; }
+.reg-bl { bottom: 6px; left: 6px; border-bottom: 1.5px solid; border-left: 1.5px solid; }
+.reg-br { bottom: 6px; right: 6px; border-bottom: 1.5px solid; border-right: 1.5px solid; }
+
+/* Faint moving scanline for hero readouts — slow, subtle, futuristic. */
+@keyframes scanline-sweep {
+  0% { transform: translateY(-100%); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateY(2400%); opacity: 0; }
+}
+.scanline::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent, rgba(0, 255, 102, 0.07), transparent);
+  height: 14px;
+  animation: scanline-sweep 7s linear infinite;
+}
+
+/* Telemetry eyebrow pulse dot. */
+@keyframes tele-pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 8px currentColor; }
+  50% { opacity: 0.35; box-shadow: 0 0 2px currentColor; }
+}
+.tele-dot { animation: tele-pulse 2.2s ease-in-out infinite; }
+
+/* App motion */
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.animate-page-enter {
+  animation: page-enter 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+.animate-toast-in {
+  animation: toast-in 180ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes card-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.99);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.animate-card-enter {
+  animation: card-enter 300ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* Path-rail connectors + terrain dot grid (auth + app shell ambience) */
+.auth-dash {
+  stroke-dasharray: 6;
+  animation: dash-flow 1.1s linear infinite;
+}
+.dot-terrain {
+  background-image: radial-gradient(rgba(0, 255, 102, 0.12) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Auth brand panel — dark cyber atmosphere */
+.auth-atmos {
+  background-color: #050706;
+  background-image:
+    radial-gradient(38rem 28rem at 88% -8%, rgba(0, 255, 102, 0.08), transparent 65%),
+    radial-gradient(34rem 26rem at -14% 82%, rgba(16, 185, 129, 0.06), transparent 65%),
+    linear-gradient(rgba(0, 255, 102, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 255, 102, 0.03) 1px, transparent 1px);
+  background-size:
+    auto,
+    auto,
+    36px 36px,
+    36px 36px;
+}
+
+/* React Flow overrides for Dark SOC Command Center */
+.react-flow__attribution {
+  background: transparent !important;
+  color: #52665a !important;
+}
+.react-flow__edge-path {
+  transition: opacity 150ms ease-out, stroke 150ms ease-out;
+}
+.rf-edge-toppath .react-flow__edge-path {
+  stroke-dasharray: 8;
+  animation: dash-flow 1s linear infinite;
+}
+@keyframes dash-flow {
+  to {
+    stroke-dashoffset: -16;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rf-edge-toppath .react-flow__edge-path,
+  .auth-dash {
+    animation: none;
+  }
+  .animate-page-enter,
+  .animate-toast-in,
+  .animate-card-enter,
+  .animate-blast-pulse {
+    animation: none !important;
+  }
+}
+
+/* ── React Flow Dark Matrix Overrides ─────────────────────────── */
+.react-flow__controls {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.8) !important;
+  border-radius: 6px !important;
+  overflow: hidden;
+  border: 1px solid #152219 !important;
+  background-color: #080b09 !important;
+}
+.react-flow__controls-button {
+  background-color: #080b09 !important;
+  border-bottom: 1px solid #152219 !important;
+  fill: #9ca3af !important;
+  transition: all 0.15s ease;
+}
+.react-flow__controls-button:hover {
+  background-color: #0c100e !important;
+  fill: #00ff66 !important;
+}
+.react-flow__controls-button:last-child {
+  border-bottom: none !important;
+}
+
