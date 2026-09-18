@@ -399,6 +399,11 @@ export interface ActivityItem {
   source: string;
   observed_at?: string | null;
   details?: string | null;
+  browser?: string | null;
+  url?: string | null;
+  domain?: string | null;
+  title?: string | null;
+  category?: "USER_APPLICATION" | "BACKGROUND_PROCESS" | "SYSTEM_PROCESS" | string | null;
 }
 
 export interface NetworkDevice {
@@ -432,6 +437,19 @@ export interface NetworkDevice {
   observation_count?: number;
   observation_source?: string | null;
   presence_state?: "new" | "continuous" | "offline";
+  open_ports?: number[];
+  services?: DeepScanService[];
+  cves?: DeepScanCve[];
+  os_info?: string | null;
+  device_type?: string | null;
+  installed_software?: ActivityItem[];
+  process_connections?: ActivityItem[];
+  installed_browsers?: string[];
+  vpn_status?: string | null;
+  vpn_adapters?: string[];
+  security_findings?: string[];
+  risk_score?: number | null;
+  capability_state?: "NETWORK ONLY" | "AGENT CONNECTED" | "BROWSER EXTENSION CONNECTED" | "FULL ENDPOINT TELEMETRY" | string;
 }
 
 // One network known to exist (whether or not it's been inventoried). The gap
