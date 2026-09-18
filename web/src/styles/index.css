@@ -1,30 +1,30 @@
-/* Drishti — global design tokens and base styles | Cybersecurity Matrix + SOC Command Center */
+/* Drishti — global design tokens and base styles | Luxury Obsidian & Electric Cyan SOC Command Center */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   html {
-    background-color: #050706;
-    color: #e6edf3;
+    background-color: #020b14;
+    color: #f1f5f9;
     @apply font-body antialiased;
     color-scheme: dark;
   }
   body {
     @apply min-h-screen;
-    background-color: #050706;
-    color: #e6edf3;
+    background-color: #020b14;
+    color: #f1f5f9;
     font-feature-settings: "cv01", "cv05", "cv09", "cv11", "ss03", "ss07", "dlig", "tnum";
   }
   ::selection {
-    background-color: rgba(0, 255, 102, 0.25); /* Matrix green phosphor wash */
+    background-color: rgba(56, 198, 244, 0.25); /* Electric cyan wash */
     color: #ffffff;
   }
   
   /* Visible cyber keyboard focus everywhere */
   :focus-visible {
     outline: none;
-    box-shadow: 0 0 0 2px #00ff66;
+    box-shadow: 0 0 0 2px #38c6f4;
     border-radius: inherit;
   }
 }
@@ -32,26 +32,26 @@
 @layer utilities {
   .scrollbar-thin {
     scrollbar-width: thin;
-    scrollbar-color: #1e3828 #050706;
+    scrollbar-color: #0e233d #020b14;
   }
   
   /* Terminal dark gradients */
   .framer-gradient-violet {
-    background: linear-gradient(135deg, #080b09 0%, #0c100e 100%);
+    background: linear-gradient(135deg, #051322 0%, #091a2e 100%);
   }
   .framer-gradient-magenta {
-    background: linear-gradient(135deg, #0c100e 0%, #050706 100%);
+    background: linear-gradient(135deg, #091a2e 0%, #020b14 100%);
   }
   .framer-gradient-orange {
-    background: linear-gradient(135deg, #101612 0%, #080b09 100%);
+    background: linear-gradient(135deg, #0e233d 0%, #051322 100%);
   }
   .framer-gradient-coral {
-    background: linear-gradient(135deg, #080b09 0%, #050706 100%);
+    background: linear-gradient(135deg, #051322 0%, #020b14 100%);
   }
 
-  /* Matrix terminal text glow */
+  /* Text glow */
   .text-glow-matrix {
-    text-shadow: 0 0 8px rgba(0, 255, 102, 0.6), 0 0 18px rgba(0, 255, 102, 0.3);
+    text-shadow: 0 0 8px rgba(56, 198, 244, 0.6), 0 0 18px rgba(56, 198, 244, 0.3);
   }
   .text-glow-threat {
     text-shadow: 0 0 8px rgba(239, 68, 68, 0.6), 0 0 18px rgba(239, 68, 68, 0.3);
@@ -60,7 +60,7 @@
 
 /* ── Threat-instrument console language ─────────────────────────────────────
    Cybersecurity command center: fine coordinate hairline grid, registration ticks,
-   matrix phosphor bloom, faint CRT scanlines. */
+   cyan phosphor bloom, faint ambient lighting. */
 
 /* Ambient coordinate grid + one contained phosphor bloom, per page root. */
 .console-atmos {
@@ -73,12 +73,6 @@
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background-image:
-    linear-gradient(rgba(0, 255, 102, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 255, 102, 0.04) 1px, transparent 1px);
-  background-size: 36px 36px;
-  -webkit-mask-image: radial-gradient(120% 80% at 50% 0%, #000 0%, transparent 80%);
-  mask-image: radial-gradient(120% 80% at 50% 0%, #000 0%, transparent 80%);
 }
 .console-atmos::after {
   content: "";
@@ -90,7 +84,7 @@
   transform: translateX(-50%);
   z-index: -1;
   pointer-events: none;
-  background: radial-gradient(60% 100% at 50% 0%, rgba(0, 255, 102, 0.07), transparent 75%);
+  background: radial-gradient(60% 100% at 50% 0%, rgba(56, 198, 244, 0.05), transparent 75%);
 }
 
 /* Registration ticks — four L-shaped corner brackets on framed panels. */

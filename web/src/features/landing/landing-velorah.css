@@ -1,0 +1,603 @@
+/* ============================================================
+   DRISHTI × VELORAH LUXURY CINEMATIC DESIGN SYSTEM
+   ============================================================ */
+
+:root {
+  --uv-navy: #001D33;
+  --uv-navy-deep: #001222;
+  --uv-obsidian: #03080e;
+  --uv-glass-bg: rgba(255, 255, 255, 0.02);
+  --uv-glass-hover: rgba(255, 255, 255, 0.05);
+  --uv-glass-border: rgba(255, 255, 255, 0.08);
+  --uv-glass-border-hover: rgba(255, 255, 255, 0.2);
+  --uv-accent-cyan: #38c6f4;
+  --uv-accent-orange: #ea580c;
+  --uv-accent-rose: #f43f5e;
+  --uv-accent-emerald: #10b981;
+  --uv-accent-purple: #a855f7;
+}
+
+/* -------------------------------------------------------------
+   VELORAH LIQUID GLASS
+   ------------------------------------------------------------- */
+.uv-liquid-glass {
+  background: rgba(255, 255, 255, 0.02);
+  background-blend-mode: luminosity;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.15), 0 8px 32px rgba(0, 0, 0, 0.35);
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.uv-liquid-glass::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.2px;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.5) 0%,
+    rgba(255, 255, 255, 0.15) 25%,
+    rgba(255, 255, 255, 0) 50%,
+    rgba(255, 255, 255, 0.05) 75%,
+    rgba(255, 255, 255, 0.35) 100%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.uv-liquid-glass:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.22);
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.25), 0 12px 40px rgba(0, 0, 0, 0.5), 0 0 24px rgba(56, 198, 244, 0.15);
+}
+
+/* -------------------------------------------------------------
+   TYPOGRAPHY
+   ------------------------------------------------------------- */
+.uv-font-display {
+  font-family: 'Instrument Serif', Georgia, serif;
+}
+
+.uv-font-body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.uv-font-sans {
+  font-family: 'DM Sans', 'Inter', sans-serif;
+}
+
+.uv-font-mono {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* -------------------------------------------------------------
+   ANIMATIONS
+   ------------------------------------------------------------- */
+@keyframes fade-rise {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.uv-animate-fade-rise {
+  animation: fade-rise 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.uv-animate-fade-rise-delay {
+  animation: fade-rise 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
+}
+
+.uv-animate-fade-rise-delay-2 {
+  animation: fade-rise 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.4s both;
+}
+
+/* -------------------------------------------------------------
+   HERO FULL BLEED CONTAINER
+   ------------------------------------------------------------- */
+.uv-hero-master {
+  position: relative;
+  min-height: 100vh;
+  width: 100%;
+  background-color: var(--uv-navy);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.uv-hero-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+  filter: grayscale(0.15) brightness(0.65) contrast(1.1);
+}
+
+.uv-hero-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at center, rgba(0, 29, 51, 0.2) 0%, rgba(0, 18, 34, 0.8) 70%, rgba(2, 11, 20, 0.98) 100%),
+              linear-gradient(to bottom, rgba(0, 29, 51, 0.4) 0%, transparent 40%, rgba(2, 11, 20, 0.95) 95%, #020b14 100%);
+  z-index: 1;
+}
+
+/* -------------------------------------------------------------
+   NAVIGATION BAR
+   ------------------------------------------------------------- */
+.uv-nav {
+  position: relative;
+  z-index: 20;
+  width: 100%;
+  max-width: 80rem;
+  margin: 0 auto;
+  padding: 1.5rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.uv-nav-logo {
+  font-family: 'Instrument Serif', serif;
+  font-size: 1.85rem;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  transition: opacity 0.2s ease;
+}
+
+.uv-nav-logo:hover {
+  opacity: 0.9;
+}
+
+.uv-nav-links {
+  display: none;
+  align-items: center;
+  gap: 2rem;
+}
+
+@media (min-width: 860px) {
+  .uv-nav-links {
+    display: flex;
+  }
+}
+
+.uv-nav-link {
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.65);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.uv-nav-link:hover {
+  color: #ffffff;
+}
+
+/* -------------------------------------------------------------
+   HERO CENTER CONTENT
+   ------------------------------------------------------------- */
+.uv-hero-content {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 4rem 1.5rem 6rem;
+  flex-grow: 1;
+  max-width: 80rem;
+  margin: 0 auto;
+}
+
+.uv-hero-heading {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-size: clamp(2.75rem, 7vw, 5.75rem);
+  line-height: 0.96;
+  letter-spacing: -0.035em;
+  color: #ffffff;
+  font-weight: 400;
+  max-width: 68rem;
+  margin: 0 auto;
+}
+
+.uv-hero-heading em {
+  font-style: italic;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.uv-hero-subtitle {
+  font-size: clamp(1rem, 1.35vw, 1.2rem);
+  line-height: 1.65;
+  color: rgba(255, 255, 255, 0.65);
+  max-width: 44rem;
+  margin: 2rem auto 0;
+  font-weight: 300;
+}
+
+.uv-hero-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  margin-top: 2.75rem;
+}
+
+.uv-hero-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  padding: 0.9rem 2.5rem;
+  border-radius: 9999px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #ffffff;
+  text-decoration: none;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+}
+
+.uv-hero-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.85rem 1.75rem;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.uv-hero-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+/* -------------------------------------------------------------
+   VELORAH STATUS BADGE & TELEMETRY STRIP
+   ------------------------------------------------------------- */
+.uv-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.35rem 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 9999px;
+  backdrop-filter: blur(8px);
+  margin-bottom: 2rem;
+  font-size: 0.75rem;
+  font-family: 'JetBrains Mono', monospace;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.uv-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 10px #10b981;
+  animation: pulseGreen 2s infinite;
+}
+
+@keyframes pulseGreen {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.85); }
+}
+
+/* -------------------------------------------------------------
+   DARK OBSIDIAN PAGE WRAPPER & SECTIONS
+   ------------------------------------------------------------- */
+.uv-page-body {
+  background-color: #020b14;
+  color: #ffffff;
+  min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
+}
+
+.uv-section {
+  position: relative;
+  max-width: 80rem;
+  margin: 0 auto;
+  padding: 6rem 1.5rem;
+}
+
+.uv-section-header {
+  text-align: center;
+  max-width: 48rem;
+  margin: 0 auto 4rem;
+}
+
+.uv-section-tag {
+  display: inline-block;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--uv-accent-cyan);
+  margin-bottom: 0.75rem;
+}
+
+.uv-section-title {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-size: clamp(2.25rem, 4vw, 3.5rem);
+  font-weight: 400;
+  color: #ffffff;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  margin-bottom: 1rem;
+}
+
+.uv-section-title em {
+  font-style: italic;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.uv-section-desc {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 300;
+}
+
+/* -------------------------------------------------------------
+   CARDS & GRIDS
+   ------------------------------------------------------------- */
+.uv-card {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 1.25rem;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: 2rem;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.uv-card:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4), 0 0 30px rgba(56, 198, 244, 0.08);
+  transform: translateY(-4px);
+}
+
+.uv-card-glow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
+}
+
+/* -------------------------------------------------------------
+   SIMULATOR STYLES
+   ------------------------------------------------------------- */
+.uv-simulator-wrap {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1.5rem;
+  padding: clamp(1.5rem, 3vw, 2.5rem);
+  backdrop-filter: blur(20px);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+}
+
+.uv-hop-node {
+  display: flex;
+  flex-direction: column;
+  padding: 1.1rem 1.25rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 0.85rem;
+  min-width: 155px;
+  transition: all 0.25s ease;
+}
+
+.uv-hop-node:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+/* -------------------------------------------------------------
+   PIPELINE HORIZONTAL CARDS
+   ------------------------------------------------------------- */
+.uv-pipeline-track {
+  display: flex;
+  gap: 1.5rem;
+  padding: 1rem 0;
+}
+
+.uv-pipeline-card {
+  flex: 0 0 340px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1.25rem;
+  padding: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  backdrop-filter: blur(14px);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.uv-pipeline-card:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-4px);
+}
+
+/* -------------------------------------------------------------
+   FLOATING BADGE (VELORAH SIGNATURE)
+   ------------------------------------------------------------- */
+.uilora-badge {
+  position: fixed;
+  bottom: 22px;
+  right: 22px;
+  z-index: 9999;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.uilora-badge-inner {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 16px 9px 10px;
+  background: rgba(3, 11, 20, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 100px;
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.05) inset,
+    0 8px 32px rgba(0, 0, 0, 0.6);
+  cursor: pointer;
+  text-decoration: none;
+  position: relative;
+  overflow: hidden;
+  animation: uilora-float 4s ease-in-out infinite;
+  transition: border-color 0.25s ease, transform 0.2s ease;
+  white-space: nowrap;
+}
+
+.uilora-badge-inner::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 20%,
+    rgba(56, 198, 244, 0.12) 40%,
+    rgba(234, 88, 12, 0.1) 55%,
+    transparent 70%
+  );
+  background-size: 200% 200%;
+  animation: uilora-shimmer 3.5s linear infinite;
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+.uilora-badge-inner::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  border-radius: inherit;
+}
+
+.uilora-badge-inner:hover {
+  border-color: rgba(56, 198, 244, 0.5);
+  transform: translateY(-2px);
+}
+
+.uilora-logo-wrap {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: var(--uv-accent-orange);
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.uilora-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.6);
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+
+.uilora-text strong {
+  font-weight: 700;
+  color: #ffffff;
+}
+
+@keyframes uilora-float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-3px); }
+}
+
+@keyframes uilora-shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+/* -------------------------------------------------------------
+   TERMINAL & CODE CHROME
+   ------------------------------------------------------------- */
+.uv-terminal {
+  background: #01080e;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1rem;
+  overflow: hidden;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.uv-terminal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.25rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.uv-terminal-dots {
+  display: flex;
+  gap: 6px;
+}
+
+.uv-terminal-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.uv-terminal-body {
+  padding: 1.5rem;
+  font-size: 0.85rem;
+  line-height: 1.7;
+  color: #cbd5e1;
+  overflow-x: auto;
+}

@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from "react";
-import { Link, Navigate } from "react-router-dom";
+import { useState, useEffect, useRef, Fragment } from "react";
+import { Link } from "react-router-dom";
 import {
   motion,
   AnimatePresence,
@@ -26,6 +26,7 @@ import {
 import { useAuth } from "../../auth";
 import "./landing.css";
 import "./landing-cinema.css";
+import "./landing-sceneai.css";
 import heroBg from "../../assets/hero-bg.jpg";
 import { EntryAnimation } from "./EntryAnimation";
 
@@ -207,8 +208,6 @@ export default function Landing() {
     restDelta: 0.001,
   });
 
-  if (user) return <Navigate to="/app" replace />;
-
   return (
     <EntryAnimation key={replayKey} forcePlay={replayKey > 0}>
       <div className="hml">
@@ -217,10 +216,10 @@ export default function Landing() {
 
         {/* Master Full-Bleed Dark Hero Section */}
         <div className="hml-hero-master-wrap">
-          <HeroBackdrop scrollYProgress={scrollYProgress} />
+          <HeroBackdrop />
           <TopStatusStrip onReplay={() => setReplayKey((k) => k + 1)} />
-          <Navbar />
-          <HeroContent />
+          <Navbar user={user} />
+          <HeroContent user={user} />
         </div>
 
         <main>
@@ -243,7 +242,7 @@ export default function Landing() {
           <FaqSection />
 
           {/* Final Call to Action */}
-          <CtaBandSection />
+          <CtaBandSection user={user} />
         </main>
 
         <FooterSection />
@@ -321,153 +320,285 @@ function TopStatusStrip({ onReplay }: { onReplay?: () => void }) {
 }
 
 /* ------------------------------------------------------------- Navigation Bar */
-function Navbar() {
+function Navbar({ user }: { user?: any }) {
+  const [mobileOpen, setMobileOpen] = useState(false);
+
   return (
-    <header className="hml-nav">
-      <div className="hml-nav-inner">
-        <Link to="/" className="hml-brand">
+    <header className="sticky top-3 z-40 w-full px-3 sm:px-6 max-w-7xl mx-auto">
+      <div className="sceneai-nav-glass rounded-full px-4 sm:px-6 py-2.5 flex items-center justify-between gap-3 transition-all duration-300">
+        {/* Brand Logo */}
+        <Link to="/" className="flex items-center gap-2.5 group">
           <motion.div
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 8,
-              background: "var(--color-accent)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              boxShadow: "0 2px 14px rgba(234, 88, 12, 0.45)",
-            }}
+            className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#ff8a00] to-[#ea580c] flex items-center justify-center shadow-[0_2px_12px_rgba(255,138,0,0.45)] transition-transform duration-300"
           >
-            <Shield size={18} color="#ffffff" />
+            <Shield size={17} color="#ffffff" />
           </motion.div>
-          <span>
-            DR<em>I</em>SHTI
+          <span className="font-bold text-white text-base sm:text-lg tracking-tight">
+            DR<em className="text-[#ff8a00] not-italic">I</em>SHTI
           </span>
         </Link>
 
-        <nav>
-          <ul className="hml-nav-links">
-            <li>
-              <a href="#topology" className="hml-nav-link">
-                Attack Topology
-              </a>
-            </li>
-            <li>
-              <a href="#pipeline" className="hml-nav-link">
-                Threat Pipeline
-              </a>
-            </li>
-            <li>
-              <a href="#pillars" className="hml-nav-link">
-                Architecture
-              </a>
-            </li>
-            <li>
-              <a href="#comparison" className="hml-nav-link">
-                Comparison
-              </a>
-            </li>
-            <li>
-              <a href="#playbooks" className="hml-nav-link">
-                Playbooks
-              </a>
-            </li>
-            <li>
-              <a href="#faq" className="hml-nav-link">
-                FAQ
-              </a>
-            </li>
-          </ul>
+        {/* Desktop Links */}
+        <nav className="hidden lg:flex items-center gap-6 text-xs sm:text-sm font-medium font-mono text-white/70">
+          <a href="#topology" className="hover:text-[#ff8a00] transition-colors duration-200">
+            Attack Topology
+          </a>
+          <a href="#pipeline" className="hover:text-[#ff8a00] transition-colors duration-200">
+            Threat Pipeline
+          </a>
+          <a href="#pillars" className="hover:text-[#ff8a00] transition-colors duration-200">
+            Architecture
+          </a>
+          <a href="#comparison" className="hover:text-[#ff8a00] transition-colors duration-200">
+            Comparison
+          </a>
+          <a href="#playbooks" className="hover:text-[#ff8a00] transition-colors duration-200">
+            Playbooks
+          </a>
+          <a href="#faq" className="hover:text-[#ff8a00] transition-colors duration-200">
+            FAQ
+          </a>
         </nav>
 
-        <div className="hml-nav-actions">
-          <Link to="/login" className="hml-btn-ghost">
-            Sign In
-          </Link>
-          <Link to="/signup" className="hml-btn-primary">
-            Launch Console <ArrowRight size={14} />
-          </Link>
+        {/* CTA Actions */}
+        <div className="flex items-center gap-3">
+          {user ? (
+            <Link
+              to="/app"
+              className="sceneai-gradient-border-btn cursor-pointer"
+            >
+              <div className="relative z-10 bg-black/80 hover:bg-black/60 backdrop-blur-xl rounded-full px-4 sm:px-5 py-2 flex items-center gap-2 text-white text-xs sm:text-sm font-medium transition-all duration-300">
+                <span>Open Console</span>
+                <ArrowRight size={13} className="text-[#ff8a00]" />
+              </div>
+            </Link>
+          ) : (
+            <>
+              <Link
+                to="/login"
+                className="hidden sm:inline-flex text-xs sm:text-sm text-white/70 hover:text-white px-3 py-1.5 transition-colors font-mono"
+              >
+                Sign In
+              </Link>
+              <Link
+                to="/signup"
+                className="sceneai-gradient-border-btn cursor-pointer"
+              >
+                <div className="relative z-10 bg-black/80 hover:bg-black/60 backdrop-blur-xl rounded-full px-4 sm:px-5 py-2 flex items-center gap-2 text-white text-xs sm:text-sm font-medium transition-all duration-300">
+                  <span>Launch Console</span>
+                  <ArrowRight size={13} className="text-[#ff8a00]" />
+                </div>
+              </Link>
+            </>
+          )}
+
+          {/* Mobile Menu Button */}
+          <button
+            onClick={() => setMobileOpen(!mobileOpen)}
+            className="lg:hidden p-1.5 rounded-full text-white/80 hover:text-white hover:bg-white/10 transition-colors"
+            aria-label="Toggle menu"
+          >
+            <ChevronDown
+              size={18}
+              className={`transition-transform duration-200 ${
+                mobileOpen ? "rotate-180" : ""
+              }`}
+            />
+          </button>
         </div>
       </div>
+
+      {/* Mobile Menu Dropdown */}
+      <AnimatePresence>
+        {mobileOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="lg:hidden mt-2 sceneai-nav-glass rounded-2xl p-4 flex flex-col gap-2.5 text-center text-sm font-mono"
+          >
+            <a
+              href="#topology"
+              onClick={() => setMobileOpen(false)}
+              className="py-1 text-white/80 hover:text-[#ff8a00]"
+            >
+              Attack Topology
+            </a>
+            <a
+              href="#pipeline"
+              onClick={() => setMobileOpen(false)}
+              className="py-1 text-white/80 hover:text-[#ff8a00]"
+            >
+              Threat Pipeline
+            </a>
+            <a
+              href="#pillars"
+              onClick={() => setMobileOpen(false)}
+              className="py-1 text-white/80 hover:text-[#ff8a00]"
+            >
+              Architecture
+            </a>
+            <a
+              href="#comparison"
+              onClick={() => setMobileOpen(false)}
+              className="py-1 text-white/80 hover:text-[#ff8a00]"
+            >
+              Comparison
+            </a>
+            <a
+              href="#playbooks"
+              onClick={() => setMobileOpen(false)}
+              className="py-1 text-white/80 hover:text-[#ff8a00]"
+            >
+              Playbooks
+            </a>
+            <a
+              href="#faq"
+              onClick={() => setMobileOpen(false)}
+              className="py-1 text-white/80 hover:text-[#ff8a00]"
+            >
+              FAQ
+            </a>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </header>
   );
 }
 
 /* ------------------------------------------------------------- Hero Backdrop */
-function HeroBackdrop({ scrollYProgress }: { scrollYProgress: any }) {
-  const heroBgY = useTransform(scrollYProgress, [0, 0.4], [0, 80]);
-
+function HeroBackdrop() {
   return (
-    <div className="hml-hero-bg-backdrop">
-      <motion.img
-        src={heroBg}
-        alt="Drishti Intelligence Topology Backdrop"
-        className="hml-hero-bg-img"
-        style={{ y: heroBgY }}
+    <div className="hml-hero-bg-backdrop fixed inset-0 w-full h-full pointer-events-none z-0 overflow-hidden">
+      {/* Full-screen Fixed Cinematic Video */}
+      <video
+        autoPlay
+        loop
+        muted
+        playsInline
+        className="w-full h-full object-cover"
+        poster={heroBg}
+      >
+        <source
+          src="https://cdn.sceneai.art/Hero%20Section%20Video/5a6cf9a9-9f93-4e44-88f3-cf666065daf7.mp4"
+          type="video/mp4"
+        />
+      </video>
+
+      {/* Fixed 40% Black Overlay for Text Legibility */}
+      <div
+        className="absolute inset-0 w-full h-full pointer-events-none"
+        style={{ backgroundColor: "rgba(0, 0, 0, 0.42)" }}
       />
-      <div className="hml-hero-bg-overlay" />
+
+      {/* Ambient Top Phosphor Glow */}
+      <div
+        className="absolute -top-32 left-1/2 -translate-x-1/2 w-full max-w-5xl h-[420px] pointer-events-none"
+        style={{
+          background:
+            "radial-gradient(ellipse 60% 50% at 50% 0%, rgba(255, 138, 0, 0.12), rgba(234, 88, 12, 0.04) 40%, transparent 75%)",
+        }}
+      />
+
+      {/* Radial Vignette */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background:
+            "radial-gradient(circle at 50% 35%, transparent 40%, rgba(5, 7, 6, 0.88) 100%)",
+        }}
+      />
     </div>
   );
 }
 
 /* ------------------------------------------------------------- Hero Content */
-function HeroContent() {
+function HeroContent({ user }: { user?: any }) {
   return (
-    <section className="hml-hero hml-wrap">
+    <section className="relative z-10 flex flex-col items-center justify-center text-center px-4 sm:px-6 pt-12 sm:pt-20 pb-14 max-w-5xl mx-auto">
+      {/* Uppercase Pill Badge */}
       <motion.div
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.1 }}
-        className="hml-pill-tag"
+        className="sceneai-badge-glass inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full text-[11px] sm:text-xs font-mono font-semibold tracking-[0.2em] uppercase text-white/90 mb-6 shadow-sm"
       >
-        <span className="hml-pill-dot" />
-        <span>Defensive Attack-Path Intelligence</span>
-        <span style={{ color: "rgba(255, 255, 255, 0.35)" }}>|</span>
-        <span style={{ color: "var(--color-accent)", fontWeight: 700 }}>
-          Zero-Hallucination Impact
-        </span>
+        <span className="w-2 h-2 rounded-full bg-[#ff8a00] shadow-[0_0_8px_#ff8a00]" />
+        <span>DEFENSIVE ATTACK-PATH INTELLIGENCE</span>
+        <span className="text-white/30">|</span>
+        <span className="text-[#ff8a00] font-bold">ZERO-HALLUCINATION IMPACT</span>
       </motion.div>
 
+      {/* Main Heading with Vertical & Horizontal Dual Gradients */}
       <motion.h1
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.2 }}
-        className="hml-hero-title text-white"
-        style={{ color: "#ffffff" }}
+        className="flex flex-col items-center tracking-tight"
       >
-        See Your Network Through the Eyes of an Attacker.
+        <span className="font-bold text-4xl sm:text-6xl md:text-7xl lg:text-8xl leading-[1.08] bg-gradient-to-b from-white via-white/95 to-white/60 bg-clip-text text-transparent">
+          See Your Network Through the
+        </span>
+        <span className="font-bold text-4xl sm:text-6xl md:text-7xl lg:text-8xl leading-[1.08] mt-1 sm:mt-2 bg-gradient-to-r from-[#ff8a00] via-[#ff6a00] to-[#ea580c] bg-clip-text text-transparent drop-shadow-[0_0_35px_rgba(255,138,0,0.35)]">
+          Eyes of an Attacker.
+        </span>
       </motion.h1>
 
+      {/* Sub-headline */}
       <motion.p
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.3 }}
-        className="hml-hero-desc text-slate-200"
-        style={{ color: "#e2e8f0" }}
+        className="text-white/70 text-base sm:text-lg md:text-xl font-normal leading-relaxed max-w-2xl mt-6 mb-8 tracking-normal"
       >
         Drishti maps real routes from the internet to your crown-jewel assets,
-        prices every path in <span style={{ color: "#fb923c", fontWeight: 700 }}>$ dollars</span>,
+        prices every path in <span className="text-[#ff8a00] font-bold font-mono">$ dollars</span>,
         and synthesizes human-reviewed Ansible playbooks. Never attacks.
       </motion.p>
 
+      {/* CTA Buttons */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.4 }}
-        className="hml-hero-cta"
+        className="flex items-center justify-center gap-4 flex-wrap"
       >
-        <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-          <Link to="/signup" className="hml-btn-accent">
-            Launch Interactive Console <ArrowRight size={16} />
-          </Link>
-        </motion.div>
-        <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-          <a href="#pipeline" className="hml-btn-outline">
-            Explore Threat Pipeline
-          </a>
-        </motion.div>
+        <Link
+          to={user ? "/app" : "/signup"}
+          className="sceneai-gradient-border-btn group cursor-pointer"
+        >
+          <div className="relative z-10 bg-black/80 hover:bg-black/60 backdrop-blur-xl rounded-full px-8 py-3.5 flex items-center gap-3.5 text-white font-medium text-base sm:text-lg transition-all duration-300">
+            <span>{user ? "Open Console" : "Launch Interactive Console"}</span>
+            <div className="w-7 h-7 rounded-full bg-gradient-to-r from-[#ff8a00] to-[#ea580c] flex items-center justify-center text-white shadow-md group-hover:translate-x-1 transition-transform duration-300">
+              <ArrowRight size={15} className="stroke-[2.5]" />
+            </div>
+          </div>
+        </Link>
+
+        <a
+          href="#pipeline"
+          className="sceneai-secondary-btn rounded-full px-7 py-3.5 text-base sm:text-lg font-medium inline-flex items-center gap-2 shadow-sm"
+        >
+          <span>Explore Threat Pipeline</span>
+        </a>
+      </motion.div>
+
+      {/* Community Avatar Cluster */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, delay: 0.55 }}
+        style={{ marginTop: "3.25rem" }}
+        className="flex flex-col items-center"
+      >
+        <img
+          src="https://cdn.sceneai.art/Hero%20Section%20Video/4c39c031-79d4-41e2-a6ab-bd1c49960765.png"
+          alt="Defensive Security Analysts Community"
+          style={{ width: "130px", height: "auto" }}
+          className="sceneai-avatar-shadow select-none transition-transform duration-300 hover:scale-105"
+        />
       </motion.div>
     </section>
   );
@@ -607,7 +738,7 @@ function InteractivePathSection() {
         {/* Hops Chain Visualization */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "1rem" }}>
           {current.hops.map((hop, index) => (
-            <React.Fragment key={hop.name}>
+            <Fragment key={hop.name}>
               <motion.div
                 whileHover={{ y: -4 }}
                 style={{
@@ -638,7 +769,7 @@ function InteractivePathSection() {
                   <ArrowRight size={18} color="var(--color-accent)" />
                 </div>
               )}
-            </React.Fragment>
+            </Fragment>
           ))}
         </div>
 
@@ -1170,7 +1301,7 @@ function FaqSection() {
 }
 
 /* ------------------------------------------------------------- Call to Action Band */
-function CtaBandSection() {
+function CtaBandSection({ user }: { user?: any }) {
   return (
     <section style={{ padding: "clamp(4rem, 8vw, 6rem) 1.5rem", background: "var(--color-surface-dark)", textAlign: "center", position: "relative", overflow: "hidden" }}>
       <div style={{ maxWidth: "44rem", marginInline: "auto", position: "relative", zIndex: 2 }}>
@@ -1181,8 +1312,8 @@ function CtaBandSection() {
           Run your first graph-theoretic threat topology audit in under 60 seconds. Zero agent installations required for initial reconnaissance.
         </p>
         <div style={{ display: "flex", justifyContent: "center", gap: "1rem", flexWrap: "wrap" }}>
-          <Link to="/signup" className="hml-btn-accent">
-            Launch Interactive Console <ArrowRight size={16} />
+          <Link to={user ? "/app" : "/signup"} className="hml-btn-accent">
+            {user ? "Open Console" : "Launch Interactive Console"} <ArrowRight size={16} />
           </Link>
           <a
             href="https://github.com/Subhadip-Paul2006/dhristi"

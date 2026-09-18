@@ -94,12 +94,12 @@ export function Panel({
   return (
     <section
       className={clsx(
-        "reg-frame group relative overflow-hidden rounded-md border border-hairline bg-surface-1/80 backdrop-blur-xl transition-all duration-200",
+        "reg-frame group relative overflow-hidden rounded-lg border border-hairline/80 bg-surface-1/65 backdrop-blur-md shadow-[0_8px_32px_rgba(0,0,0,0.37)] transition-all duration-300",
         hoverBorder,
         glow &&
           (tone === "critical"
             ? "shadow-[0_0_40px_-15px_rgba(239,68,68,0.45)]"
-            : "shadow-[0_0_40px_-15px_rgba(0,255,102,0.30)]"),
+            : "shadow-[0_0_40px_-15px_rgba(56,198,244,0.25)]"),
         className,
       )}
     >
@@ -170,7 +170,7 @@ export function StatReadout({
   return (
     <div
       className={clsx(
-        "reg-frame group relative overflow-hidden rounded-md border bg-surface-1/40 px-4 py-4 backdrop-blur-xl transition-all duration-300 hover:-translate-y-0.5",
+        "reg-frame group relative overflow-hidden rounded-lg border bg-surface-1/45 px-4 py-4 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.25)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-surface-1/65",
         ring,
         className,
       )}

@@ -19,9 +19,9 @@ import {
 } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { AuroraBackground } from "./ui/AuroraBackground";
+import { GridBackground } from "./ui/GridBackground";
 import { api } from "../api/client";
 import { useAuth } from "../auth";
 import { useToast } from "../store/graphStore";
@@ -68,7 +68,7 @@ export function Shell({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col bg-canvas text-ink selection:bg-accent-500/25 selection:text-white">
       {/* Top Cyber Command Header */}
-      <header className="relative z-30 flex h-14 shrink-0 items-center justify-between border-b border-hairline bg-surface-1/90 px-4 sm:px-6 backdrop-blur-md">
+      <header className="relative z-30 flex h-14 shrink-0 items-center justify-between border-b border-hairline/80 bg-surface-1/80 px-4 sm:px-6 backdrop-blur-xl">
         <div className="flex items-center gap-3.5">
           {/* Mobile menu toggle */}
           <button
@@ -87,7 +87,7 @@ export function Shell({ children }: { children: ReactNode }) {
 
           {/* Logo & Terminal Brand */}
           <NavLink to="/app" className="flex items-center gap-2.5 group">
-            <div className="flex h-7 w-7 items-center justify-center rounded border border-accent-500/40 bg-accent-500/10 text-accent-400 shadow-[0_0_12px_rgba(0,255,102,0.25)] transition-all group-hover:shadow-[0_0_16px_rgba(0,255,102,0.4)]">
+            <div className="flex h-7 w-7 items-center justify-center rounded border border-accent-500/40 bg-accent-500/10 text-accent-400 shadow-[0_0_12px_rgba(56,198,244,0.25)] transition-all group-hover:shadow-[0_0_16px_rgba(56,198,244,0.4)]">
               <Activity className="h-4 w-4" />
             </div>
             <div className="flex items-baseline gap-2">
@@ -131,6 +131,14 @@ export function Shell({ children }: { children: ReactNode }) {
             <span className="text-hairline">·</span>
             <span className="text-ink-secondary">ENGINE: ACTIVE</span>
           </div>
+
+          <Link
+            to="/"
+            className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono rounded border border-hairline hover:border-accent-500/40 text-ink-muted hover:text-ink-primary transition-all bg-surface-2/40"
+            title="View Public Landing Page"
+          >
+            <span>Landing Page ↗</span>
+          </Link>
 
           <Button
             variant="ghost"
@@ -193,7 +201,7 @@ export function Shell({ children }: { children: ReactNode }) {
 
       <div className="flex flex-1 overflow-hidden">
         {/* Desktop & Tablet Terminal Sidebar */}
-        <nav className="hidden shrink-0 flex-col border-r border-hairline bg-surface-1/95 py-3 lg:flex lg:w-56">
+        <nav className="hidden shrink-0 flex-col border-r border-hairline/80 bg-surface-1/80 backdrop-blur-xl py-3 lg:flex lg:w-56">
           <div className="mb-2 px-3 flex items-center justify-between">
             <span className="font-mono text-[9px] font-bold uppercase tracking-[0.2em] text-ink-muted">
               // TELEMETRY CONSOLE
@@ -211,7 +219,7 @@ export function Shell({ children }: { children: ReactNode }) {
                   clsx(
                     "group relative flex items-center gap-2.5 rounded border px-2.5 py-2 font-mono text-xs transition-all duration-150 active:translate-y-px",
                     isActive
-                      ? "border-accent-500/40 bg-accent-500/10 text-accent-400 font-semibold shadow-[0_0_12px_rgba(0,255,102,0.12)]"
+                      ? "border-accent-500/40 bg-accent-500/10 text-accent-400 font-semibold shadow-[0_0_12px_rgba(56,198,244,0.12)]"
                       : "border-transparent text-ink-secondary hover:border-hairline hover:bg-surface-2/60 hover:text-ink-primary"
                   )
                 }
@@ -254,7 +262,7 @@ export function Shell({ children }: { children: ReactNode }) {
         </nav>
 
         {/* Main Content Area */}
-        <AuroraBackground className="flex-1 overflow-y-auto scrollbar-thin overflow-x-hidden bg-canvas">
+        <GridBackground className="flex-1 overflow-y-auto scrollbar-thin overflow-x-hidden bg-canvas">
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname}
@@ -267,7 +275,7 @@ export function Shell({ children }: { children: ReactNode }) {
               {children}
             </motion.div>
           </AnimatePresence>
-        </AuroraBackground>
+        </GridBackground>
       </div>
     </div>
   );

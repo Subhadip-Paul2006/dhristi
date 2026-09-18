@@ -1,0 +1,103 @@
+/* SceneAI-Inspired Cinematic Hero Architecture & Animation Tokens */
+
+@keyframes spinConic {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes spinDiamond {
+  0% {
+    transform: rotate(45deg);
+  }
+  50% {
+    transform: rotate(225deg);
+  }
+  100% {
+    transform: rotate(405deg);
+  }
+}
+
+.animate-diamond-spin {
+  animation: spinDiamond 7s ease-in-out infinite;
+}
+
+/* 1.5px Animated Rotating Gradient Border Glass Pill */
+.sceneai-gradient-border-btn {
+  position: relative;
+  border-radius: 9999px;
+  padding: 1.5px;
+  background: transparent;
+  overflow: hidden;
+  display: inline-flex;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 0 20px rgba(255, 138, 0, 0.15);
+}
+
+.sceneai-gradient-border-btn::before {
+  content: "";
+  position: absolute;
+  top: -100%;
+  left: -100%;
+  width: 300%;
+  height: 300%;
+  background: conic-gradient(
+    from 0deg,
+    #ff8a00,
+    #ea580c,
+    #ff4500,
+    #ff8a00 70%,
+    #ea580c
+  );
+  animation: spinConic 3.5s linear infinite;
+  z-index: 0;
+}
+
+.sceneai-gradient-border-btn:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 0 35px rgba(255, 138, 0, 0.45);
+}
+
+.sceneai-gradient-border-btn:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* Glassmorphism Classes */
+.sceneai-nav-glass {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.sceneai-badge-glass {
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.sceneai-secondary-btn {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #f1f5f9;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sceneai-secondary-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.35);
+  transform: translateY(-2px);
+  color: #ffffff;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.sceneai-avatar-shadow {
+  filter: drop-shadow(0 10px 25px rgba(0, 0, 0, 0.95)) drop-shadow(0 0 20px rgba(0, 0, 0, 0.8));
+}

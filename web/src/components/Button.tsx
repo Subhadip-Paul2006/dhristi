@@ -15,9 +15,9 @@ interface Props extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const VARIANTS: Record<Variant, string> = {
   primary:
-    "bg-accent-500 text-canvas font-semibold border border-accent-400 shadow-[0_0_15px_rgba(0,255,102,0.25)] hover:bg-accent-400 hover:shadow-[0_0_22px_rgba(0,255,102,0.4)] active:bg-accent-600 disabled:opacity-50",
+    "bg-accent-500 text-canvas font-semibold border border-accent-400 shadow-[0_0_15px_rgba(56,198,244,0.25)] hover:bg-accent-400 hover:shadow-[0_0_22px_rgba(56,198,244,0.4)] active:bg-accent-600 disabled:opacity-50",
   ghost:
-    "bg-surface-2/80 text-ink-primary hover:bg-surface-3 hover:text-accent-400 border border-hairline shadow-md backdrop-blur-md hover:border-accent-500/40 hover:shadow-[0_0_12px_rgba(0,255,102,0.15)]",
+    "bg-surface-2/80 text-ink-primary hover:bg-surface-3 hover:text-accent-400 border border-hairline shadow-md backdrop-blur-md hover:border-accent-500/40 hover:shadow-[0_0_12px_rgba(56,198,244,0.15)]",
   danger:
     "bg-risk-critical/10 text-risk-critical border border-risk-critical/40 hover:bg-risk-critical/20 hover:border-risk-critical/70 disabled:opacity-50",
 };

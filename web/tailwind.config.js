@@ -1,11 +1,11 @@
 /**
- * Design tokens — Drishti "Cybersecurity Terminal + Matrix + SOC Command Center" (Dark Theme).
+ * Design tokens — Drishti Luxury Obsidian & Electric Cyan SOC Command Center (Dark Theme).
  *
  * Single source of truth for the WHOLE app. Remapping the tokens here re-skins
- * every screen without breaking existing component contracts.
- * Base surfaces: #050706 (canvas), #080B09 (surface-1), #0C100E (surface-2), #101612 (surface-3).
- * Primary accent: Matrix / Terminal Green (#00ff66, #00e575).
- * Threat colors: Critical (#ef4444), High (#f97316), Medium (#f59e0b), Safe/Low (#00ff66).
+ * every screen with a cohesive, modern cybersecurity aesthetic.
+ * Base surfaces: #020b14 (canvas), #051322 (surface-1), #091a2e (surface-2), #0e233d (surface-3).
+ * Primary accent: Electric Cyan (#38c6f4, #0ea5e9) / Indigo (#6366f1).
+ * Threat colors: Critical (#ef4444), High (#f97316), Medium (#f59e0b), Safe/Low (#10b981).
  */
 /** @type {import('tailwindcss').Config} */
 export default {
@@ -13,24 +13,24 @@ export default {
   theme: {
     extend: {
       colors: {
-        // ── Cyber Terminal & Matrix Palette ────────────────────────────────
-        primary: "#00ff66", // Matrix terminal green
-        "on-primary": "#050706", // Dark label on green fill
-        "accent-blue": "#00ff66", // Remapped to terminal green
-        ink: "#e6edf3", // Crisp light terminal readout
-        "ink-muted": "#52665a", // Deep muted technical sage
-        canvas: "#050706", // Deep obsidian near-black
-        "surface-1": "#080b09", // Terminal panel surface
-        "surface-2": "#0c100e", // Inset wells & secondary panels
-        "surface-3": "#101612", // Elevated HUD chrome
-        hairline: "#152219", // Fine technical border
-        "hairline-soft": "#0e1812", // Subtle divider
-        "inverse-canvas": "#e6edf3",
-        "inverse-ink": "#050706",
+        // ── 21st.dev Favorites Chromatic Gradient Palette ───────────────
+        primary: "#c084fc", // Luminous Lavender / Purple
+        "on-primary": "#030208", // Dark label on purple fill
+        "accent-blue": "#818cf8", // Electric Indigo
+        ink: "#f8fafc", // Crisp light readout
+        "ink-muted": "#94a3b8", // Slate muted text
+        canvas: "#030208", // Deep Obsidian Violet
+        "surface-1": "#0a0718", // Card & sidebar surface
+        "surface-2": "#120d28", // Inset wells & secondary panels
+        "surface-3": "#1c153d", // Elevated purple chrome
+        hairline: "rgba(168, 85, 247, 0.16)", // Fine violet border
+        "hairline-soft": "rgba(168, 85, 247, 0.08)", // Subtle divider
+        "inverse-canvas": "#f8fafc",
+        "inverse-ink": "#030208",
 
         // Severity ramp — functional cybersecurity semantics
         risk: {
-          safe: "#00ff66",
+          safe: "#10b981",
           low: "#10b981",
           medium: "#f59e0b",
           high: "#f97316",
@@ -40,63 +40,63 @@ export default {
         status: {
           open: "#f97316",
           remediating: "#f59e0b",
-          resolved: "#00ff66",
-          info: "#52665a",
+          resolved: "#10b981",
+          info: "#38bdf8",
         },
 
         // Surface aliases
         bg: {
-          base: "#050706",
-          surface: "#080b09",
-          raised: "#0c100e",
-          inset: "#030504",
+          base: "#030208",
+          surface: "#0a0718",
+          raised: "#120d28",
+          inset: "#020104",
         },
         edge: {
-          subtle: "#152219",
-          strong: "#1e3828",
+          subtle: "rgba(168, 85, 247, 0.16)",
+          strong: "rgba(192, 132, 252, 0.35)",
         },
 
-        // Text ramp: High-contrast terminal hierarchy
-        "ink-primary": "#e6edf3", // Crisp primary white/green
-        "ink-secondary": "#9ca3af", // Terminal dim gray/green
-        "ink-subtle": "#52665a", // Subordinate metadata
+        // Text ramp: High-contrast modern hierarchy
+        "ink-primary": "#f8fafc", // Crisp primary white
+        "ink-secondary": "#cbd5e1", // Slate medium gray
+        "ink-subtle": "#94a3b8", // Subordinate metadata
 
-        // Accent = Matrix / Terminal Green ramp
+        // Accent = Luminous Violet & Indigo ramp
         accent: {
-          300: "#6ee7b7",
-          400: "#00e575", // High-readability terminal green
-          500: "#00ff66", // Matrix phosphor green
-          600: "#059669", // Deep emerald for pressed/hover
-          glow: "rgba(0, 255, 102, 0.20)",
+          300: "#d8b4fe",
+          400: "#c084fc", // High-readability lavender
+          500: "#a855f7", // Vivid purple
+          600: "#9333ea", // Deep violet for pressed/hover
+          glow: "rgba(168, 85, 247, 0.28)",
         },
 
         md: {
-          primary: "#00ff66",
-          "on-primary": "#050706",
-          "primary-container": "#0c100e",
-          "on-primary-container": "#e6edf3",
-          secondary: "#9ca3af",
-          "on-secondary": "#050706",
+          primary: "#c084fc",
+          "on-primary": "#030208",
+          "primary-container": "#120d28",
+          "on-primary-container": "#f8fafc",
+          secondary: "#cbd5e1",
+          "on-secondary": "#030208",
           error: "#ef4444",
-          background: "#050706",
-          "on-background": "#e6edf3",
-          surface: "#080b09",
-          "surface-lowest": "#030504",
+          background: "#030208",
+          "on-background": "#f8fafc",
+          surface: "#0a0718",
+          "surface-lowest": "#020104",
         },
 
         // Legacy token mappings for 100% backwards-compatibility
-        "signal-orange": "#00ff66",
-        "ember-crust": "#064e3b",
-        "cloud-mist": "#0c100e",
-        "graphite-ink": "#e6edf3",
-        "paper-white": "#080b09",
-        "slate-pencil": "#9ca3af",
-        "ash-mist": "#52665a",
-        "blush-shadow": "#101612",
-        "midnight-ink": "#050706",
-        "semantic-success": "#00ff66",
+        "signal-orange": "#ea580c",
+        "ember-crust": "#1c153d",
+        "cloud-mist": "#120d28",
+        "graphite-ink": "#f8fafc",
+        "paper-white": "#0a0718",
+        "slate-pencil": "#cbd5e1",
+        "ash-mist": "#94a3b8",
+        "blush-shadow": "#1c153d",
+        "midnight-ink": "#030208",
+        "semantic-success": "#10b981",
       },
-      ringColor: { DEFAULT: "#00ff66" },
+      ringColor: { DEFAULT: "#c084fc" },
       fontFamily: {
         display: ["'Space Grotesk'", "'Inter'", "system-ui", "sans-serif"],
         body: ["'Inter'", "'Manrope'", "system-ui", "sans-serif"],
