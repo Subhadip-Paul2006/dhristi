@@ -254,4 +254,17 @@ export const api = {
   deepScanRange: (cidr: string, consent: boolean) =>
     post<DeepScanRangeResult>("/api/live/deep-scan-range", { cidr, consent }),
   deepScanLast: (assetId: string) => get<DeepScanResult>(`/api/live/deep-scan/${assetId}`),
+  telegramStatus: () =>
+    get<{
+      configured: boolean;
+      running: boolean;
+      chat_ids_count: number;
+      chat_ids_masked: string[];
+      alerted_count: number;
+    }>("/api/live/telegram-status"),
+  telegramTest: () =>
+    post<{
+      success: boolean;
+      results: Array<{ chat_id: string; delivered: boolean }>;
+    }>("/api/live/telegram-test"),
 };
