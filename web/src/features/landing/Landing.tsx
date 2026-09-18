@@ -517,41 +517,41 @@ function HeroBackdrop() {
 /* ------------------------------------------------------------- Hero Content */
 function HeroContent({ user }: { user?: any }) {
   return (
-    <section className="relative z-10 flex flex-col items-center justify-center text-center px-4 sm:px-6 pt-12 sm:pt-20 pb-14 max-w-5xl mx-auto">
+    <section className="relative z-10 flex flex-col items-center justify-center text-center px-4 sm:px-6 pt-10 sm:pt-14 pb-12 max-w-4xl mx-auto">
       {/* Uppercase Pill Badge */}
       <motion.div
-        initial={{ opacity: 0, y: 15 }}
+        initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.1 }}
-        className="sceneai-badge-glass inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full text-[11px] sm:text-xs font-mono font-semibold tracking-[0.2em] uppercase text-white/90 mb-6 shadow-sm"
+        className="sceneai-badge-glass inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-[10px] sm:text-[11px] font-mono font-semibold tracking-[0.18em] uppercase text-white/90 mb-5 shadow-sm"
       >
-        <span className="w-2 h-2 rounded-full bg-[#ff8a00] shadow-[0_0_8px_#ff8a00]" />
+        <span className="w-1.5 h-1.5 rounded-full bg-[#ff8a00] shadow-[0_0_6px_#ff8a00]" />
         <span>DEFENSIVE ATTACK-PATH INTELLIGENCE</span>
         <span className="text-white/30">|</span>
         <span className="text-[#ff8a00] font-bold">ZERO-HALLUCINATION IMPACT</span>
       </motion.div>
 
-      {/* Main Heading with Vertical & Horizontal Dual Gradients */}
+      {/* Main Heading with Balanced Scale */}
       <motion.h1
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.2 }}
-        className="flex flex-col items-center tracking-tight"
+        className="flex flex-col items-center tracking-tight max-w-3xl"
       >
-        <span className="font-bold text-4xl sm:text-6xl md:text-7xl lg:text-8xl leading-[1.08] bg-gradient-to-b from-white via-white/95 to-white/60 bg-clip-text text-transparent">
+        <span className="font-bold text-3xl sm:text-5xl md:text-6xl leading-[1.12] bg-gradient-to-b from-white via-white/95 to-white/60 bg-clip-text text-transparent">
           See Your Network Through the
         </span>
-        <span className="font-bold text-4xl sm:text-6xl md:text-7xl lg:text-8xl leading-[1.08] mt-1 sm:mt-2 bg-gradient-to-r from-[#ff8a00] via-[#ff6a00] to-[#ea580c] bg-clip-text text-transparent drop-shadow-[0_0_35px_rgba(255,138,0,0.35)]">
+        <span className="font-bold text-3xl sm:text-5xl md:text-6xl leading-[1.12] mt-1 bg-gradient-to-r from-[#ff8a00] via-[#ff6a00] to-[#ea580c] bg-clip-text text-transparent drop-shadow-[0_0_25px_rgba(255,138,0,0.3)]">
           Eyes of an Attacker.
         </span>
       </motion.h1>
 
       {/* Sub-headline */}
       <motion.p
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.3 }}
-        className="text-white/70 text-base sm:text-lg md:text-xl font-normal leading-relaxed max-w-2xl mt-6 mb-8 tracking-normal"
+        className="text-white/70 text-sm sm:text-base md:text-lg font-normal leading-relaxed max-w-xl mt-4 mb-7 tracking-normal"
       >
         Drishti maps real routes from the internet to your crown-jewel assets,
         prices every path in <span className="text-[#ff8a00] font-bold font-mono">$ dollars</span>,
@@ -560,26 +560,26 @@ function HeroContent({ user }: { user?: any }) {
 
       {/* CTA Buttons */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.4 }}
-        className="flex items-center justify-center gap-4 flex-wrap"
+        className="flex items-center justify-center gap-3.5 flex-wrap"
       >
         <Link
           to={user ? "/app" : "/signup"}
           className="sceneai-gradient-border-btn group cursor-pointer"
         >
-          <div className="relative z-10 bg-black/80 hover:bg-black/60 backdrop-blur-xl rounded-full px-8 py-3.5 flex items-center gap-3.5 text-white font-medium text-base sm:text-lg transition-all duration-300">
+          <div className="relative z-10 bg-black/80 hover:bg-black/60 backdrop-blur-xl rounded-full px-6 py-2.5 sm:py-3 flex items-center gap-3 text-white font-medium text-sm sm:text-base transition-all duration-300">
             <span>{user ? "Open Console" : "Launch Interactive Console"}</span>
-            <div className="w-7 h-7 rounded-full bg-gradient-to-r from-[#ff8a00] to-[#ea580c] flex items-center justify-center text-white shadow-md group-hover:translate-x-1 transition-transform duration-300">
-              <ArrowRight size={15} className="stroke-[2.5]" />
+            <div className="w-6 h-6 rounded-full bg-gradient-to-r from-[#ff8a00] to-[#ea580c] flex items-center justify-center text-white shadow-md group-hover:translate-x-1 transition-transform duration-300">
+              <ArrowRight size={13} className="stroke-[2.5]" />
             </div>
           </div>
         </Link>
 
         <a
           href="#pipeline"
-          className="sceneai-secondary-btn rounded-full px-7 py-3.5 text-base sm:text-lg font-medium inline-flex items-center gap-2 shadow-sm"
+          className="sceneai-secondary-btn rounded-full px-5 py-2.5 sm:py-3 text-sm sm:text-base font-medium inline-flex items-center gap-2 shadow-sm"
         >
           <span>Explore Threat Pipeline</span>
         </a>
@@ -587,16 +587,15 @@ function HeroContent({ user }: { user?: any }) {
 
       {/* Community Avatar Cluster */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8, delay: 0.55 }}
-        style={{ marginTop: "3.25rem" }}
-        className="flex flex-col items-center"
+        transition={{ duration: 0.8, delay: 0.5 }}
+        className="mt-8 flex flex-col items-center"
       >
         <img
           src="https://cdn.sceneai.art/Hero%20Section%20Video/4c39c031-79d4-41e2-a6ab-bd1c49960765.png"
           alt="Defensive Security Analysts Community"
-          style={{ width: "130px", height: "auto" }}
+          style={{ width: "115px", height: "auto" }}
           className="sceneai-avatar-shadow select-none transition-transform duration-300 hover:scale-105"
         />
       </motion.div>
