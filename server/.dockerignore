@@ -1,0 +1,40 @@
+# Python virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Bytecode and cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Local databases (fresh containers must not bake local dev state)
+*.db
+*.sqlite
+*.sqlite3
+
+# Environment files and secrets (never commit or bake secrets)
+.env
+.env.*
+!.env.example
+
+# Version control and editor files
+.git/
+.gitignore
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Docker files
+Dockerfile
+.dockerignore
