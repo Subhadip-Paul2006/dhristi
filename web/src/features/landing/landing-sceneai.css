@@ -101,3 +101,35 @@
 .sceneai-avatar-shadow {
   filter: drop-shadow(0 10px 25px rgba(0, 0, 0, 0.95)) drop-shadow(0 0 20px rgba(0, 0, 0, 0.8));
 }
+
+/* 21st.dev Style Luminous Shimmering Gradient Text */
+@keyframes shimmerTextFlow {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.sceneai-shimmer-text {
+  background: linear-gradient(
+    90deg,
+    #ff8a00 0%,
+    #ffb347 25%,
+    #ea580c 50%,
+    #ff8a00 75%,
+    #ffc04d 100%
+  );
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmerTextFlow 5s ease-in-out infinite;
+  display: inline-block;
+  filter: drop-shadow(0 0 20px rgba(255, 138, 0, 0.35));
+}
+
