@@ -1,0 +1,42 @@
+# Version control
+.git/
+.git_backup/
+.githooks/
+.gitignore
+
+# Dependencies & virtual environments
+node_modules/
+.venv/
+venv/
+env/
+
+# Build outputs & caches
+dist/
+build/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+*.tsbuildinfo
+.vite/
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Environment files and secrets (never bake secrets into Docker images)
+.env
+.env.*
+!.env.example
+
+# IDE, tooling, and OS files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+.agents/
+.kilo/
+.pheromone/
+.playwright-mcp/

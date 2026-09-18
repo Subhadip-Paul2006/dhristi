@@ -1,3 +1,19 @@
+# Dependencies & build outputs
 node_modules/
 dist/
+build/
 .vite/
+*.tsbuildinfo
+
+# Version control & editor files
+.git/
+.gitignore
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
