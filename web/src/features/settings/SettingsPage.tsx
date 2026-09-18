@@ -58,6 +58,23 @@ export function SettingsPage() {
     changePw.mutate();
   };
 
+  const tgQ = useQuery({
+    queryKey: ["telegram-status"],
+    queryFn: () => api.telegramStatus(),
+    refetchInterval: 10000,
+  });
+
+  const testTelegram = useMutation({
+    mutationFn: () => api.telegramTest(),
+    onSuccess: (data) => {
+      toast.show(`Test alert delivered to Telegram (${data.results.length} recipient)`, "success");
+      tgQ.refetch();
+    },
+    onError: (err) => {
+      toast.show(err instanceof Error ? err.message : "Failed to send Telegram test alert", "error");
+    },
+  });
+
   return (
     <div className="console-atmos min-h-screen">
       <div className="mx-auto max-w-2xl space-y-6 p-4 sm:p-6 lg:p-8">
@@ -136,6 +153,50 @@ export function SettingsPage() {
               Change password
             </Button>
           </form>
+        </Card>
+
+        <Card className="space-y-4 p-5 border border-hairline bg-surface-1/90 shadow-2xl relative">
+          <div className="flex items-center justify-between">
+            <div className="font-mono text-xs font-bold uppercase tracking-wider text-accent-400">
+              [TELEGRAM ALERT NOTIFICATIONS]
+            </div>
+            {tgQ.data?.configured ? (
+              <span className="flex items-center gap-1.5 font-mono text-xs text-risk-low">
+                <span className="inline-block h-2 w-2 rounded-full bg-risk-low animate-pulse" />
+                ACTIVE DISPATCHER
+              </span>
+            ) : (
+              <span className="font-mono text-xs text-ink-muted">NOT CONFIGURED</span>
+            )}
+          </div>
+          <p className="font-mono text-xs text-ink-secondary">
+            Outbound automated push notifications dispatched to your verified Telegram bot for critical findings and active network threats.
+          </p>
+          <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-small">
+            <dt className="font-mono text-xs text-ink-muted">DISPATCHER STATUS</dt>
+            <dd className="font-mono text-xs font-semibold text-ink-primary">
+              {tgQ.data?.running ? "Running (30s background scan)" : tgQ.data?.configured ? "Ready" : "Disabled"}
+            </dd>
+            <dt className="font-mono text-xs text-ink-muted">TARGET CHAT ID(S)</dt>
+            <dd className="font-mono text-xs text-ink-primary">
+              {tgQ.data?.chat_ids_masked?.join(", ") || "None configured"}
+            </dd>
+            <dt className="font-mono text-xs text-ink-muted">PROCESSED THREATS/CVEs</dt>
+            <dd className="font-mono text-xs text-ink-secondary">
+              {tgQ.data?.alerted_count ?? 0} dispatched items
+            </dd>
+          </dl>
+          <div className="pt-2">
+            <Button
+              type="button"
+              variant="ghost"
+              loading={testTelegram.isPending}
+              disabled={!tgQ.data?.configured}
+              onClick={() => testTelegram.mutate()}
+            >
+              Send Test Alert to Telegram
+            </Button>
+          </div>
         </Card>
       </div>
     </div>
