@@ -11,6 +11,7 @@ import {
   Bug,
   Clock,
   Copy,
+  Cpu,
   Crosshair,
   ExternalLink,
   Globe,
@@ -1209,6 +1210,351 @@ function MapFrame({ children }: { children: React.ReactNode }) {
   );
 }
 
+export function CapabilityBadge({ state, device: d }: { state?: string; device?: NetworkDevice }) {
+  const hasAgent = Boolean(
+    d?.is_self ||
+    (d?.endpoint_processes && d.endpoint_processes.length > 0) ||
+    (d?.installed_browsers && d.installed_browsers.length > 0) ||
+    (d?.active_browser_tabs && d.active_browser_tabs.length > 0)
+  );
+  const cap = state ?? d?.capability_state ?? (hasAgent ? "AGENT CONNECTED" : "NETWORK ONLY");
+  let color = "border-neutral-500/40 bg-neutral-500/10 text-neutral-400";
+  if (cap === "FULL ENDPOINT TELEMETRY") {
+    color = "border-emerald-500/40 bg-emerald-500/10 text-emerald-400";
+  } else if (cap === "BROWSER EXTENSION CONNECTED") {
+    color = "border-cyan-500/40 bg-cyan-500/10 text-cyan-400";
+  } else if (cap === "AGENT CONNECTED") {
+    color = "border-sky-500/40 bg-sky-500/10 text-sky-400";
+  }
+  return (
+    <span className={`rounded-sm border px-2 py-0.5 font-mono text-[10px] font-bold ${color}`}>
+      [{cap}]
+    </span>
+  );
+}
+
+export function LiveActivitySection({
+  device: d,
+  threatMap = {},
+}: {
+  device: NetworkDevice;
+  threatMap?: Record<string, LiveThreat>;
+}) {
+  const hasEndpointAgent = Boolean(
+    d.is_self ||
+    (d.endpoint_processes && d.endpoint_processes.length > 0) ||
+    (d.installed_browsers && d.installed_browsers.length > 0) ||
+    (d.active_browser_tabs && d.active_browser_tabs.length > 0)
+  );
+
+  const capState = d.capability_state ?? (
+    hasEndpointAgent
+      ? (d.active_browser_tabs && d.active_browser_tabs.length > 0 ? "FULL ENDPOINT TELEMETRY" : "AGENT CONNECTED")
+      : "NETWORK ONLY"
+  );
+
+  let capBadgeColor = "border-neutral-500/40 bg-neutral-500/10 text-neutral-400";
+  if (capState === "FULL ENDPOINT TELEMETRY") {
+    capBadgeColor = "border-emerald-500/40 bg-emerald-500/10 text-emerald-400";
+  } else if (capState === "BROWSER EXTENSION CONNECTED") {
+    capBadgeColor = "border-cyan-500/40 bg-cyan-500/10 text-cyan-400";
+  } else if (capState === "AGENT CONNECTED") {
+    capBadgeColor = "border-sky-500/40 bg-sky-500/10 text-sky-400";
+  }
+
+  // Separate user apps from background processes
+  const userApps = (d.endpoint_processes ?? []).filter(
+    (p) => p.category === "USER_APPLICATION" || !p.category
+  );
+  const bgProcs = (d.endpoint_processes ?? []).filter(
+    (p) => p.category === "BACKGROUND_PROCESS" || p.category === "SYSTEM_PROCESS"
+  );
+  const effectiveUserApps = userApps.length > 0
+    ? userApps
+    : (d.active_apps ?? []).map((app) => ({ name: app, observed_at: d.last_seen, details: null, category: "USER_APPLICATION" }));
+
+  return (
+    <div className="mt-4 border-t border-hairline pt-4 space-y-3" data-testid="live-activity-section">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-small text-ink">
+          <Activity className="h-4 w-4 text-accent-400" />
+          <span className="font-semibold uppercase tracking-wider text-xs">Live Activity</span>
+        </div>
+        <span className={`rounded border px-2 py-0.5 font-mono text-[10px] font-bold ${capBadgeColor}`}>
+          [{capState}]
+        </span>
+      </div>
+
+      {!hasEndpointAgent ? (
+        /* Remote LAN Node Fallback */
+        <div className="rounded-lg border border-hairline/60 bg-surface-2/60 p-3.5 text-[11px] space-y-2.5">
+          <div className="flex items-center justify-between">
+            <span className="font-semibold text-ink-muted">TELEMETRY UNAVAILABLE</span>
+            <span className="rounded bg-surface-1 px-1.5 py-0.5 font-mono text-[9px] text-ink-muted border border-hairline">
+              ENDPOINT AGENT NOT INSTALLED
+            </span>
+          </div>
+          <p className="text-ink-secondary text-[11px] leading-relaxed">
+            No authorized Drishti endpoint agent installed on this remote host. Endpoint processes, background services, and active browser tabs are only captured from nodes running an authorized agent.
+          </p>
+
+          {/* Recent Network Destinations for remote host (if any observed) */}
+          {((d.recent_destinations && d.recent_destinations.length > 0) || (d.active_domains && d.active_domains.length > 0)) && (
+            <div className="pt-2 border-t border-hairline/40">
+              <div className="mb-2 font-medium text-ink-secondary flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <Network className="h-3.5 w-3.5 text-purple-400" /> Recent Network Destinations:
+                </span>
+                <span className="rounded border border-purple-500/40 bg-purple-500/10 px-1.5 py-0.5 font-mono text-[9px] font-bold text-purple-400">
+                  [NETWORK]
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {(d.recent_destinations ?? (d.active_domains ?? []).map((dom) => ({ name: dom, observed_at: d.last_seen, evidence_type: "NETWORK_TRAFFIC", source: "network" }))).map((dest) => {
+                  const tr = threatMap[dest.name.toLowerCase()];
+                  const band = tr?.band ?? "Trusted";
+                  const color = hexFor(band);
+                  return (
+                    <span key={dest.name} className="inline-flex items-center gap-1.5 rounded border border-hairline bg-surface-1 px-2 py-1 font-mono text-[11px] text-ink">
+                      <span>{dest.name}</span>
+                      <span className="rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase" style={{ backgroundColor: `${color}22`, color }}>
+                        {band}
+                      </span>
+                      <span className="text-[9px] text-ink-muted">{formatCompactTime(dest.observed_at)}</span>
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Authorized Endpoint Telemetry Available */
+        <div className="space-y-3">
+          {/* ──────────────── A. RUNNING APPLICATIONS ──────────────── */}
+          <div className="rounded-md border border-hairline bg-canvas p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="font-medium text-ink-secondary flex items-center gap-1.5 text-[11px]">
+                <Laptop className="h-3.5 w-3.5 text-accent-400" /> Running Applications ({effectiveUserApps.length}):
+              </span>
+              <div className="flex items-center gap-1.5">
+                <span className="rounded border border-emerald-500/40 bg-emerald-500/10 px-1.5 py-0.5 font-mono text-[9px] font-bold text-emerald-400">
+                  [USER APPLICATION]
+                </span>
+                <span className="rounded border border-emerald-500/40 bg-emerald-500/10 px-1.5 py-0.5 font-mono text-[9px] font-bold text-emerald-400">
+                  [WINDOWS ENDPOINT]
+                </span>
+              </div>
+            </div>
+
+            {effectiveUserApps.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1">
+                {effectiveUserApps.map((proc, i) => (
+                  <div
+                    key={`${proc.name}-${i}`}
+                    className="flex items-center justify-between rounded border border-hairline/60 bg-surface-2/60 px-2.5 py-1.5 text-[11px]"
+                  >
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <Laptop className="h-3 w-3 text-accent-400 shrink-0" />
+                      <span className="font-mono font-medium text-ink truncate" title={proc.name}>
+                        {proc.name}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0 ml-2 font-mono text-[10px] text-ink-muted">
+                      {proc.details && proc.details.includes("PID:") ? (
+                        <span className="text-accent-300/90">{proc.details.split("|")[0].trim()}</span>
+                      ) : null}
+                      <span>{formatCompactTime(proc.observed_at)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-[11px] text-ink-muted py-1">
+                No user applications currently observed on this endpoint.
+              </div>
+            )}
+          </div>
+
+          {/* ──────────────── B. BACKGROUND PROCESSES ──────────────── */}
+          <div className="rounded-md border border-hairline bg-canvas p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="font-medium text-ink-secondary flex items-center gap-1.5 text-[11px]">
+                <Cpu className="h-3.5 w-3.5 text-sky-400" /> Background Processes ({bgProcs.length}):
+              </span>
+              <div className="flex items-center gap-1.5">
+                <span className="rounded border border-sky-500/40 bg-sky-500/10 px-1.5 py-0.5 font-mono text-[9px] font-bold text-sky-400">
+                  [BACKGROUND PROCESS]
+                </span>
+                <span className="rounded border border-sky-500/40 bg-sky-500/10 px-1.5 py-0.5 font-mono text-[9px] font-bold text-sky-400">
+                  [WINDOWS ENDPOINT]
+                </span>
+              </div>
+            </div>
+
+            {bgProcs.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1 max-h-48 overflow-y-auto pr-1">
+                {bgProcs.map((proc, i) => (
+                  <div
+                    key={`${proc.name}-${i}`}
+                    className="flex items-center justify-between rounded border border-hairline/60 bg-surface-2/60 px-2.5 py-1.5 text-[11px]"
+                  >
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <Cpu className="h-3 w-3 text-sky-400 shrink-0" />
+                      <span className="font-mono font-medium text-ink truncate" title={proc.name}>
+                        {proc.name}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0 ml-2 font-mono text-[10px] text-ink-muted">
+                      {proc.details && proc.details.includes("PID:") ? (
+                        <span className="text-sky-300/90">{proc.details.split("|")[0].trim()}</span>
+                      ) : null}
+                      <span>{formatCompactTime(proc.observed_at)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-[11px] text-ink-muted py-1">
+                No background services or daemons reported yet.
+              </div>
+            )}
+          </div>
+
+          {/* ──────────────── C. ACTIVE BROWSER TABS ──────────────── */}
+          <div className="rounded-md border border-hairline bg-canvas p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="font-medium text-ink-secondary flex items-center gap-1.5 text-[11px]">
+                <Globe className="h-3.5 w-3.5 text-cyan-400" /> Active Browser Tabs ({(d.active_browser_tabs?.length ?? 0)}):
+              </span>
+              <span className="rounded border border-cyan-500/40 bg-cyan-500/10 px-1.5 py-0.5 font-mono text-[9px] font-bold text-cyan-400">
+                [ACTIVE TAB]
+              </span>
+            </div>
+
+            {d.active_browser_tabs && d.active_browser_tabs.length > 0 ? (
+              <div className="space-y-1.5 pt-1">
+                {d.active_browser_tabs.map((tab, i) => (
+                  <div
+                    key={`${tab.url ?? tab.name}-${i}`}
+                    className="rounded border border-hairline/70 bg-surface-2/70 p-2 text-[11px] space-y-1"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-semibold text-cyan-300 truncate" title={tab.title ?? tab.name}>
+                        {tab.browser ? `[${tab.browser}] ` : ""}{tab.title ?? tab.name}
+                      </span>
+                      <span className="font-mono text-[10px] text-ink-muted shrink-0">
+                        {formatCompactTime(tab.observed_at)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-mono text-[10px] text-accent-400">
+                        {tab.domain ?? (tab.name.includes(":") ? tab.name.split(":")[1].trim() : tab.name)}
+                      </span>
+                      {tab.url ? (
+                        <a
+                          href={tab.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 font-mono text-[10px] text-sky-400 hover:text-sky-300 truncate max-w-[200px]"
+                          title={tab.url}
+                        >
+                          <span className="truncate">{tab.url}</span>
+                          <ExternalLink className="h-2.5 w-2.5 shrink-0" />
+                        </a>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              /* Extension Required Fallback */
+              <div className="rounded border border-dashed border-hairline bg-surface-2/40 p-2.5 text-[11px] space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-ink-muted">BROWSER TELEMETRY UNAVAILABLE</span>
+                  <span className="rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 font-mono text-[9px] font-semibold text-amber-400">
+                    EXTENSION REQUIRED
+                  </span>
+                </div>
+                <p className="text-[10.5px] text-ink-secondary leading-relaxed">
+                  Endpoint agent is active, but no browser extension is connected. Load the Drishti Extension in Chrome, Edge, or Brave to stream real-time active tabs.
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* ──────────────── D. PROCESS SOCKET CONNECTIONS ──────────────── */}
+          {d.process_connections && d.process_connections.length > 0 && (
+            <div className="rounded-md border border-hairline bg-canvas p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-medium text-ink-secondary flex items-center gap-1.5 text-[11px]">
+                  <Waypoints className="h-3.5 w-3.5 text-indigo-400" /> Process Socket Connections ({d.process_connections.length}):
+                </span>
+                <span className="rounded border border-indigo-500/40 bg-indigo-500/10 px-1.5 py-0.5 font-mono text-[9px] font-bold text-indigo-400">
+                  [PROCESS SOCKET]
+                </span>
+              </div>
+              <div className="space-y-1 max-h-40 overflow-y-auto pr-1">
+                {d.process_connections.map((conn, idx) => (
+                  <div
+                    key={`${conn.name}-${idx}`}
+                    className="flex items-center justify-between rounded border border-hairline/60 bg-surface-2/60 px-2.5 py-1 text-[10.5px] font-mono"
+                  >
+                    <span className="font-semibold text-indigo-300 truncate max-w-[140px]" title={conn.name}>
+                      {conn.name}
+                    </span>
+                    <span className="text-ink-muted truncate text-[10px]" title={conn.details ?? ""}>
+                      {conn.details ?? ""}
+                    </span>
+                    <span className="text-ink-muted shrink-0 text-[9px] ml-2">
+                      {formatCompactTime(conn.observed_at)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ──────────────── E. RECENT NETWORK DESTINATIONS ──────────────── */}
+          <div className="rounded-md border border-hairline bg-canvas p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="font-medium text-ink-secondary flex items-center gap-1.5 text-[11px]">
+                <Network className="h-3.5 w-3.5 text-purple-400" /> Recent Network Destinations ({(d.recent_destinations?.length ?? d.active_domains?.length ?? 0)}):
+              </span>
+              <span className="rounded border border-purple-500/40 bg-purple-500/10 px-1.5 py-0.5 font-mono text-[9px] font-bold text-purple-400">
+                [NETWORK]
+              </span>
+            </div>
+
+            {((d.recent_destinations && d.recent_destinations.length > 0) || (d.active_domains && d.active_domains.length > 0)) ? (
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {(d.recent_destinations ?? (d.active_domains ?? []).map((dom) => ({ name: dom, observed_at: d.last_seen, evidence_type: "NETWORK_TRAFFIC", source: "network" }))).map((dest) => {
+                  const tr = threatMap[dest.name.toLowerCase()];
+                  const band = tr?.band ?? "Trusted";
+                  const color = hexFor(band);
+                  return (
+                    <span key={dest.name} className="inline-flex items-center gap-1.5 rounded border border-hairline bg-surface-2 px-2 py-1 font-mono text-[11px] text-ink">
+                      <span>{dest.name}</span>
+                      <span className="rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase" style={{ backgroundColor: `${color}22`, color }}>
+                        {band}
+                      </span>
+                      <span className="text-[9px] text-ink-muted">{formatCompactTime(dest.observed_at)}</span>
+                    </span>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-[11px] text-ink-muted py-1">
+                No recent outbound network traffic observed.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DeviceDetail({
   device: d,
   threats = [],
@@ -1309,6 +1655,7 @@ function DeviceDetail({
               THIS DEVICE
             </span>
           )}
+          <CapabilityBadge state={d.capability_state} device={d} />
           <span className="rounded-sm bg-surface-2 border border-hairline px-2 py-0.5 text-[10px] font-mono text-ink-muted">
             {formatObservationSource(d.observation_source)}
           </span>
@@ -1384,87 +1731,89 @@ function DeviceDetail({
           ))}
         </dl>
 
-        {/* ── Active Activity (Chrome Tabs & Running Apps) ───────────────── */}
-        <div className="mt-4 border-t border-hairline pt-4 space-y-2.5">
-          <div className="flex items-center gap-2 text-small text-ink">
-            <Globe className="h-4 w-4 text-accent-400" />
-            <span className="font-medium">Observed Destinations & Endpoint Telemetry</span>
-          </div>
+        {/* ── LIVE ACTIVITY (Running Apps, Active Browser Tabs, Network Destinations) ── */}
+        <LiveActivitySection device={d} threatMap={threatMap} />
 
-          {((d.recent_destinations && d.recent_destinations.length > 0) || (d.active_domains && d.active_domains.length > 0) || (d.endpoint_processes && d.endpoint_processes.length > 0) || (d.active_apps && d.active_apps.length > 0)) ? (
-            <div className="space-y-2 text-[11px]">
-              {/* 1. Network destinations */}
-              {((d.recent_destinations && d.recent_destinations.length > 0) || (d.active_domains && d.active_domains.length > 0)) && (
-                <div className="rounded-md border border-hairline bg-canvas p-3">
-                  <div className="mb-2 font-medium text-ink-secondary flex items-center justify-between">
-                    <span className="flex items-center gap-1.5">
-                      <Globe className="h-3.5 w-3.5 text-accent-400" /> Recently Observed Network Destinations ({(d.recent_destinations?.length ?? d.active_domains?.length ?? 0)}):
-                    </span>
-                    <span className="text-[10px] text-ink-muted">Scored Live by URL Trust Engine</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {(d.recent_destinations?.map((i) => i.name) ?? d.active_domains ?? []).map((dom) => {
-                      const tr = threatMap[dom.toLowerCase()];
-                      const band = tr?.band ?? "Trusted";
-                      const color = hexFor(band);
-                      return (
-                        <span key={dom} className="inline-flex items-center gap-1.5 rounded border border-hairline bg-surface-2 px-2 py-1 font-mono text-[11px] text-ink">
-                          <span>{dom}</span>
-                          <span className="rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase" style={{ backgroundColor: `${color}22`, color }}>
-                            {band}
+        {/* ── Network Exposure & Port Intelligence (DeepScan / Nmap Evidence) ── */}
+        {((d.services && d.services.length > 0) || (d.open_ports && d.open_ports.length > 0) || (d.security_findings && d.security_findings.length > 0)) && (
+          <div className="mt-4 rounded-lg border border-purple-500/20 bg-surface-2/80 p-3.5 backdrop-blur-xs space-y-2.5">
+            <div className="flex items-center justify-between border-b border-hairline/50 pb-2">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-purple-400 font-mono flex items-center gap-1.5">
+                <Network className="h-3.5 w-3.5 text-purple-400" />
+                Network Exposure &amp; Port Intelligence
+              </span>
+              <span className="font-mono text-[9px] text-purple-300 font-bold border border-purple-500/40 bg-purple-500/10 rounded px-1.5 py-0.5">
+                [NMAP EVIDENCE]
+              </span>
+            </div>
+
+            {d.services && d.services.length > 0 && (
+              <div className="space-y-1">
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-ink-muted">Open Ports &amp; Services:</div>
+                <div className="space-y-1 max-h-36 overflow-y-auto pr-1">
+                  {d.services.map((s) => {
+                    const isExposed = [3389, 445, 23, 21, 5900, 139].includes(s.port);
+                    return (
+                      <div key={`${s.port}/${s.protocol}`} className="flex items-center justify-between rounded bg-canvas px-2.5 py-1 text-[11px] font-mono">
+                        <div className="flex items-center gap-2">
+                          <span className="text-accent-400 font-bold">{s.port}/{s.protocol}</span>
+                          <span className="text-ink">{s.service_name}</span>
+                          <span className="text-ink-muted truncate max-w-[120px]">
+                            {[s.product, s.version].filter(Boolean).join(" ") || "version unknown"}
                           </span>
-                        </span>
-                      );
-                    })}
-                  </div>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className="rounded border border-emerald-500/40 bg-emerald-500/10 px-1 py-0.2 text-[8.5px] font-bold text-emerald-400">
+                            [OPEN]
+                          </span>
+                          {isExposed && (
+                            <span className="rounded border border-rose-500/40 bg-rose-500/10 px-1 py-0.2 text-[8.5px] font-bold text-rose-400">
+                              [EXPOSED]
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              )}
+              </div>
+            )}
 
-              {/* 2. Endpoint processes (Host only) */}
-              {((d.endpoint_processes && d.endpoint_processes.length > 0) || (d.active_apps && d.active_apps.length > 0)) ? (
-                <div className="rounded-md border border-hairline bg-canvas p-3">
-                  <div className="mb-1.5 font-medium text-ink-secondary flex items-center gap-1.5">
-                    <Laptop className="h-3.5 w-3.5 text-accent-400" /> Endpoint Processes (Windows Telemetry) ({(d.endpoint_processes?.length ?? d.active_apps?.length ?? 0)}):
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {(d.endpoint_processes?.map((p) => p.name) ?? d.active_apps ?? []).map((app) => (
-                      <span key={app} className="rounded border border-accent-500/30 bg-accent-500/10 px-2 py-0.5 text-[11px] text-accent-300 font-medium">
-                        {app}
+            {d.cves && d.cves.length > 0 && (
+              <div className="space-y-1 pt-1 border-t border-hairline/30">
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-ink-muted">Correlated CVE Vulnerabilities ({d.cves.length}):</div>
+                <div className="space-y-1 max-h-32 overflow-y-auto pr-1">
+                  {d.cves.map((c) => (
+                    <div key={c.id} className="flex items-center justify-between rounded bg-canvas px-2.5 py-1 text-[10.5px] font-mono">
+                      <div className="flex items-center gap-2 truncate">
+                        <span className="font-bold text-rose-400">{c.id}</span>
+                        <span className="text-ink-muted">CVSS {c.cvss.toFixed(1)}</span>
+                        <span className="text-ink-secondary truncate max-w-[120px]">{c.affected_service}</span>
+                      </div>
+                      <span className="rounded border border-amber-500/40 bg-amber-500/10 px-1 py-0.2 text-[8.5px] font-bold text-amber-400">
+                        [POTENTIAL MATCH]
                       </span>
-                    ))}
-                  </div>
+                    </div>
+                  ))}
                 </div>
-              ) : !d.is_self && (
-                <div className="rounded-md border border-hairline/60 bg-canvas/50 p-2.5 text-[10px] text-ink-muted flex items-center justify-between">
-                  <span className="flex items-center gap-1.5">
-                    <Laptop className="h-3 w-3 text-ink-muted" /> Endpoint Process Telemetry:
-                  </span>
-                  <span className="font-semibold text-ink-muted uppercase tracking-wider">
-                    TELEMETRY UNAVAILABLE (Remote Node)
-                  </span>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="rounded-md border border-hairline bg-canvas p-3 text-[11px] text-ink-muted">
-              {!d.is_self ? (
-                <div>
-                  <div className="font-semibold text-ink-secondary mb-1">TELEMETRY UNAVAILABLE (Remote Node)</div>
-                  No active network destinations or endpoint telemetry observed for this remote node yet.
-                </div>
-              ) : (
-                <div>
-                  No live active telemetry linked to this host yet.
-                  <div className="mt-1 text-[10px] text-ink-secondary">
-                    To capture live domain requests & apps for this device, run the agent:
-                    <br />
-                    <code className="font-mono text-accent-400">python agent/drishti_watch.py --mode conn</code>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+              </div>
+            )}
+
+            {d.security_findings && d.security_findings.length > 0 && (
+              <div className="space-y-1 pt-1 border-t border-hairline/30">
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-ink-muted">Security Analysis Findings:</div>
+                <ul className="space-y-0.5 text-[10.5px] font-mono text-amber-300">
+                  {d.security_findings.map((f, i) => (
+                    <li key={i} className="flex items-center gap-1.5">
+                      <span className="text-amber-400">•</span>
+                      <span>{f}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ── Deep scan ──────────────────────────────────────────────── */}
         <div className="mt-4 border-t border-hairline pt-4">
