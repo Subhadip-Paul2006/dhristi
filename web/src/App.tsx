@@ -7,6 +7,7 @@ import { AuthProvider } from "./auth";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ToastHost } from "./components/Toast";
 import NeuralBackground from "@/components/ui/flow-field-background";
+import { ScrollToTopButton } from "./components/ui/scroll-to-top";
 import heroBg from "./assets/hero-bg.jpg";
 
 // Code-split the heavy halves: the public marketing pages, the auth pages, and
@@ -129,6 +130,7 @@ export default function App() {
             </ErrorBoundary>
           </Suspense>
           <ToastHost />
+          <ScrollToTopButton />
         </AuthProvider>
       </BrowserRouter>
     </QueryClientProvider>
