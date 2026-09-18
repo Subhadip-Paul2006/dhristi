@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, Fragment } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import {
   motion,
   AnimatePresence,
@@ -196,7 +196,7 @@ const PIPELINE_STAGES = [
 ];
 
 /* ============================================================
-   MAIN LANDING PAGE
+   MAIN LANDING PAGE (Clean Scroll: Hero + FAQ + CTA + Footer)
    ============================================================ */
 export default function Landing() {
   const { user } = useAuth();
@@ -223,21 +223,6 @@ export default function Landing() {
         </div>
 
         <main>
-          {/* Interactive Multi-Hop Attack Path Simulator */}
-          <InteractivePathSection />
-
-          {/* Scroll-Driven Horizontal Threat Pipeline */}
-          <ScrollDrivenHorizontalPipeline />
-
-          {/* Six Architectural Pillars */}
-          <PillarsSection />
-
-          {/* Competitive Benchmark Comparison */}
-          <ComparisonSection />
-
-          {/* Defensive Playbook Terminal Showcase */}
-          <PlaybookTerminalSection />
-
           {/* Frequently Asked Questions */}
           <FaqSection />
 
@@ -248,6 +233,80 @@ export default function Landing() {
         <FooterSection />
       </div>
     </EntryAnimation>
+  );
+}
+
+/* ============================================================
+   SUBPAGE LAYOUT WRAPPER & INDIVIDUAL DEDICATED PAGES
+   ============================================================ */
+function SubpageLayout({
+  children,
+  user,
+}: {
+  children: React.ReactNode;
+  user?: any;
+}) {
+  const { scrollYProgress } = useScroll();
+  const scaleX = useSpring(scrollYProgress, {
+    stiffness: 120,
+    damping: 24,
+    restDelta: 0.001,
+  });
+
+  return (
+    <div className="hml">
+      <motion.div className="hml-scroll-progress-bar" style={{ scaleX }} />
+      <TopStatusStrip />
+      <Navbar user={user} />
+      <main className="pt-4 sm:pt-6 pb-12">{children}</main>
+      <CtaBandSection user={user} />
+      <FooterSection />
+    </div>
+  );
+}
+
+export function TopologyPage() {
+  const { user } = useAuth();
+  return (
+    <SubpageLayout user={user}>
+      <InteractivePathSection />
+    </SubpageLayout>
+  );
+}
+
+export function PipelinePage() {
+  const { user } = useAuth();
+  return (
+    <SubpageLayout user={user}>
+      <ScrollDrivenHorizontalPipeline />
+    </SubpageLayout>
+  );
+}
+
+export function ArchitecturePage() {
+  const { user } = useAuth();
+  return (
+    <SubpageLayout user={user}>
+      <PillarsSection />
+    </SubpageLayout>
+  );
+}
+
+export function ComparisonPage() {
+  const { user } = useAuth();
+  return (
+    <SubpageLayout user={user}>
+      <ComparisonSection />
+    </SubpageLayout>
+  );
+}
+
+export function PlaybooksPage() {
+  const { user } = useAuth();
+  return (
+    <SubpageLayout user={user}>
+      <PlaybookTerminalSection />
+    </SubpageLayout>
   );
 }
 
@@ -322,6 +381,16 @@ function TopStatusStrip({ onReplay }: { onReplay?: () => void }) {
 /* ------------------------------------------------------------- Navigation Bar */
 function Navbar({ user }: { user?: any }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const location = useLocation();
+
+  const navLinks = [
+    { name: "Attack Topology", path: "/topology" },
+    { name: "Threat Pipeline", path: "/pipeline" },
+    { name: "Architecture", path: "/architecture" },
+    { name: "Comparison", path: "/comparison" },
+    { name: "Playbooks", path: "/playbooks" },
+    { name: "FAQ", path: "/#faq", isAnchor: true },
+  ];
 
   return (
     <header className="sticky top-3 z-40 w-full px-3 sm:px-6 max-w-7xl mx-auto">
@@ -342,24 +411,33 @@ function Navbar({ user }: { user?: any }) {
 
         {/* Desktop Links */}
         <nav className="hidden lg:flex items-center gap-6 text-xs sm:text-sm font-medium font-mono text-white/70">
-          <a href="#topology" className="hover:text-[#ff8a00] transition-colors duration-200">
-            Attack Topology
-          </a>
-          <a href="#pipeline" className="hover:text-[#ff8a00] transition-colors duration-200">
-            Threat Pipeline
-          </a>
-          <a href="#pillars" className="hover:text-[#ff8a00] transition-colors duration-200">
-            Architecture
-          </a>
-          <a href="#comparison" className="hover:text-[#ff8a00] transition-colors duration-200">
-            Comparison
-          </a>
-          <a href="#playbooks" className="hover:text-[#ff8a00] transition-colors duration-200">
-            Playbooks
-          </a>
-          <a href="#faq" className="hover:text-[#ff8a00] transition-colors duration-200">
-            FAQ
-          </a>
+          {navLinks.map((item) => {
+            const isActive = location.pathname === item.path;
+            if (item.isAnchor) {
+              return (
+                <a
+                  key={item.name}
+                  href={item.path}
+                  className="hover:text-[#ff8a00] transition-colors duration-200"
+                >
+                  {item.name}
+                </a>
+              );
+            }
+            return (
+              <Link
+                key={item.name}
+                to={item.path}
+                className={`transition-colors duration-200 ${
+                  isActive
+                    ? "text-[#ff8a00] font-bold shadow-[0_1px_0_#ff8a00]"
+                    : "hover:text-[#ff8a00]"
+                }`}
+              >
+                {item.name}
+              </Link>
+            );
+          })}
         </nav>
 
         {/* CTA Actions */}
@@ -419,48 +497,35 @@ function Navbar({ user }: { user?: any }) {
             exit={{ opacity: 0, y: -8 }}
             className="lg:hidden mt-2 sceneai-nav-glass rounded-2xl p-4 flex flex-col gap-2.5 text-center text-sm font-mono"
           >
-            <a
-              href="#topology"
-              onClick={() => setMobileOpen(false)}
-              className="py-1 text-white/80 hover:text-[#ff8a00]"
-            >
-              Attack Topology
-            </a>
-            <a
-              href="#pipeline"
-              onClick={() => setMobileOpen(false)}
-              className="py-1 text-white/80 hover:text-[#ff8a00]"
-            >
-              Threat Pipeline
-            </a>
-            <a
-              href="#pillars"
-              onClick={() => setMobileOpen(false)}
-              className="py-1 text-white/80 hover:text-[#ff8a00]"
-            >
-              Architecture
-            </a>
-            <a
-              href="#comparison"
-              onClick={() => setMobileOpen(false)}
-              className="py-1 text-white/80 hover:text-[#ff8a00]"
-            >
-              Comparison
-            </a>
-            <a
-              href="#playbooks"
-              onClick={() => setMobileOpen(false)}
-              className="py-1 text-white/80 hover:text-[#ff8a00]"
-            >
-              Playbooks
-            </a>
-            <a
-              href="#faq"
-              onClick={() => setMobileOpen(false)}
-              className="py-1 text-white/80 hover:text-[#ff8a00]"
-            >
-              FAQ
-            </a>
+            {navLinks.map((item) => {
+              const isActive = location.pathname === item.path;
+              if (item.isAnchor) {
+                return (
+                  <a
+                    key={item.name}
+                    href={item.path}
+                    onClick={() => setMobileOpen(false)}
+                    className="py-1 text-white/80 hover:text-[#ff8a00]"
+                  >
+                    {item.name}
+                  </a>
+                );
+              }
+              return (
+                <Link
+                  key={item.name}
+                  to={item.path}
+                  onClick={() => setMobileOpen(false)}
+                  className={`py-1 transition-colors ${
+                    isActive
+                      ? "text-[#ff8a00] font-bold"
+                      : "text-white/80 hover:text-[#ff8a00]"
+                  }`}
+                >
+                  {item.name}
+                </Link>
+              );
+            })}
           </motion.div>
         )}
       </AnimatePresence>
@@ -577,12 +642,12 @@ function HeroContent({ user }: { user?: any }) {
           </div>
         </Link>
 
-        <a
-          href="#pipeline"
+        <Link
+          to="/pipeline"
           className="sceneai-secondary-btn rounded-full px-5 py-2.5 sm:py-3 text-sm sm:text-base font-medium inline-flex items-center gap-2 shadow-sm"
         >
           <span>Explore Threat Pipeline</span>
-        </a>
+        </Link>
       </motion.div>
 
       {/* Community Avatar Cluster */}
@@ -1339,11 +1404,13 @@ function FooterSection() {
           <span style={{ fontWeight: 800, color: "#ffffff" }}>DRISHTI</span>
           <span>&copy; {new Date().getFullYear()} Innofusion. All rights reserved.</span>
         </div>
-        <div style={{ display: "flex", gap: "1.5rem" }}>
-          <a href="#topology" style={{ color: "#8b8f87", textDecoration: "none" }}>Topology</a>
-          <a href="#pipeline" style={{ color: "#8b8f87", textDecoration: "none" }}>Pipeline</a>
-          <a href="#playbooks" style={{ color: "#8b8f87", textDecoration: "none" }}>Playbooks</a>
-          <a href="#faq" style={{ color: "#8b8f87", textDecoration: "none" }}>FAQ</a>
+        <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap" }}>
+          <Link to="/topology" style={{ color: "#8b8f87", textDecoration: "none" }}>Topology</Link>
+          <Link to="/pipeline" style={{ color: "#8b8f87", textDecoration: "none" }}>Pipeline</Link>
+          <Link to="/architecture" style={{ color: "#8b8f87", textDecoration: "none" }}>Architecture</Link>
+          <Link to="/comparison" style={{ color: "#8b8f87", textDecoration: "none" }}>Comparison</Link>
+          <Link to="/playbooks" style={{ color: "#8b8f87", textDecoration: "none" }}>Playbooks</Link>
+          <a href="/#faq" style={{ color: "#8b8f87", textDecoration: "none" }}>FAQ</a>
         </div>
       </div>
     </footer>

@@ -9,10 +9,25 @@ import { ToastHost } from "./components/Toast";
 import NeuralBackground from "@/components/ui/flow-field-background";
 import heroBg from "./assets/hero-bg.jpg";
 
-// Code-split the heavy halves: the public marketing page, the auth pages, and
+// Code-split the heavy halves: the public marketing pages, the auth pages, and
 // the authed app (React Flow, Recharts, feature code) load only when their
 // route does.
 const Landing = lazy(() => import("./features/landing/Landing"));
+const TopologyPage = lazy(() =>
+  import("./features/landing/Landing").then((m) => ({ default: m.TopologyPage }))
+);
+const PipelinePage = lazy(() =>
+  import("./features/landing/Landing").then((m) => ({ default: m.PipelinePage }))
+);
+const ArchitecturePage = lazy(() =>
+  import("./features/landing/Landing").then((m) => ({ default: m.ArchitecturePage }))
+);
+const ComparisonPage = lazy(() =>
+  import("./features/landing/Landing").then((m) => ({ default: m.ComparisonPage }))
+);
+const PlaybooksPage = lazy(() =>
+  import("./features/landing/Landing").then((m) => ({ default: m.PlaybooksPage }))
+);
 const LoginPage = lazy(() =>
   import("./features/auth/LoginPage").then((m) => ({ default: m.LoginPage }))
 );
@@ -38,16 +53,39 @@ function RouteFallback() {
   );
 }
 
-/** The particle canvas is fully hidden behind the landing page's opaque
- * background but still burns a rAF loop — mount it only where it's visible.
- * On the landing route, spend that budget preloading the hero LCP image
- * instead (the lazy chunk would otherwise discover it three hops late). */
-function BackgroundLayer() {
-  const { pathname } = useLocation();
-  const onLanding = pathname === "/";
+/** Automatically handles smooth scrolling to top on route navigation,
+ * or jumping to anchor element when hash is present (e.g. #faq). */
+function ScrollToTop() {
+  const { pathname, hash } = useLocation();
 
   useEffect(() => {
-    if (!onLanding) return;
+    if (hash) {
+      const el = document.getElementById(hash.replace("#", ""));
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth" });
+        return;
+      }
+    }
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  }, [pathname, hash]);
+
+  return null;
+}
+
+/** The particle canvas is hidden behind marketing pages to prevent unnecessary rAF loops.
+ * On marketing routes, preload hero image if applicable. */
+function BackgroundLayer() {
+  const { pathname } = useLocation();
+  const isMarketing =
+    pathname === "/" ||
+    pathname === "/topology" ||
+    pathname === "/pipeline" ||
+    pathname === "/architecture" ||
+    pathname === "/comparison" ||
+    pathname === "/playbooks";
+
+  useEffect(() => {
+    if (pathname !== "/") return;
     if (document.querySelector(`link[href="${heroBg}"]`)) return;
     const link = document.createElement("link");
     link.rel = "preload";
@@ -55,9 +93,9 @@ function BackgroundLayer() {
     link.href = heroBg;
     link.setAttribute("fetchpriority", "high");
     document.head.appendChild(link);
-  }, [onLanding]);
+  }, [pathname]);
 
-  if (onLanding) return null;
+  if (isMarketing) return null;
   return (
     <div className="fixed inset-0 -z-10 pointer-events-none">
       <NeuralBackground color="#38c6f4" trailOpacity={0.1} speed={0.8} />
@@ -70,11 +108,17 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <AuthProvider>
+          <ScrollToTop />
           <BackgroundLayer />
           <Suspense fallback={<RouteFallback />}>
             <ErrorBoundary>
               <Routes>
                 <Route path="/" element={<Landing />} />
+                <Route path="/topology" element={<TopologyPage />} />
+                <Route path="/pipeline" element={<PipelinePage />} />
+                <Route path="/architecture" element={<ArchitecturePage />} />
+                <Route path="/comparison" element={<ComparisonPage />} />
+                <Route path="/playbooks" element={<PlaybooksPage />} />
                 <Route element={<AuthShell />}>
                   <Route path="/login" element={<LoginPage />} />
                   <Route path="/signup" element={<SignupPage />} />
