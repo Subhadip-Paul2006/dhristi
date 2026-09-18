@@ -781,6 +781,67 @@ flowchart TD
 
 ## 🚀 Quick Start
 
+### 🐳 Option A: Docker Compose (Recommended for Teams)
+
+The fastest and most reliable way to run Drishti across **macOS (Apple Silicon & Intel)**, **Linux (Arch, Debian, Ubuntu, Fedora)**, and **Windows** without manually installing or matching Python/Node dependencies.
+
+#### 1. Prerequisites
+- [Docker Engine](https://docs.docker.com/engine/install/) 20.10+ and [Docker Compose](https://docs.docker.com/compose/install/) v2+ (or [Docker Desktop](https://www.docker.com/products/docker-desktop/))
+
+#### 2. Configure Environment (Optional for Local Dev)
+```bash
+# Optional: copy template to customize API keys or ports
+cp .env.example .env
+```
+> **Security Note:** In `APP_ENV=dev` (default in Compose), the backend safely boots using development auth fallbacks without requiring secrets. For production deployments, set `APP_ENV=production` and generate a unique `JWT_SECRET` in your `.env`.
+
+#### 3. Build & Run
+```bash
+# Build images and start all services in the foreground
+docker compose up --build
+
+# Or start in detached (background) mode:
+docker compose up -d --build
+```
+
+#### 4. Access the Stack
+| Component | URL | Description |
+|---|---|---|
+| **Web Dashboard** | [http://localhost:5173](http://localhost:5173) | Interactive SPA with real-time attack graph & live telemetry |
+| **Backend API** | [http://localhost:8000](http://localhost:8000) | FastAPI REST endpoints |
+| **API Docs (Swagger)** | [http://localhost:8000/docs](http://localhost:8000/docs) | Interactive API exploration & test runner |
+| **Health Check** | [http://localhost:8000/health](http://localhost:8000/health) | Container liveness probe |
+
+**Demo Credentials:** `analyst@acme-retail.dev` / `drishti-demo`
+
+#### 5. Useful Docker Commands
+```bash
+# Follow logs for both services
+docker compose logs -f
+
+# Follow logs for backend only
+docker compose logs -f server
+
+# Run backend tests inside the running container
+docker compose exec server pytest --tb=short
+
+# Stop containers
+docker compose down
+
+# Stop containers and reset the SQLite database volume
+docker compose down -v
+```
+
+#### 6. Cross-Platform & OS Notes
+- **macOS (Apple Silicon M1/M2/M3/M4 & Intel):** Images use multi-arch `python:3.11-slim` and `node:22-slim` base images that compile and run natively on ARM64 and AMD64 without emulation overhead.
+- **Linux (Arch, Debian, Ubuntu, Fedora):** Ensure your user belongs to the `docker` group (`sudo usermod -aG docker $USER`). Docker Compose v2 (`docker compose`) or Compose v1 (`docker-compose`) are both supported (`compose.yaml` and `docker-compose.yml` provided).
+- **Windows (WSL2 / Docker Desktop):** Requires Docker Desktop running with the WSL2 backend enabled.
+- **Deep Scan (nmap):** `nmap` is pre-installed in the `drishti-server` image. Because Docker bridge networks isolate the container from the physical LAN, deep scans target reachable IP addresses or subnet ranges.
+
+---
+
+### 💻 Option B: Manual Local Setup
+
 ### Prerequisites
 
 - **Python 3.11+** with `uv` or `pip`
@@ -884,9 +945,11 @@ python agent/drishti_agent.py --once \
 drishti/
 ├── 📄 README.md ← you are here
 ├── ⚙️ .env.example # Environment template
+├── 🐳 compose.yaml # Multi-service Docker Compose definition
 ├── 📦 package.json # Root (legacy web frontend)
 │
 ├── 🖥️ server/ # FastAPI Backend
+│ ├── 🐳 Dockerfile # Container definition (python:3.11-slim)
 │ ├── 🐍 run.py # uvicorn entrypoint
 │ ├── 📋 requirements.txt # Python deps
 │ ├── 📋 pyproject.toml # Build config (hatchling)
