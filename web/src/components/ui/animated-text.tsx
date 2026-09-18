@@ -149,3 +149,50 @@ export function CyberScrambleText({
 
   return <span className={className}>{displayText || text}</span>;
 }
+
+interface FlipWordsProps {
+  words: string[];
+  duration?: number;
+  className?: string;
+}
+
+/**
+ * FlipWords (21st.dev style)
+ * Continuously cycles through words with letter-by-letter blur reveal and 3D fluid transitions.
+ */
+export function FlipWords({
+  words,
+  duration = 3200,
+  className = "",
+}: FlipWordsProps) {
+  const [currentWord, setCurrentWord] = useState(words[0]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentWord((prev) => {
+        const nextIdx = (words.indexOf(prev) + 1) % words.length;
+        return words[nextIdx];
+      });
+    }, duration);
+    return () => clearInterval(interval);
+  }, [words, duration]);
+
+  return (
+    <span className="inline-block relative overflow-hidden align-middle">
+      <motion.span
+        key={currentWord}
+        initial={{ opacity: 0, y: 16, filter: "blur(8px)" }}
+        animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+        exit={{ opacity: 0, y: -16, filter: "blur(8px)" }}
+        transition={{
+          duration: 0.5,
+          ease: [0.2, 0.65, 0.3, 0.9],
+        }}
+        className={`inline-block ${className}`}
+      >
+        {currentWord}
+      </motion.span>
+    </span>
+  );
+}
+

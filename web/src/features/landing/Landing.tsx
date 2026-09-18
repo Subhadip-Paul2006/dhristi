@@ -29,7 +29,7 @@ import "./landing-cinema.css";
 import "./landing-sceneai.css";
 import heroBg from "../../assets/hero-bg.jpg";
 import { EntryAnimation } from "./EntryAnimation";
-import { BlurTextReveal, AnimatedShimmerText } from "../../components/ui/animated-text";
+import { BlurTextReveal, FlipWords } from "../../components/ui/animated-text";
 
 /* ============================================================
    PIPELINE STAGES DATA
@@ -597,7 +597,7 @@ function HeroContent({ user }: { user?: any }) {
         <span className="text-[#ff8a00] font-bold">ZERO-HALLUCINATION IMPACT</span>
       </motion.div>
 
-      {/* Main Heading with 21st.dev Blur & Shimmer Animation */}
+      {/* Main Heading with 21st.dev Blur & Dynamic FlipWords Animation */}
       <h1 className="flex flex-col items-center tracking-tight max-w-3xl">
         <span className="font-bold text-3xl sm:text-5xl md:text-6xl leading-[1.12] bg-gradient-to-b from-white via-white/95 to-white/60 bg-clip-text text-transparent">
           <BlurTextReveal
@@ -606,14 +606,18 @@ function HeroContent({ user }: { user?: any }) {
             stagger={0.06}
           />
         </span>
-        <motion.span
-          initial={{ opacity: 0, y: 14, filter: "blur(10px)" }}
-          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-          transition={{ duration: 0.7, delay: 0.45, ease: [0.2, 0.65, 0.3, 0.9] }}
-          className="font-bold text-3xl sm:text-5xl md:text-6xl leading-[1.12] mt-1"
-        >
-          <AnimatedShimmerText>Eyes of an Attacker.</AnimatedShimmerText>
-        </motion.span>
+        <div className="font-bold text-3xl sm:text-5xl md:text-6xl leading-[1.12] mt-1 flex items-center justify-center">
+          <FlipWords
+            words={[
+              "Eyes of an Attacker.",
+              "Eyes of an Adversary.",
+              "Eyes of a Threat Actor.",
+              "Lenses of Graph Defense.",
+            ]}
+            className="sceneai-shimmer-text"
+            duration={3000}
+          />
+        </div>
       </h1>
 
       {/* Sub-headline */}

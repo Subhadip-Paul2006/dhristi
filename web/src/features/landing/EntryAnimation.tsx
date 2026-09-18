@@ -14,15 +14,18 @@ interface EntryAnimationProps {
 
 export function EntryAnimation({ children, forcePlay = false, onFinish }: EntryAnimationProps) {
   const [showSplash, setShowSplash] = useState(true);
+  const [splashFinished, setSplashFinished] = useState(false);
 
   useEffect(() => {
     if (forcePlay) {
       setShowSplash(true);
+      setSplashFinished(false);
     }
   }, [forcePlay]);
 
   const handleDismiss = () => {
     setShowSplash(false);
+    setSplashFinished(true);
     onFinish?.();
   };
 
@@ -48,7 +51,7 @@ export function EntryAnimation({ children, forcePlay = false, onFinish }: EntryA
 
   return (
     <>
-      <AnimatePresence>
+      <AnimatePresence onExitComplete={() => setSplashFinished(true)}>
         {showSplash && (
           <motion.div
             key="evileye-splash"
@@ -59,7 +62,7 @@ export function EntryAnimation({ children, forcePlay = false, onFinish }: EntryA
               opacity: 0,
               scale: 1.04,
               filter: "blur(24px)",
-              transition: { duration: 0.7, ease: [0.16, 1, 0.3, 1] },
+              transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] },
             }}
           >
             {/* Ambient Background Caustic Lighting */}
@@ -134,14 +137,16 @@ export function EntryAnimation({ children, forcePlay = false, onFinish }: EntryA
         )}
       </AnimatePresence>
 
-      {/* Page Content with fluid entrance */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-      >
-        {children}
-      </motion.div>
+      {/* Page Content with fluid entrance once splash is done */}
+      {splashFinished && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+        >
+          {children}
+        </motion.div>
+      )}
     </>
   );
 }
