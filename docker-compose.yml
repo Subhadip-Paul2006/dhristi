@@ -1,0 +1,46 @@
+# For backward compatibility with older Docker Compose CLI versions (v1)
+# Modern Docker Compose (v2+) reads compose.yaml directly.
+services:
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: drishti-server
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_ENV=${APP_ENV:-dev}
+      - DATABASE_URL=${DATABASE_URL:-sqlite:////app/data/drishti.db}
+      - JWT_SECRET=${JWT_SECRET:-}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
+      - DEMO_SEED=${DEMO_SEED:-true}
+      - AUTO_SEED=${AUTO_SEED:-true}
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - drishti-data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: drishti-web
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_PROXY=http://server:8000
+    depends_on:
+      server:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  drishti-data:

@@ -1,0 +1,49 @@
+services:
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: drishti-server
+    ports:
+      - "8000:8000"
+    environment:
+      # Defaults to 'dev' for zero-config local development, allowing the backend's
+      # built-in development auth fallback without hardcoding production secrets.
+      # For production or non-dev environments, set APP_ENV=production and provide a real JWT_SECRET in .env.
+      - APP_ENV=${APP_ENV:-dev}
+      - DATABASE_URL=${DATABASE_URL:-sqlite:////app/data/drishti.db}
+      - JWT_SECRET=${JWT_SECRET:-}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
+      - DEMO_SEED=${DEMO_SEED:-true}
+      - AUTO_SEED=${AUTO_SEED:-true}
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - drishti-data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: drishti-web
+    ports:
+      - "5173:5173"
+    environment:
+      # In Docker, the Vite preview proxy forwards browser /api and /health calls
+      # to the FastAPI backend container via internal Docker networking.
+      - VITE_API_PROXY=http://server:8000
+    depends_on:
+      server:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  drishti-data:
