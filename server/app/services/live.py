@@ -844,10 +844,9 @@ def observe_devices(db: Session, org_id: str, batch: DeviceBatch) -> DeviceBatch
             mac = ""
         if mac:
             by_key[("mac", mac)] = d
-        elif getattr(d, "discovery", "arp") == "l3":
+        elif getattr(d, "discovery", "arp") in ("l3", "icmp", "ping", "arp"):
             subnet, _ = _device_subnet(d)
             by_key[("ip", subnet, d.ip)] = d
-        # no MAC and not L3-discovered → unusable ARP row, drop it (old behaviour)
 
     seen_ids: set[str] = set()
     seen_macs: set[str] = set()

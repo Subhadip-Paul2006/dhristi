@@ -1320,6 +1320,13 @@ export function LiveActivitySection({
     ? userApps
     : (d.active_apps ?? []).map((app) => ({ name: app, observed_at: d.last_seen, details: null, category: "USER_APPLICATION" }));
 
+  const firstProcSource = (d.endpoint_processes?.[0]?.source ?? "").toLowerCase();
+  const endpointBadgeLabel = firstProcSource.includes("macos")
+    ? "[MACOS ENDPOINT]"
+    : firstProcSource.includes("linux")
+    ? "[LINUX ENDPOINT]"
+    : "[WINDOWS ENDPOINT]";
+
   return (
     <div className="mt-4 border-t border-hairline pt-4 space-y-3" data-testid="live-activity-section">
       <div className="flex items-center justify-between">

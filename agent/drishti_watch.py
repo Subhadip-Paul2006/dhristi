@@ -449,9 +449,10 @@ def run_dns(reporter: Reporter, interval: float = 2.0, consent_subnet: bool = Fa
             time.sleep(interval)
 
 
-# ── Windows Endpoint Telemetry Collectors (Phase B2.2 & MVP) ──────────────────
+# ── Cross-Platform Endpoint Telemetry Collectors (macOS, Windows, Linux) ──────
 _PURE_KERNEL_NAMES = {
-    "system idle process", "system", "registry", "smss.exe", "csrss.exe", "wininit.exe", "svchost.exe"
+    "system idle process", "system", "registry", "smss.exe", "csrss.exe", "wininit.exe", "svchost.exe",
+    "kernel_task", "launchd", "sysmond", "distnoted", "cfprefsd", "trustd", "opendirectoryd", "powerd", "logd", "fseventsd"
 }
 
 _SYSTEM_SERVICE_NAMES = {
@@ -464,12 +465,16 @@ _SYSTEM_SERVICE_NAMES = {
 }
 
 _KNOWN_USER_APPS = {
-    "chrome.exe", "msedge.exe", "brave.exe", "firefox.exe", "opera.exe", "arc.exe",
-    "code.exe", "devenv.exe", "pycharm64.exe", "notepad.exe", "notepad++.exe",
-    "explorer.exe", "cmd.exe", "powershell.exe", "windowsterminal.exe",
-    "slack.exe", "discord.exe", "teams.exe", "telegram.exe", "whatsapp.exe",
-    "zoom.exe", "spotify.exe", "vlc.exe", "calc.exe", "taskmgr.exe",
-    "postman.exe", "figma.exe", "git-bash.exe", "bash.exe", "sublime_text.exe"
+    "chrome", "chrome.exe", "google chrome", "msedge", "msedge.exe", "microsoft edge",
+    "brave", "brave.exe", "brave browser", "firefox", "firefox.exe", "mozilla firefox",
+    "opera", "opera.exe", "arc", "arc.exe", "safari",
+    "code", "code.exe", "visual studio code", "cursor", "devenv.exe", "pycharm", "pycharm64.exe",
+    "notepad", "notepad.exe", "notepad++", "notepad++.exe", "textedit", "sublime_text", "sublime_text.exe",
+    "explorer.exe", "cmd.exe", "powershell.exe", "windowsterminal.exe", "terminal", "iterm2", "alacritty", "warp",
+    "slack", "slack.exe", "discord", "discord.exe", "teams", "teams.exe", "telegram", "telegram.exe", "telegram-desktop",
+    "whatsapp", "whatsapp.exe", "zoom", "zoom.exe", "spotify", "spotify.exe", "vlc", "vlc.exe",
+    "postman", "postman.exe", "figma", "figma.exe", "notion", "docker", "calc.exe", "taskmgr.exe",
+    "activity monitor", "notes", "mail", "calendar", "messages", "finder"
 }
 
 _VPN_DRIVER_KEYWORDS = (
@@ -477,16 +482,17 @@ _VPN_DRIVER_KEYWORDS = (
     "cisco anyconnect", "nordlynx", "proton", "expressvpn", "surfshark",
     "windscribe", "mullvad", "warp", "forticlient", "globalprotect",
     "ipsec", "pptp", "l2tp", "softether", "puresvpn", "checkpoint",
+    "utun", "tun", "tap", "ppp",
 )
 
 _VIRTUAL_ADAPTER_KEYWORDS = (
     "virtualbox", "vmware", "hyper-v", "vethernet", "wsl", "virtual",
-    "host-only", "internal network", "nat", "npcap loopback",
+    "host-only", "internal network", "nat", "npcap loopback", "bridge", "vboxnet",
 )
 
 
-def _collect_windows_processes(max_processes: int = 150) -> list[dict]:
-    """Collect real currently-running Windows processes using psutil.
+def _collect_endpoint_processes(max_processes: int = 150) -> list[dict]:
+    """Collect real currently-running processes using psutil across macOS, Windows, and Linux.
 
     Categorizes processes into:
     - USER_APPLICATION: Interactive desktop software, browsers, editors, user tools
@@ -504,6 +510,9 @@ def _collect_windows_processes(max_processes: int = 150) -> list[dict]:
     now_iso = datetime.now(timezone.utc).isoformat()
     collected: list[dict] = []
     seen_pids: set[int] = set()
+
+    system_name = platform.system()
+    source_tag = "macos_endpoint" if system_name == "Darwin" else "windows_endpoint" if system_name == "Windows" else "linux_endpoint"
 
     try:
         proc_iter = iter(psutil.process_iter(['pid', 'name', 'create_time', 'exe']))
@@ -527,8 +536,8 @@ def _collect_windows_processes(max_processes: int = 150) -> list[dict]:
                 pname_clean = str(pname).strip()
                 pname_lower = pname_clean.lower()
 
-                # Filter pure kernel internal noise (PID 0, 4, Idle, System, Registry, Smss)
-                if pid <= 4 or pname_lower in _PURE_KERNEL_NAMES:
+                # Filter pure kernel internal noise (PID 0, 1, 4, Idle, System, Registry, Smss)
+                if pid in (0, 1, 4) or pname_lower in _PURE_KERNEL_NAMES:
                     continue
 
                 exe_path = (proc.info.get('exe') or '').lower()
@@ -541,13 +550,44 @@ def _collect_windows_processes(max_processes: int = 150) -> list[dict]:
                     except Exception:
                         pass
 
-                # Classification
-                if pname_lower in _KNOWN_USER_APPS or "\\users\\" in exe_path or "\\appdata\\" in exe_path:
-                    category = "USER_APPLICATION"
-                elif pname_lower in _SYSTEM_SERVICE_NAMES or "windows\\system32" in exe_path:
-                    category = "SYSTEM_PROCESS"
-                else:
-                    category = "BACKGROUND_PROCESS"
+                # Classification per OS
+                pname_base = pname_lower.replace(".exe", "").replace(".app", "")
+                is_helper = any(h in pname_lower for h in ("helper", "crashpad", "renderer", "xprotect", "plugin", "daemon", "service"))
+
+                if system_name == "Darwin":
+                    is_sys = (
+                        exe_path.startswith(("/system/", "/usr/libexec/", "/usr/sbin/"))
+                        or pname_lower.startswith("com.apple.")
+                        or pname_lower in _PURE_KERNEL_NAMES
+                    )
+                    is_user = (
+                        pname_base in _KNOWN_USER_APPS
+                        or exe_path.startswith("/applications/")
+                        or ("/contents/macos/" in exe_path and not is_sys)
+                        or "/users/" in exe_path
+                    )
+                    if is_helper:
+                        category = "BACKGROUND_PROCESS"
+                    elif is_user:
+                        category = "USER_APPLICATION"
+                    elif is_sys:
+                        category = "SYSTEM_PROCESS"
+                    else:
+                        category = "BACKGROUND_PROCESS"
+                elif system_name == "Windows":
+                    if pname_lower in _KNOWN_USER_APPS or "\\users\\" in exe_path or "\\appdata\\" in exe_path:
+                        category = "USER_APPLICATION"
+                    elif pname_lower in _SYSTEM_SERVICE_NAMES or "windows\\system32" in exe_path:
+                        category = "SYSTEM_PROCESS"
+                    else:
+                        category = "BACKGROUND_PROCESS"
+                else:  # Linux / Unix
+                    if pname_base in _KNOWN_USER_APPS or "/home/" in exe_path:
+                        category = "USER_APPLICATION"
+                    elif exe_path.startswith(("/sbin/", "/usr/sbin/", "/lib/systemd/")):
+                        category = "SYSTEM_PROCESS"
+                    else:
+                        category = "BACKGROUND_PROCESS"
 
                 details = f"PID: {pid} | [{category}]"
                 if started_str:
@@ -556,7 +596,7 @@ def _collect_windows_processes(max_processes: int = 150) -> list[dict]:
                 collected.append({
                     "name": pname_clean,
                     "evidence_type": "ENDPOINT_PROCESS",
-                    "source": "windows_endpoint",
+                    "source": source_tag,
                     "category": category,
                     "observed_at": now_iso,
                     "details": details,
@@ -572,171 +612,273 @@ def _collect_windows_processes(max_processes: int = 150) -> list[dict]:
     return collected
 
 
+def _collect_windows_processes(max_processes: int = 150) -> list[dict]:
+    """Compatibility wrapper for _collect_endpoint_processes."""
+    return _collect_endpoint_processes(max_processes)
+
+
 def _collect_installed_software(max_items: int = 150) -> list[dict]:
-    """Collect installed software from Windows Registry (HKLM & HKCU Uninstall keys).
+    """Collect installed software across macOS, Windows, and Linux.
+
+    - macOS: Scans /Applications, /System/Applications, ~/Applications and Info.plist, plus Homebrew
+    - Windows: Scans HKLM and HKCU Uninstall registry keys
+    - Linux: Queries system packages (dpkg/rpm/pacman)
 
     Captures safe metadata only (DisplayName, Version, Publisher).
     Installed != Running. Zero fabrication.
     """
-    if platform.system() != "Windows":
-        return []
-
-    try:
-        import winreg
-    except ImportError:
-        return []
-
     from datetime import datetime, timezone
 
     now_iso = datetime.now(timezone.utc).isoformat()
-    locations = [
-        (winreg.HKEY_LOCAL_MACHINE, r"Software\Microsoft\Windows\CurrentVersion\Uninstall", winreg.KEY_WOW64_64KEY),
-        (winreg.HKEY_LOCAL_MACHINE, r"Software\Microsoft\Windows\CurrentVersion\Uninstall", winreg.KEY_WOW64_32KEY),
-        (winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Uninstall", 0),
-    ]
-
     software_map: dict[str, dict] = {}
+    system_name = platform.system()
 
-    for root, subkey, flags in locations:
-        try:
-            with winreg.OpenKey(root, subkey, 0, winreg.KEY_READ | flags) as key:
-                num_subkeys = winreg.QueryInfoKey(key)[0]
-                for i in range(num_subkeys):
-                    try:
-                        subname = winreg.EnumKey(key, i)
-                        with winreg.OpenKey(key, subname) as item_key:
+    if system_name == "Darwin":
+        import plistlib
+        app_dirs = [
+            "/Applications",
+            "/System/Applications",
+            os.path.expanduser("~/Applications"),
+        ]
+        for app_dir in app_dirs:
+            if not os.path.isdir(app_dir):
+                continue
+            try:
+                for item in os.listdir(app_dir):
+                    if item.endswith(".app"):
+                        app_path = os.path.join(app_dir, item)
+                        plist_path = os.path.join(app_path, "Contents", "Info.plist")
+                        name = item[:-4]
+                        version = ""
+                        publisher = "Apple" if app_dir.startswith("/System") else ""
+                        if os.path.exists(plist_path):
                             try:
+                                with open(plist_path, "rb") as f:
+                                    pl = plistlib.load(f)
+                                    name = pl.get("CFBundleDisplayName") or pl.get("CFBundleName") or name
+                                    version = pl.get("CFBundleShortVersionString") or pl.get("CFBundleVersion") or ""
+                                    publisher = pl.get("CFBundleIdentifier") or publisher
+                            except Exception:
+                                pass
+                        name_clean = str(name).strip()
+                        if not name_clean:
+                            continue
+                        norm_key = name_clean.lower()
+                        if norm_key not in software_map:
+                            details_parts = []
+                            if version:
+                                details_parts.append(f"Version: {version}")
+                            if publisher:
+                                details_parts.append(f"Publisher: {publisher}")
+                            details_str = " | ".join(details_parts) if details_parts else "macOS Application"
+                            software_map[norm_key] = {
+                                "name": name_clean,
+                                "evidence_type": "INSTALLED_SOFTWARE",
+                                "source": "macos_applications",
+                                "observed_at": now_iso,
+                                "details": details_str,
+                            }
+            except Exception:
+                continue
+
+        # Optional: check Homebrew packages
+        try:
+            brew_res = subprocess.run(["brew", "list", "--versions"], capture_output=True, text=True, timeout=3)
+            if brew_res.returncode == 0:
+                for line in brew_res.stdout.splitlines():
+                    parts = line.strip().split()
+                    if parts:
+                        bname = parts[0]
+                        bver = parts[1] if len(parts) > 1 else ""
+                        norm_k = f"brew:{bname.lower()}"
+                        if norm_k not in software_map:
+                            software_map[norm_k] = {
+                                "name": f"{bname} (Homebrew)",
+                                "evidence_type": "INSTALLED_SOFTWARE",
+                                "source": "homebrew",
+                                "observed_at": now_iso,
+                                "details": f"Version: {bver} | Package: Homebrew Formula" if bver else "Homebrew Formula",
+                            }
+        except Exception:
+            pass
+
+    elif system_name == "Windows":
+        try:
+            import winreg
+        except ImportError:
+            return []
+
+        locations = [
+            (winreg.HKEY_LOCAL_MACHINE, r"Software\Microsoft\Windows\CurrentVersion\Uninstall", winreg.KEY_WOW64_64KEY),
+            (winreg.HKEY_LOCAL_MACHINE, r"Software\Microsoft\Windows\CurrentVersion\Uninstall", winreg.KEY_WOW64_32KEY),
+            (winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Uninstall", 0),
+        ]
+
+        for root, subkey, flags in locations:
+            try:
+                with winreg.OpenKey(root, subkey, 0, winreg.KEY_READ | flags) as key:
+                    num_subkeys = winreg.QueryInfoKey(key)[0]
+                    for i in range(num_subkeys):
+                        try:
+                            subname = winreg.EnumKey(key, i)
+                            with winreg.OpenKey(key, subname) as item_key:
                                 try:
-                                    sys_comp, _ = winreg.QueryValueEx(item_key, "SystemComponent")
-                                    if sys_comp == 1:
+                                    try:
+                                        sys_comp, _ = winreg.QueryValueEx(item_key, "SystemComponent")
+                                        if sys_comp == 1:
+                                            continue
+                                    except OSError:
+                                        pass
+
+                                    try:
+                                        parent_key, _ = winreg.QueryValueEx(item_key, "ParentKeyName")
+                                        if parent_key:
+                                            continue
+                                    except OSError:
+                                        pass
+
+                                    display_name, _ = winreg.QueryValueEx(item_key, "DisplayName")
+                                    if not display_name or not str(display_name).strip():
                                         continue
-                                except OSError:
-                                    pass
+                                    name_clean = str(display_name).strip()
 
-                                try:
-                                    parent_key, _ = winreg.QueryValueEx(item_key, "ParentKeyName")
-                                    if parent_key:
+                                    if name_clean.startswith("KB") and len(name_clean) > 5 and name_clean[2:6].isdigit():
                                         continue
-                                except OSError:
-                                    pass
 
-                                display_name, _ = winreg.QueryValueEx(item_key, "DisplayName")
-                                if not display_name or not str(display_name).strip():
+                                    version = ""
+                                    try:
+                                        ver_val, _ = winreg.QueryValueEx(item_key, "DisplayVersion")
+                                        if ver_val:
+                                            version = str(ver_val).strip()
+                                    except OSError:
+                                        pass
+
+                                    publisher = ""
+                                    try:
+                                        pub_val, _ = winreg.QueryValueEx(item_key, "Publisher")
+                                        if pub_val:
+                                            publisher = str(pub_val).strip()
+                                    except OSError:
+                                        pass
+
+                                    details_parts = []
+                                    if version:
+                                        details_parts.append(f"Version: {version}")
+                                    if publisher:
+                                        details_parts.append(f"Publisher: {publisher}")
+                                    details_str = " | ".join(details_parts) if details_parts else "Installed application"
+
+                                    norm_key = name_clean.lower()
+                                    if norm_key not in software_map:
+                                        software_map[norm_key] = {
+                                            "name": name_clean,
+                                            "evidence_type": "INSTALLED_SOFTWARE",
+                                            "source": "windows_registry",
+                                            "observed_at": now_iso,
+                                            "details": details_str,
+                                        }
+                                except OSError:
                                     continue
-                                name_clean = str(display_name).strip()
-
-                                if name_clean.startswith("KB") and len(name_clean) > 5 and name_clean[2:6].isdigit():
-                                    continue
-
-                                version = ""
-                                try:
-                                    ver_val, _ = winreg.QueryValueEx(item_key, "DisplayVersion")
-                                    if ver_val:
-                                        version = str(ver_val).strip()
-                                except OSError:
-                                    pass
-
-                                publisher = ""
-                                try:
-                                    pub_val, _ = winreg.QueryValueEx(item_key, "Publisher")
-                                    if pub_val:
-                                        publisher = str(pub_val).strip()
-                                except OSError:
-                                    pass
-
-                                details_parts = []
-                                if version:
-                                    details_parts.append(f"Version: {version}")
-                                if publisher:
-                                    details_parts.append(f"Publisher: {publisher}")
-                                details_str = " | ".join(details_parts) if details_parts else "Installed application"
-
-                                norm_key = name_clean.lower()
-                                if norm_key not in software_map:
-                                    software_map[norm_key] = {
-                                        "name": name_clean,
-                                        "evidence_type": "INSTALLED_SOFTWARE",
-                                        "source": "windows_registry",
-                                        "observed_at": now_iso,
-                                        "details": details_str,
-                                    }
-                            except OSError:
-                                continue
-                    except OSError:
-                        continue
-        except OSError:
-            continue
+                        except OSError:
+                            continue
+            except OSError:
+                continue
 
     sorted_items = sorted(software_map.values(), key=lambda x: x["name"].lower())
     return sorted_items[:max_items]
 
 
 def _collect_installed_browsers() -> list[str]:
-    """Detect genuine installed browsers using Windows filesystem/registry evidence.
+    """Detect genuine installed browsers across macOS, Windows, and Linux.
 
-    At minimum detects: Google Chrome, Microsoft Edge, Brave, Mozilla Firefox.
+    At minimum detects: Google Chrome, Microsoft Edge, Brave, Mozilla Firefox, Safari, Arc, Opera.
     Returns only browsers actually found. Zero fabrication.
     """
-    if platform.system() != "Windows":
-        return []
-
-    try:
-        import winreg
-    except ImportError:
-        return []
-
+    system_name = platform.system()
     browsers: set[str] = set()
 
-    browser_checks = {
-        "Google Chrome": [
-            r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\chrome.exe",
-            os.path.expandvars(r"%ProgramFiles%\Google\Chrome\Application\chrome.exe"),
-            os.path.expandvars(r"%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe"),
-            os.path.expandvars(r"%LocalAppData%\Google\Chrome\Application\chrome.exe"),
-        ],
-        "Microsoft Edge": [
-            r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\msedge.exe",
-            os.path.expandvars(r"%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe"),
-            os.path.expandvars(r"%ProgramFiles%\Microsoft\Edge\Application\msedge.exe"),
-        ],
-        "Brave": [
-            r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\brave.exe",
-            os.path.expandvars(r"%ProgramFiles%\BraveSoftware\Brave-Browser\Application\brave.exe"),
-            os.path.expandvars(r"%LocalAppData%\BraveSoftware\Brave-Browser\Application\brave.exe"),
-        ],
-        "Mozilla Firefox": [
-            r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\firefox.exe",
-            os.path.expandvars(r"%ProgramFiles%\Mozilla Firefox\firefox.exe"),
-            os.path.expandvars(r"%ProgramFiles(x86)%\Mozilla Firefox\firefox.exe"),
-        ],
-    }
-
-    for bname, paths in browser_checks.items():
-        found = False
-        reg_subpath = paths[0]
-        for root in (winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER):
-            try:
-                with winreg.OpenKey(root, reg_subpath) as key:
-                    val, _ = winreg.QueryValueEx(key, "")
-                    if val and os.path.exists(str(val)):
-                        browsers.add(bname)
-                        found = True
-                        break
-            except OSError:
-                pass
-        if found:
-            continue
-
-        for fpath in paths[1:]:
-            if fpath and os.path.exists(fpath):
+    if system_name == "Darwin":
+        mac_browser_paths = {
+            "Google Chrome": ["/Applications/Google Chrome.app", os.path.expanduser("~/Applications/Google Chrome.app")],
+            "Brave": ["/Applications/Brave Browser.app", os.path.expanduser("~/Applications/Brave Browser.app")],
+            "Microsoft Edge": ["/Applications/Microsoft Edge.app", os.path.expanduser("~/Applications/Microsoft Edge.app")],
+            "Mozilla Firefox": ["/Applications/Firefox.app", os.path.expanduser("~/Applications/Firefox.app")],
+            "Safari": ["/Applications/Safari.app", "/System/Applications/Safari.app", "/System/Volumes/Preboot/Cryptexes/App/System/Applications/Safari.app"],
+            "Arc": ["/Applications/Arc.app", os.path.expanduser("~/Applications/Arc.app")],
+            "Opera": ["/Applications/Opera.app", os.path.expanduser("~/Applications/Opera.app")],
+        }
+        for bname, paths in mac_browser_paths.items():
+            if any(os.path.exists(p) for p in paths):
                 browsers.add(bname)
-                break
+
+    elif system_name == "Windows":
+        try:
+            import winreg
+        except ImportError:
+            return []
+
+        browser_checks = {
+            "Google Chrome": [
+                r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\chrome.exe",
+                os.path.expandvars(r"%ProgramFiles%\Google\Chrome\Application\chrome.exe"),
+                os.path.expandvars(r"%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe"),
+                os.path.expandvars(r"%LocalAppData%\Google\Chrome\Application\chrome.exe"),
+            ],
+            "Microsoft Edge": [
+                r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\msedge.exe",
+                os.path.expandvars(r"%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe"),
+                os.path.expandvars(r"%ProgramFiles%\Microsoft\Edge\Application\msedge.exe"),
+            ],
+            "Brave": [
+                r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\brave.exe",
+                os.path.expandvars(r"%ProgramFiles%\BraveSoftware\Brave-Browser\Application\brave.exe"),
+                os.path.expandvars(r"%LocalAppData%\BraveSoftware\Brave-Browser\Application\brave.exe"),
+            ],
+            "Mozilla Firefox": [
+                r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\firefox.exe",
+                os.path.expandvars(r"%ProgramFiles%\Mozilla Firefox\firefox.exe"),
+                os.path.expandvars(r"%ProgramFiles(x86)%\Mozilla Firefox\firefox.exe"),
+            ],
+        }
+
+        for bname, paths in browser_checks.items():
+            found = False
+            reg_subpath = paths[0]
+            for root in (winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER):
+                try:
+                    with winreg.OpenKey(root, reg_subpath) as key:
+                        val, _ = winreg.QueryValueEx(key, "")
+                        if val and os.path.exists(str(val)):
+                            browsers.add(bname)
+                            found = True
+                            break
+                except OSError:
+                    pass
+            if found:
+                continue
+
+            for fpath in paths[1:]:
+                if fpath and os.path.exists(fpath):
+                    browsers.add(bname)
+                    break
+    else:  # Linux
+        linux_bins = {
+            "Google Chrome": ["google-chrome", "google-chrome-stable", "chromium", "chromium-browser"],
+            "Mozilla Firefox": ["firefox"],
+            "Brave": ["brave-browser", "brave"],
+            "Microsoft Edge": ["microsoft-edge", "microsoft-edge-stable"],
+            "Opera": ["opera"],
+        }
+        import shutil
+        for bname, bins in linux_bins.items():
+            if any(shutil.which(b) for b in bins):
+                browsers.add(bname)
 
     return sorted(browsers)
 
 
 def _collect_process_connections(max_connections: int = 50) -> list[dict]:
-    """Capture observed active socket connections using psutil.
+    """Capture observed active socket connections using psutil and lsof across macOS, Windows, and Linux.
 
     Safe metadata only: PID, local/remote endpoints, protocol, status, process name.
     Does NOT infer website/application names from remote IPs.
@@ -748,95 +890,160 @@ def _collect_process_connections(max_connections: int = 50) -> list[dict]:
     conns: list[dict] = []
     proc_name_cache: dict[int, str] = {}
 
+    system_name = platform.system()
+    source_tag = "macos_endpoint" if system_name == "Darwin" else "windows_endpoint" if system_name == "Windows" else "linux_endpoint"
+
+    # Try psutil.net_connections
     try:
         net_conns = psutil.net_connections(kind="inet")
-    except (psutil.AccessDenied, PermissionError, OSError) as e:
-        log(f"net_connections notice: {e}")
-        return []
+        for c in net_conns:
+            try:
+                if c.status not in ("ESTABLISHED", "LISTEN", "SYN_SENT"):
+                    continue
 
-    for c in net_conns:
-        try:
-            if c.status not in ("ESTABLISHED", "LISTEN", "SYN_SENT"):
+                laddr = f"{c.laddr.ip}:{c.laddr.port}" if c.laddr else "unknown"
+                raddr = f"{c.raddr.ip}:{c.raddr.port}" if c.raddr else ""
+
+                pname = "unknown"
+                if c.pid:
+                    if c.pid in proc_name_cache:
+                        pname = proc_name_cache[c.pid]
+                    else:
+                        try:
+                            pname = psutil.Process(c.pid).name()
+                            proc_name_cache[c.pid] = pname
+                        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess, OSError):
+                            pname = "unknown"
+
+                proto = "tcp" if c.type == socket.SOCK_STREAM else "udp"
+                endpoint_str = f"{pname}:{c.laddr.port}" if c.laddr else pname
+                details_str = f"PID: {c.pid or 'N/A'} | {proto.upper()} | Local: {laddr}"
+                if raddr:
+                    details_str += f" | Remote: {raddr}"
+                details_str += f" | Status: {c.status}"
+
+                conns.append({
+                    "name": endpoint_str,
+                    "evidence_type": "PROCESS_NETWORK_CONNECTION",
+                    "source": source_tag,
+                    "observed_at": now_iso,
+                    "details": details_str,
+                })
+
+                if len(conns) >= max_connections:
+                    break
+            except Exception:
                 continue
+    except (psutil.AccessDenied, PermissionError, OSError):
+        pass
 
-            laddr = f"{c.laddr.ip}:{c.laddr.port}" if c.laddr else "unknown"
-            raddr = f"{c.raddr.ip}:{c.raddr.port}" if c.raddr else ""
+    # If non-root on macOS/Linux and conns is empty, fallback to lsof
+    if not conns and system_name in ("Darwin", "Linux"):
+        try:
+            out = subprocess.run(["lsof", "-iTCP", "-iUDP", "-P", "-n"], capture_output=True, text=True, timeout=3).stdout
+            for line in out.splitlines()[1:]:
+                parts = line.split()
+                if len(parts) >= 8:
+                    pname = parts[0]
+                    pid_str = parts[1]
+                    proto = parts[7].lower() if len(parts) > 7 else "tcp"
+                    name_field = parts[8] if len(parts) > 8 else ""
+                    state = parts[9].replace("(", "").replace(")", "") if len(parts) > 9 else "ESTABLISHED"
+                    
+                    if not name_field:
+                        continue
+                    
+                    laddr = name_field
+                    raddr = ""
+                    if "->" in name_field:
+                        laddr, raddr = name_field.split("->", 1)
+                    
+                    port = laddr.rsplit(":", 1)[-1] if ":" in laddr else ""
+                    endpoint_str = f"{pname}:{port}" if port else pname
+                    details_str = f"PID: {pid_str} | {proto.upper()} | Local: {laddr}"
+                    if raddr:
+                        details_str += f" | Remote: {raddr}"
+                    details_str += f" | Status: {state}"
 
-            pname = "unknown"
-            if c.pid:
-                if c.pid in proc_name_cache:
-                    pname = proc_name_cache[c.pid]
-                else:
-                    try:
-                        pname = psutil.Process(c.pid).name()
-                        proc_name_cache[c.pid] = pname
-                    except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess, OSError):
-                        pname = "unknown"
+                    conns.append({
+                        "name": endpoint_str,
+                        "evidence_type": "PROCESS_NETWORK_CONNECTION",
+                        "source": source_tag,
+                        "observed_at": now_iso,
+                        "details": details_str,
+                    })
 
-            proto = "tcp" if c.type == socket.SOCK_STREAM else "udp"
-            endpoint_str = f"{pname}:{c.laddr.port}" if c.laddr else pname
-            details_str = f"PID: {c.pid or 'N/A'} | {proto.upper()} | Local: {laddr}"
-            if raddr:
-                details_str += f" | Remote: {raddr}"
-            details_str += f" | Status: {c.status}"
-
-            conns.append({
-                "name": endpoint_str,
-                "evidence_type": "PROCESS_NETWORK_CONNECTION",
-                "source": "windows_endpoint",
-                "observed_at": now_iso,
-                "details": details_str,
-            })
-
-            if len(conns) >= max_connections:
-                break
+                    if len(conns) >= max_connections:
+                        break
         except Exception:
-            continue
+            pass
 
     return conns
 
 
 def _collect_vpn_status() -> tuple[str, list[str]]:
-    """Determine VPN / Virtual Adapter status truthfully from Windows network interfaces.
+    """Determine VPN / Virtual Adapter status truthfully from network interfaces on macOS, Windows, and Linux.
 
     Returns:
       (status, adapter_evidence_list)
       status in: "VPN DETECTED", "VIRTUAL ADAPTER PRESENT", "NO VPN DETECTED"
     """
-    if platform.system() != "Windows":
-        return "NO VPN DETECTED", []
-
     import subprocess
     import psutil
 
     vpn_adapters: list[str] = []
     virtual_adapters: list[str] = []
+    system_name = platform.system()
 
-    try:
-        cmd = [
-            "powershell", "-NoProfile", "-NonInteractive", "-Command",
-            "Get-NetAdapter | Select-Object Name, InterfaceDescription, Status, Virtual | ConvertTo-Json -Compress"
-        ]
-        res = subprocess.run(cmd, capture_output=True, text=True, timeout=4)
-        if res.returncode == 0 and res.stdout.strip():
-            raw = res.stdout.strip()
-            data = json.loads(raw)
-            adapters = data if isinstance(data, list) else [data]
+    if system_name == "Darwin":
+        try:
+            scutil_res = subprocess.run(["scutil", "--nc", "list"], capture_output=True, text=True, timeout=3)
+            if scutil_res.returncode == 0:
+                for line in scutil_res.stdout.splitlines():
+                    if "(Connected)" in line:
+                        vpn_adapters.append(line.strip())
+        except Exception:
+            pass
 
-            for a in adapters:
-                name = str(a.get("Name") or "").strip()
-                desc = str(a.get("InterfaceDescription") or "").strip()
-                is_virt = bool(a.get("Virtual", False))
+        try:
+            for iface_name in psutil.net_if_stats().keys():
+                iface_lower = iface_name.lower()
+                if any(iface_lower.startswith(p) for p in ("utun", "tun", "tap", "ppp", "wg", "tailscale", "ipsec")):
+                    if any(kw in iface_lower for kw in ("tailscale", "wireguard", "cisco", "openvpn", "warp", "proton", "nord")):
+                        vpn_adapters.append(f"Interface: {iface_name}")
+                    else:
+                        virtual_adapters.append(f"Interface: {iface_name}")
+                elif any(kw in iface_lower for kw in _VIRTUAL_ADAPTER_KEYWORDS):
+                    virtual_adapters.append(f"Interface: {iface_name}")
+        except Exception:
+            pass
 
-                label = f"{name}: {desc}" if desc else name
-                combined = f"{name} {desc}".lower()
+    elif system_name == "Windows":
+        try:
+            cmd = [
+                "powershell", "-NoProfile", "-NonInteractive", "-Command",
+                "Get-NetAdapter | Select-Object Name, InterfaceDescription, Status, Virtual | ConvertTo-Json -Compress"
+            ]
+            res = subprocess.run(cmd, capture_output=True, text=True, timeout=4)
+            if res.returncode == 0 and res.stdout.strip():
+                raw = res.stdout.strip()
+                data = json.loads(raw)
+                adapters = data if isinstance(data, list) else [data]
 
-                if any(kw in combined for kw in _VPN_DRIVER_KEYWORDS):
-                    vpn_adapters.append(label)
-                elif is_virt or any(kw in combined for kw in _VIRTUAL_ADAPTER_KEYWORDS):
-                    virtual_adapters.append(label)
-    except Exception:
-        pass
+                for a in adapters:
+                    name = str(a.get("Name") or "").strip()
+                    desc = str(a.get("InterfaceDescription") or "").strip()
+                    is_virt = bool(a.get("Virtual", False))
+
+                    label = f"{name}: {desc}" if desc else name
+                    combined = f"{name} {desc}".lower()
+
+                    if any(kw in combined for kw in _VPN_DRIVER_KEYWORDS):
+                        vpn_adapters.append(label)
+                    elif is_virt or any(kw in combined for kw in _VIRTUAL_ADAPTER_KEYWORDS):
+                        virtual_adapters.append(label)
+        except Exception:
+            pass
 
     if not vpn_adapters and not virtual_adapters:
         try:
@@ -857,13 +1064,20 @@ def _collect_vpn_status() -> tuple[str, list[str]]:
 
 
 def _collect_os_info() -> str:
-    """Collect real Windows OS platform information."""
+    """Collect real OS platform information across macOS, Windows, and Linux."""
     try:
         sys_name = platform.system()
-        release = platform.release()
-        ver = platform.version()
-        plat = platform.platform()
-        return f"{sys_name} {release} (Build {ver}) - {plat}"
+        if sys_name == "Darwin":
+            mac_ver = platform.mac_ver()[0]
+            machine = platform.machine()
+            return f"macOS {mac_ver} ({machine}) - {platform.platform()}"
+        elif sys_name == "Windows":
+            release = platform.release()
+            ver = platform.version()
+            plat = platform.platform()
+            return f"Windows {release} (Build {ver}) - {plat}"
+        else:
+            return f"{sys_name} - {platform.platform()}"
     except Exception:
         return platform.platform() or "Windows"
 
@@ -1131,7 +1345,15 @@ def run_conn(reporter: Reporter, interval: float) -> None:
         vpn_adapters = None
         os_info = None
 
-        if platform.system() == "Darwin":
+        # Cross-platform Endpoint Telemetry Collection
+        endpoint_processes = _collect_endpoint_processes()
+        user_apps = [p["name"] for p in endpoint_processes if p.get("category") == "USER_APPLICATION"]
+        active_apps_list = user_apps if user_apps else [p["name"] for p in endpoint_processes]
+        process_connections = _collect_process_connections()
+        active_browser_tabs = _get_active_browser_tabs(ttl_seconds=20.0)
+
+        # On macOS, if extension tab receiver isn't providing tabs, attempt AppleScript tab extraction
+        if platform.system() == "Darwin" and not active_browser_tabs:
             for browser in browsers:
                 try:
                     if subprocess.run(["pgrep", "-xi", browser], capture_output=True).returncode != 0:
@@ -1150,60 +1372,28 @@ def run_conn(reporter: Reporter, interval: float) -> None:
                 except Exception:
                     continue
 
-            try:
-                cmd = ["osascript", "-e", 'tell application "System Events" to get name of every process whose background only is false']
-                apps_out = subprocess.run(cmd, capture_output=True, text=True, timeout=2).stdout
-                app_names = [a.strip() for a in apps_out.split(", ") if a.strip()]
-                active_apps_list = [
-                    a for a in app_names
-                    if a.lower() not in _NOISE_APPS and not a.lower().endswith(".py")
-                ]
-            except Exception:
-                pass
+        # Observe active browser tab domains for live reputation scoring
+        for tab_item in (active_browser_tabs or []):
+            t_dom = tab_item.get("domain")
+            if t_dom:
+                reg = registrable(t_dom) or t_dom
+                if reg:
+                    domains.add(reg)
 
-        elif platform.system() == "Windows":
-            # Real Windows Endpoint Telemetry (Phase B2.2 & MVP)
-            endpoint_processes = _collect_windows_processes()
-            user_apps = [p["name"] for p in endpoint_processes if p.get("category") == "USER_APPLICATION"]
-            active_apps_list = user_apps if user_apps else [p["name"] for p in endpoint_processes]
-            process_connections = _collect_process_connections()
-            active_browser_tabs = _get_active_browser_tabs(ttl_seconds=20.0)
+        # Refresh software, browser, VPN, and OS inventories every 60s
+        now_mono = time.monotonic()
+        if now_mono - _last_inventory_time > 60:
+            _cached_software = _collect_installed_software()
+            _cached_browsers = _collect_installed_browsers()
+            _cached_vpn_status, _cached_vpn_adapters = _collect_vpn_status()
+            _cached_os_info = _collect_os_info()
+            _last_inventory_time = now_mono
 
-            # Observe active browser tab domains for live reputation scoring
-            for tab_item in active_browser_tabs:
-                t_dom = tab_item.get("domain")
-                if t_dom:
-                    reg = registrable(t_dom) or t_dom
-                    if reg:
-                        domains.add(reg)
-
-            # Refresh registry inventories & VPN every 60s
-            now_mono = time.monotonic()
-            if now_mono - _last_inventory_time > 60:
-                _cached_software = _collect_installed_software()
-                _cached_browsers = _collect_installed_browsers()
-                _cached_vpn_status, _cached_vpn_adapters = _collect_vpn_status()
-                _cached_os_info = _collect_os_info()
-                _last_inventory_time = now_mono
-
-            installed_software = _cached_software
-            installed_browsers = _cached_browsers
-            vpn_status = _cached_vpn_status
-            vpn_adapters = _cached_vpn_adapters
-            os_info = _cached_os_info
-
-        elif platform.system() == "Linux":
-            try:
-                cmd = ["ps", "-eo", "comm="]
-                res = subprocess.run(cmd, capture_output=True, text=True, timeout=3)
-                if res.returncode == 0:
-                    raw_apps = [a.strip() for a in res.stdout.splitlines() if a.strip()]
-                    active_apps_list = list(set([
-                        a for a in raw_apps
-                        if a.lower() in {"chrome", "firefox", "brave", "spotify", "discord", "slack", "code", "zoom", "telegram-desktop", "figma", "postman"}
-                    ]))
-            except Exception:
-                pass
+        installed_software = _cached_software
+        installed_browsers = _cached_browsers
+        vpn_status = _cached_vpn_status
+        vpn_adapters = _cached_vpn_adapters
+        os_info = _cached_os_info
 
         for dom in domains:
             reporter.report(dom)
@@ -1456,8 +1646,19 @@ def _scan_on_link(net: "ipaddress.IPv4Network") -> list[dict]:
     except Exception:
         pass
 
-    # 2. ICMP ping sweep to populate kernel ARP cache
-    _sweep_responders(net)
+    # 2. ICMP ping sweep to discover live responders
+    responders = _sweep_responders(net)
+    for ip in responders:
+        if ip not in devices_by_ip:
+            devices_by_ip[ip] = {
+                "ip": ip,
+                "mac": None,
+                "hostname": None,
+                "subnet": str(net),
+                "discovery": "icmp",
+            }
+
+    # 3. System ARP table to enrich MACs and hostnames
     for d in _arp_devices():
         try:
             ip = d.get("ip")
@@ -1468,6 +1669,9 @@ def _scan_on_link(net: "ipaddress.IPv4Network") -> list[dict]:
                     devices_by_ip[ip] = d
                 elif d.get("hostname") and not devices_by_ip[ip].get("hostname"):
                     devices_by_ip[ip]["hostname"] = d["hostname"]
+                if d.get("mac") and ip in devices_by_ip:
+                    devices_by_ip[ip]["mac"] = d["mac"]
+                    devices_by_ip[ip]["discovery"] = "arp"
         except ValueError:
             continue
 
@@ -1566,7 +1770,7 @@ def _norm_mac(mac: str) -> str:
 def _arp_devices() -> list[dict]:
     system = platform.system()
     try:
-        cmd = ["arp", "-a"] if system == "Windows" else ["arp", "-an"]
+        cmd = ["arp", "-a"] if system in ("Windows", "Darwin") else ["arp", "-an"]
         out = subprocess.run(cmd, capture_output=True, text=True, timeout=10).stdout
     except Exception:
         return []
@@ -1651,23 +1855,50 @@ def discover_wifi(run=None) -> dict:
                     networks.append({"ssid": ssid, "bssid": m.group(1), "channel": None,
                                      "signal": None, "security": security, "joined": False})
         elif system == "Darwin":
-            text = run([_AIRPORT, "-s"])
-            if not text.strip():
-                return {"available": False, "networks": [],
-                        "reason": "airport scan returned nothing (tool removed on recent macOS?)"}
-            for line in text.splitlines()[1:]:
-                m = re.match(r"\s*(.+?)\s+([0-9a-f:]{17})\s+(-?\d+)\s+(\S+)\s+\S+\s+(.*)$", line)
-                if not m:
-                    continue
-                networks.append({"ssid": m.group(1).strip(), "bssid": m.group(2),
-                                 "signal": m.group(3), "channel": m.group(4),
-                                 "security": m.group(5).strip(), "joined": False})
-            info = run([_AIRPORT, "-I"])
-            m = re.search(r"^\s*SSID:\s*(.+)$", info, re.M)
-            if m:
-                joined = m.group(1).strip()
-                for n in networks:
-                    n["joined"] = n["ssid"] == joined
+            if os.path.exists(_AIRPORT):
+                try:
+                    text = run([_AIRPORT, "-s"])
+                    for line in text.splitlines()[1:]:
+                        m = re.match(r"\s*(.+?)\s+([0-9a-f:]{17})\s+(-?\d+)\s+(\S+)\s+\S+\s+(.*)$", line)
+                        if not m:
+                            continue
+                        networks.append({"ssid": m.group(1).strip(), "bssid": m.group(2),
+                                         "signal": m.group(3), "channel": m.group(4),
+                                         "security": m.group(5).strip(), "joined": False})
+                    info = run([_AIRPORT, "-I"])
+                    m = re.search(r"^\s*SSID:\s*(.+)$", info, re.M)
+                    if m:
+                        joined = m.group(1).strip()
+                        for n in networks:
+                            n["joined"] = n["ssid"] == joined
+                except Exception:
+                    pass
+
+            if not joined:
+                try:
+                    hw = run(["networksetup", "-listallhardwareports"])
+                    wifi_dev = "en0"
+                    m = re.search(r"Hardware Port:\s*Wi-Fi\s+Device:\s*(\w+)", hw)
+                    if m:
+                        wifi_dev = m.group(1)
+                    res = run(["networksetup", "-getairportnetwork", wifi_dev])
+                    if "Current Wi-Fi Network:" in res:
+                        joined = res.split(":", 1)[1].strip()
+                        if not any(n.get("ssid") == joined for n in networks):
+                            networks.append({
+                                "ssid": joined,
+                                "bssid": "N/A",
+                                "channel": "N/A",
+                                "signal": "N/A",
+                                "security": "Wi-Fi (Active)",
+                                "joined": True,
+                            })
+                        else:
+                            for n in networks:
+                                if n.get("ssid") == joined:
+                                    n["joined"] = True
+                except Exception:
+                    pass
         else:
             return {"available": False, "networks": [],
                     "reason": f"unsupported platform {system}"}
@@ -1960,42 +2191,99 @@ def run_history(reporter: Reporter, interval: float, backlog: int = 0) -> None:
 
 
 def install_autostart() -> bool:
-    """Install Drishti endpoint agent into Windows Current User Run key for authorized lab devices."""
-    if platform.system() != "Windows":
-        log("Autostart installation is only supported on Windows")
-        return False
-    try:
-        import winreg
-        key_path = r"Software\Microsoft\Windows\CurrentVersion\Run"
+    """Install Drishti endpoint agent into macOS LaunchAgents or Windows Current User Run key."""
+    system_name = platform.system()
+    if system_name == "Darwin":
+        plist_dir = Path.home() / "Library/LaunchAgents"
+        plist_dir.mkdir(parents=True, exist_ok=True)
+        plist_path = plist_dir / "dev.drishti.agent.plist"
         exe = sys.executable
         script = os.path.abspath(__file__)
-        cmd = f'"{exe}" "{script}" --mode conn'
-        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path, 0, winreg.KEY_SET_VALUE) as k:
-            winreg.SetValueEx(k, "DrishtiEndpointAgent", 0, winreg.REG_SZ, cmd)
-        log(f"SUCCESS: Drishti Endpoint Agent registered in Windows Run key: {cmd}")
-        return True
-    except Exception as e:
-        log(f"Failed to install autostart: {e}")
+        plist_content = f"""<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>dev.drishti.agent</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>{exe}</string>
+        <string>{script}</string>
+        <string>--mode</string>
+        <string>conn</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+</dict>
+</plist>
+"""
+        try:
+            with open(plist_path, "w") as f:
+                f.write(plist_content)
+            subprocess.run(["launchctl", "load", "-w", str(plist_path)], capture_output=True)
+            log(f"SUCCESS: Drishti Endpoint Agent registered in macOS LaunchAgents: {plist_path}")
+            return True
+        except Exception as e:
+            log(f"Failed to install macOS LaunchAgent: {e}")
+            return False
+
+    elif system_name == "Windows":
+        try:
+            import winreg
+            key_path = r"Software\Microsoft\Windows\CurrentVersion\Run"
+            exe = sys.executable
+            script = os.path.abspath(__file__)
+            cmd = f'"{exe}" "{script}" --mode conn'
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path, 0, winreg.KEY_SET_VALUE) as k:
+                winreg.SetValueEx(k, "DrishtiEndpointAgent", 0, winreg.REG_SZ, cmd)
+            log(f"SUCCESS: Drishti Endpoint Agent registered in Windows Run key: {cmd}")
+            return True
+        except Exception as e:
+            log(f"Failed to install autostart: {e}")
+            return False
+    else:
+        log("Autostart is supported on macOS and Windows")
         return False
 
 
 def uninstall_autostart() -> bool:
-    """Remove Drishti endpoint agent from Windows Current User Run key."""
-    if platform.system() != "Windows":
-        log("Autostart uninstallation is only supported on Windows")
-        return False
-    try:
-        import winreg
-        key_path = r"Software\Microsoft\Windows\CurrentVersion\Run"
-        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path, 0, winreg.KEY_SET_VALUE) as k:
-            winreg.DeleteValue(k, "DrishtiEndpointAgent")
-        log("SUCCESS: Drishti Endpoint Agent removed from Windows Run key.")
+    """Remove Drishti endpoint agent from macOS LaunchAgents or Windows Current User Run key."""
+    system_name = platform.system()
+    if system_name == "Darwin":
+        plist_path = Path.home() / "Library/LaunchAgents/dev.drishti.agent.plist"
+        if plist_path.exists():
+            try:
+                subprocess.run(["launchctl", "unload", "-w", str(plist_path)], capture_output=True)
+            except Exception:
+                pass
+            try:
+                plist_path.unlink()
+                log(f"SUCCESS: Drishti Endpoint Agent LaunchAgent removed from {plist_path}")
+                return True
+            except Exception as e:
+                log(f"Failed to remove plist file: {e}")
+                return False
+        log("Notice: Drishti Endpoint Agent LaunchAgent was not present.")
         return True
-    except FileNotFoundError:
-        log("Notice: Drishti Endpoint Agent was not present in Windows Run key.")
-        return True
-    except Exception as e:
-        log(f"Failed to uninstall autostart: {e}")
+
+    elif system_name == "Windows":
+        try:
+            import winreg
+            key_path = r"Software\Microsoft\Windows\CurrentVersion\Run"
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path, 0, winreg.KEY_SET_VALUE) as k:
+                winreg.DeleteValue(k, "DrishtiEndpointAgent")
+            log("SUCCESS: Drishti Endpoint Agent removed from Windows Run key.")
+            return True
+        except FileNotFoundError:
+            log("Notice: Drishti Endpoint Agent was not present in Windows Run key.")
+            return True
+        except Exception as e:
+            log(f"Failed to uninstall autostart: {e}")
+            return False
+    else:
+        log("Autostart is supported on macOS and Windows")
         return False
 
 
