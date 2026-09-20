@@ -17,7 +17,7 @@ Drishti approaches network security through four interconnected observation plan
 4. **Endpoint Socket Correlation Plane:** Streams real OS socket bindings from endpoint agents (`PID -> Local IP:Port <-> Remote IP:Port`).
 
 ```mermaid
-%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#1a1a2e', 'primaryTextColor': '#e0e0e0', 'primaryBorderColor': '#38c6f4', 'lineColor': '#38c6f4', 'secondaryColor': '#16213e', 'tertiaryColor': '#0f3460', 'background': '#0a0a1a', 'mainBkg': '#1a1a2e', 'nodeBorder': '#38c6f4', 'clusterBkg': '#0f3460', 'titleColor': '#e94560', 'edgeLabelBackground': '#16213e'}}}%%
+%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#1a1a2e', 'primaryTextColor': '#e0e0e0', 'primaryBorderColor': '#38c6f4', 'lineColor': '#38c6f4', 'secondaryColor': '#16213e', 'tertiary[...]
 flowchart TB
     subgraph PHYSICAL_LAN ["Physical & Virtual Network Infrastructure"]
         SUBNET_EXT["🌐 External WAN / Internet<br/>0.0.0.0/0"]
@@ -73,42 +73,41 @@ flowchart TB
 Drishti includes a pre-configured enterprise reference network representing an omni-channel retail infrastructure (**Acme Retail**):
 
 ```mermaid
-%%{init: {'theme': 'dark'}}%%
-graph TD
-    INTERNET["🌐 INTERNET<br/>(External Threat Actor Ingress)"]
+flowchart TD
+    INTERNET["INTERNET<br/>External Threat Actor Ingress"]
 
-    subgraph DMZ ["DMZ Subnet (10.0.1.0/24)"]
-        WEB["🔀 web.acme-retail.dev<br/>10.0.1.10 · Nginx Reverse Proxy<br/>CVSS 7.5 · $45,000 Exposure"]
-        VPN["🔐 vpn.acme-retail.dev<br/>10.0.1.20 · WireGuard / OpenVPN<br/>CVSS 7.8 · $90,000 Exposure"]
+    subgraph DMZ["DMZ Subnet - 10.0.1.0/24"]
+        WEB["web.acme-retail.dev<br/>10.0.1.10<br/>Nginx Reverse Proxy<br/>CVSS 7.5 - $45,000 Exposure"]
+        VPN["vpn.acme-retail.dev<br/>10.0.1.20<br/>WireGuard / OpenVPN<br/>CVSS 7.8 - $90,000 Exposure"]
     end
 
-    subgraph APP_TIER ["Application Subnet (10.0.2.0/24)"]
-        API["⚙️ api.acme-retail.dev<br/>10.0.2.15 · Node.js / FastAPI API<br/>CVSS 9.8 · $180,000 Exposure"]
-        MAIL["📧 mail.acme-retail.dev<br/>10.0.2.25 · Postfix Mail Gateway<br/>CVSS 6.1 · $15,000 Exposure"]
-        MONITOR["📊 monitor.acme-retail.dev<br/>10.0.2.35 · Prometheus / Grafana<br/>CVSS 4.3 · $8,000 Exposure"]
+    subgraph APP_TIER["Application Subnet - 10.0.2.0/24"]
+        API["api.acme-retail.dev<br/>10.0.2.15<br/>Node.js / FastAPI API<br/>CVSS 9.8 - $180,000 Exposure"]
+        MAIL["mail.acme-retail.dev<br/>10.0.2.25<br/>Postfix Mail Gateway<br/>CVSS 6.1 - $15,000 Exposure"]
+        MONITOR["monitor.acme-retail.dev<br/>10.0.2.35<br/>Prometheus / Grafana<br/>CVSS 4.3 - $8,000 Exposure"]
     end
 
-    subgraph SECURE_ENCLAVE ["Crown Jewel Enclave (10.0.3.0/24)"]
-        DB["💎 db.acme-retail.dev<br/>10.0.3.50 · PostgreSQL Production DB<br/>CVSS 9.1 · $500,000 Exposure<br/>[CROWN JEWEL: Customer PII & PCI]"]
+    subgraph SECURE_ENCLAVE["Crown Jewel Enclave - 10.0.3.0/24"]
+        DB["db.acme-retail.dev<br/>10.0.3.50<br/>PostgreSQL Production DB<br/>CVSS 9.1 - $500,000 Exposure<br/>CROWN JEWEL: Customer PII and PCI"]
     end
 
     INTERNET -->|TCP 443 / 80| WEB
     INTERNET -->|UDP 51820| VPN
-    WEB -->|TCP 8000 (Proxy)| API
-    VPN -->|TCP 22 / Admin| API
+    WEB -->|TCP 8000 Proxy| API
+    VPN -->|TCP 22 Admin| API
     VPN -->|TCP 9090| MONITOR
-    API -->|TCP 5432 (SQL)| DB
+    API -->|TCP 5432 SQL| DB
     MAIL -.->|Relay| API
 
-    classDef extStyle fill:#e94560,stroke:#fff,color:#fff;
-    classDef dmzStyle fill:#16213e,stroke:#38c6f4,color:#fff;
-    classDef appStyle fill:#0f3460,stroke:#f4d03f,color:#fff;
-    classDef cjStyle fill:#2c1b4d,stroke:#00ffcc,stroke-width:3px,color:#fff;
+    classDef extStyle fill:#e94560,stroke:#ffffff,color:#ffffff
+    classDef dmzStyle fill:#16213e,stroke:#38c6f4,color:#ffffff
+    classDef appStyle fill:#0f3460,stroke:#f4d03f,color:#ffffff
+    classDef cjStyle fill:#2c1b4d,stroke:#00ffcc,stroke-width:3px,color:#ffffff
 
-    class INTERNET extStyle;
-    class WEB,VPN dmzStyle;
-    class API,MAIL,MONITOR appStyle;
-    class DB cjStyle;
+    class INTERNET extStyle
+    class WEB,VPN dmzStyle
+    class API,MAIL,MONITOR appStyle
+    class DB cjStyle
 ```
 
 ---
@@ -128,7 +127,7 @@ Where:
 - $\text{BaseAssetValue}(v)$: Organizationally configured asset valuation (e.g., Crown Jewel DB = $\$500,000$).
 
 ### 3.2 Path Exposure Formulation
-An attack path $\mathcal{P} = \langle v_0, v_1, \dots, v_m \rangle$ starts at an external boundary node $v_0$ and terminates at a crown jewel $v_m$. The cumulative dollar price of the path reflects the sum of compromised node values plus compound hop risk:
+An attack path $\mathcal{P} = \langle v_0, v_1, \dots, v_m \rangle$ starts at an external boundary node $v_0$ and terminates at a crown jewel $v_m$. The cumulative dollar price of the path reflects the sum across each node and edge exposure, capturing both direct and chained compromise risk. The path risk is modeled as:
 $$\text{Price}(\mathcal{P}) = \sum_{i=1}^{m} \text{Price}(v_i)$$
 
 ---
@@ -174,7 +173,7 @@ flowchart TD
 ```
 
 ### 4.1 Yen’s $k$-Shortest Paths Algorithm
-Standard Dijkstra only produces a single shortest breach path. In cybersecurity, adversaries pivot when primary routes are blocked. Drishti implements Yen’s algorithm to enumerate the top $k$ alternative paths:
+Standard Dijkstra only produces a single shortest breach path. In cybersecurity, adversaries pivot when primary routes are blocked. Drishti implements Yen’s algorithm to enumerate the top $k$ alternative compromise routes in order of rising cost.
 1. Determine the first shortest path $\mathcal{P}_1$ using Dijkstra’s algorithm weighted by $(10.0 - \text{CVSS})$.
 2. To find path $\mathcal{P}_i$, iterate through every node in $\mathcal{P}_{i-1}$ as a *spur node*, temporarily removing subsequent edges to force deviation.
 3. Compute spur paths, assemble candidate routes, and select the lowest-cost alternative.
