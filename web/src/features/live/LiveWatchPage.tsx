@@ -26,9 +26,12 @@ import {
   Router,
   ScanLine,
   Smartphone,
+  Shield,
   ShieldAlert,
   ShieldCheck,
   ShieldQuestion,
+  Layers,
+  Compass,
   Terminal,
   Trash2,
   Waypoints,
@@ -38,6 +41,7 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronUp,
+  Cog,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
@@ -46,9 +50,11 @@ import { motion } from "framer-motion";
 import { api, ApiError } from "../../api/client";
 import { ForceMap, CoverageStrip } from "./ForceMap";
 import { LiveTrafficPanel } from "./LiveTrafficPanel";
+import { PairEndpointModal } from "./PairEndpointModal";
 import { Panel } from "../../components/ui/console";
 import type {
   BlockFix,
+  CorrelatedFindingOut,
   DeepScanCve,
   DeepScanRangeResult,
   DeepScanResult,
@@ -719,12 +725,18 @@ function DevicesSection() {
   const [picked, setPicked] = useState<NetworkDevice | null>(null);
   const [view, setView] = useState<"map" | "grid">("map");
   const [subnetOpen, setSubnetOpen] = useState(false);
+  const [pairModalOpen, setPairModalOpen] = useState(false);
   const [visibleCount, setVisibleCount] = useState(12);
   // engine risk_score per device once deep-scanned → recolors its node/tile
   const [scanRisk, setScanRisk] = useState<Record<string, number>>({});
   const q = useQuery({
     queryKey: ["live", "devices"],
     queryFn: () => api.liveDevices(),
+    refetchInterval: 5000,
+  });
+  const endpointAgentsQ = useQuery({
+    queryKey: ["endpoint", "agents"],
+    queryFn: () => api.listEndpointAgents(),
     refetchInterval: 5000,
   });
   const coverageQ = useQuery({
@@ -737,6 +749,9 @@ function DevicesSection() {
     queryFn: () => api.liveThreats(),
     refetchInterval: 3000,
   });
+  const endpointAgents = endpointAgentsQ.data ?? [];
+  const onlineAgentsCount = endpointAgents.filter((a) => a.status === "ONLINE").length;
+
   // Live data only — no fake/asset fallback. Empty list = nothing currently
   // on the wire (agent stopped or network changed), and we say so.
   const devices = q.data ?? [];
@@ -784,6 +799,19 @@ function DevicesSection() {
               <Waypoints className="h-3.5 w-3.5 text-accent-400" /> Scan subnet
             </button>
           )}
+          <button
+            onClick={() => setPairModalOpen(true)}
+            className="flex items-center gap-1.5 rounded-md border border-accent-500/30 bg-accent-500/10 px-2.5 py-1.5 text-[11px] font-mono text-accent-400 hover:border-accent-500/50 hover:bg-accent-500/20"
+            title="Pair Drishti Endpoint Agent running on Windows or macOS"
+          >
+            <Laptop className="h-3.5 w-3.5 text-accent-400" />
+            <span>Pair Endpoint Agent</span>
+            {endpointAgents.length > 0 && (
+              <span className="rounded-full bg-accent-500/20 px-1.5 py-0.2 text-[10px] text-accent-400">
+                {onlineAgentsCount > 0 ? `${onlineAgentsCount} online` : `${endpointAgents.length} paired`}
+              </span>
+            )}
+          </button>
           <div className="flex items-center gap-1 rounded-md border border-hairline p-0.5">
             <button
               onClick={() => setView("map")}
@@ -989,6 +1017,11 @@ function DevicesSection() {
               onClose={() => setSubnetOpen(false)}
               onScanned={(risks) => setScanRisk((m) => ({ ...m, ...risks }))}
             />,
+            document.body
+          )}
+        {pairModalOpen &&
+          createPortal(
+            <PairEndpointModal onClose={() => setPairModalOpen(false)} />,
             document.body
           )}
     </Panel>
@@ -1217,6 +1250,8 @@ export function CapabilityBadge({ state, device: d }: { state?: string; device?:
   const hasAgent = Boolean(
     d?.is_self ||
     (d?.endpoint_processes && d.endpoint_processes.length > 0) ||
+    (d?.installed_software && d.installed_software.length > 0) ||
+    (d?.listening_ports && d.listening_ports.length > 0) ||
     (d?.installed_browsers && d.installed_browsers.length > 0) ||
     (d?.active_browser_tabs && d.active_browser_tabs.length > 0)
   );
@@ -1226,7 +1261,7 @@ export function CapabilityBadge({ state, device: d }: { state?: string; device?:
     color = "border-emerald-500/40 bg-emerald-500/10 text-emerald-400";
   } else if (cap === "BROWSER EXTENSION CONNECTED") {
     color = "border-cyan-500/40 bg-cyan-500/10 text-cyan-400";
-  } else if (cap === "AGENT CONNECTED") {
+  } else if (cap === "AGENT CONNECTED" || cap === "WINDOWS ENDPOINT" || cap === "MACOS ENDPOINT") {
     color = "border-sky-500/40 bg-sky-500/10 text-sky-400";
   }
   return (
@@ -1246,8 +1281,14 @@ export function LiveActivitySection({
   const hasEndpointAgent = Boolean(
     d.is_self ||
     (d.endpoint_processes && d.endpoint_processes.length > 0) ||
+    (d.installed_software && d.installed_software.length > 0) ||
+    (d.listening_ports && d.listening_ports.length > 0) ||
     (d.installed_browsers && d.installed_browsers.length > 0) ||
-    (d.active_browser_tabs && d.active_browser_tabs.length > 0)
+    (d.active_browser_tabs && d.active_browser_tabs.length > 0) ||
+    d.capability_state === "WINDOWS ENDPOINT" ||
+    d.capability_state === "MACOS ENDPOINT" ||
+    d.capability_state === "AGENT CONNECTED" ||
+    d.capability_state === "FULL ENDPOINT TELEMETRY"
   );
 
   const capState = d.capability_state ?? (
@@ -1261,9 +1302,12 @@ export function LiveActivitySection({
     capBadgeColor = "border-emerald-500/40 bg-emerald-500/10 text-emerald-400";
   } else if (capState === "BROWSER EXTENSION CONNECTED") {
     capBadgeColor = "border-cyan-500/40 bg-cyan-500/10 text-cyan-400";
-  } else if (capState === "AGENT CONNECTED") {
+  } else if (capState === "AGENT CONNECTED" || capState === "WINDOWS ENDPOINT" || capState === "MACOS ENDPOINT") {
     capBadgeColor = "border-sky-500/40 bg-sky-500/10 text-sky-400";
   }
+
+  const isMac = Boolean(d.os_info?.toLowerCase().includes("mac") || capState === "MACOS ENDPOINT");
+  const platformBadge = isMac ? "[MACOS ENDPOINT]" : "[WINDOWS ENDPOINT]";
 
   // Separate user apps from background processes
   const userApps = (d.endpoint_processes ?? []).filter(
@@ -1282,6 +1326,11 @@ export function LiveActivitySection({
         <div className="flex items-center gap-2 text-small text-ink">
           <Activity className="h-4 w-4 text-accent-400" />
           <span className="font-semibold uppercase tracking-wider text-xs">Live Activity</span>
+          {d.is_telemetry_stale && (
+            <span className="rounded border border-amber-500/50 bg-amber-500/10 px-1.5 py-0.5 font-mono text-[9px] font-bold text-amber-400" title="Telemetry data is older than 60s">
+              [STALE TELEMETRY]
+            </span>
+          )}
         </div>
         <span className={`rounded border px-2 py-0.5 font-mono text-[10px] font-bold ${capBadgeColor}`}>
           [{capState}]
@@ -1345,7 +1394,7 @@ export function LiveActivitySection({
                   [USER APPLICATION]
                 </span>
                 <span className="rounded border border-emerald-500/40 bg-emerald-500/10 px-1.5 py-0.5 font-mono text-[9px] font-bold text-emerald-400">
-                  [WINDOWS ENDPOINT]
+                  {platformBadge}
                 </span>
               </div>
             </div>
@@ -1390,7 +1439,7 @@ export function LiveActivitySection({
                   [BACKGROUND PROCESS]
                 </span>
                 <span className="rounded border border-sky-500/40 bg-sky-500/10 px-1.5 py-0.5 font-mono text-[9px] font-bold text-sky-400">
-                  [WINDOWS ENDPOINT]
+                  {platformBadge}
                 </span>
               </div>
             </div>
@@ -1423,6 +1472,133 @@ export function LiveActivitySection({
               </div>
             )}
           </div>
+
+          {/* ──────────────── LISTENING PORTS ──────────────── */}
+          {d.listening_ports && d.listening_ports.length > 0 && (
+            <div className="rounded-md border border-hairline bg-canvas p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-medium text-ink-secondary flex items-center gap-1.5 text-[11px]">
+                  <Shield className="h-3.5 w-3.5 text-teal-400" /> Listening Ports ({d.listening_ports.length}):
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className="rounded border border-teal-500/40 bg-teal-500/10 px-1.5 py-0.5 font-mono text-[9px] font-bold text-teal-400">
+                    [LISTENING PORT]
+                  </span>
+                  <span className="rounded border border-teal-500/40 bg-teal-500/10 px-1.5 py-0.5 font-mono text-[9px] font-bold text-teal-400">
+                    {platformBadge}
+                  </span>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1 max-h-40 overflow-y-auto pr-1">
+                {d.listening_ports.map((lp, i) => (
+                  <div
+                    key={`${lp.name}-${i}`}
+                    className="flex items-center justify-between rounded border border-hairline/60 bg-surface-2/60 px-2.5 py-1 text-[10.5px] font-mono"
+                  >
+                    <span className="font-semibold text-teal-300 truncate" title={lp.name}>
+                      {lp.name}
+                    </span>
+                    {lp.details ? (
+                      <span className="text-teal-400/80 text-[10px] shrink-0 ml-1">{lp.details}</span>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ──────────────── INSTALLED SOFTWARE ──────────────── */}
+          {d.installed_software && d.installed_software.length > 0 && (
+            <div className="rounded-md border border-hairline bg-canvas p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-medium text-ink-secondary flex items-center gap-1.5 text-[11px]">
+                  <Layers className="h-3.5 w-3.5 text-emerald-400" /> Installed Software ({d.installed_software.length}):
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className="rounded border border-emerald-500/40 bg-emerald-500/10 px-1.5 py-0.5 font-mono text-[9px] font-bold text-emerald-400">
+                    [SOFTWARE INVENTORY]
+                  </span>
+                  <span className="rounded border border-emerald-500/40 bg-emerald-500/10 px-1.5 py-0.5 font-mono text-[9px] font-bold text-emerald-400">
+                    {platformBadge}
+                  </span>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1 max-h-48 overflow-y-auto pr-1">
+                {d.installed_software.map((sw, i) => (
+                  <div
+                    key={`${sw.name}-${i}`}
+                    className="flex items-center justify-between rounded border border-hairline/60 bg-surface-2/60 px-2.5 py-1 text-[10.5px] font-mono"
+                  >
+                    <span className="font-medium text-ink truncate max-w-[160px]" title={sw.name}>
+                      {sw.name}
+                    </span>
+                    {sw.details ? (
+                      <span className="text-ink-muted text-[10px] shrink-0 ml-1.5 truncate max-w-[100px]">{sw.details}</span>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ──────────────── OS SERVICES & DAEMONS ──────────────── */}
+          {d.endpoint_services && d.endpoint_services.length > 0 && (
+            <div className="rounded-md border border-hairline bg-canvas p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-medium text-ink-secondary flex items-center gap-1.5 text-[11px]">
+                  <Cog className="h-3.5 w-3.5 text-blue-400" /> OS Services & Daemons ({d.endpoint_services.length}):
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className="rounded border border-blue-500/40 bg-blue-500/10 px-1.5 py-0.5 font-mono text-[9px] font-bold text-blue-400">
+                    [SERVICE]
+                  </span>
+                  <span className="rounded border border-blue-500/40 bg-blue-500/10 px-1.5 py-0.5 font-mono text-[9px] font-bold text-blue-400">
+                    {platformBadge}
+                  </span>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1 max-h-40 overflow-y-auto pr-1">
+                {d.endpoint_services.map((svc, i) => (
+                  <div
+                    key={`${svc.name}-${i}`}
+                    className="flex items-center justify-between rounded border border-hairline/60 bg-surface-2/60 px-2.5 py-1 text-[10.5px] font-mono"
+                  >
+                    <span className="font-medium text-blue-300 truncate max-w-[140px]" title={svc.name}>
+                      {svc.name}
+                    </span>
+                    {svc.details ? (
+                      <span className="text-ink-muted text-[9.5px] truncate max-w-[120px] ml-1">{svc.details}</span>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ──────────────── RUNNING BROWSER BINARIES ──────────────── */}
+          {d.browser_processes && d.browser_processes.length > 0 && (
+            <div className="rounded-md border border-hairline bg-canvas p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-medium text-ink-secondary flex items-center gap-1.5 text-[11px]">
+                  <Compass className="h-3.5 w-3.5 text-amber-400" /> Running Browser Binaries ({d.browser_processes.length}):
+                </span>
+                <span className="rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 font-mono text-[9px] font-bold text-amber-400">
+                  [BROWSER PROCESS]
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {d.browser_processes.map((bp, i) => (
+                  <span
+                    key={`${bp.name}-${i}`}
+                    className="inline-flex items-center gap-1.5 rounded border border-hairline/60 bg-surface-2/60 px-2.5 py-1 font-mono text-[10.5px] text-amber-300"
+                  >
+                    <span>{bp.name}</span>
+                    {bp.details ? <span className="text-ink-muted text-[9px]">{bp.details}</span> : null}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* ──────────────── C. ACTIVE BROWSER TABS ──────────────── */}
           <div className="rounded-md border border-hairline bg-canvas p-3 space-y-2">
@@ -1593,7 +1769,15 @@ function DeviceDetail({
       ),
   });
 
+  const vulnQuery = useQuery({
+    queryKey: ["endpoint-vulns", d.id],
+    queryFn: () => api.getEndpointVulnerabilities(d.id),
+    enabled: Boolean(d.id),
+    staleTime: 15000,
+  });
+
   const threatMap = useMemo(() => {
+
     const m: Record<string, LiveThreat> = {};
     for (const t of threats) m[t.domain.toLowerCase()] = t;
     return m;
@@ -1799,26 +1983,6 @@ function DeviceDetail({
               </div>
             )}
 
-            {d.cves && d.cves.length > 0 && (
-              <div className="space-y-1 pt-1 border-t border-hairline/30">
-                <div className="text-[10px] font-semibold uppercase tracking-wider text-ink-muted">Correlated CVE Vulnerabilities ({d.cves.length}):</div>
-                <div className="space-y-1 max-h-32 overflow-y-auto pr-1">
-                  {d.cves.map((c) => (
-                    <div key={c.id} className="flex items-center justify-between rounded bg-canvas px-2.5 py-1 text-[10.5px] font-mono">
-                      <div className="flex items-center gap-2 truncate">
-                        <span className="font-bold text-rose-400">{c.id}</span>
-                        <span className="text-ink-muted">CVSS {c.cvss.toFixed(1)}</span>
-                        <span className="text-ink-secondary truncate max-w-[120px]">{c.affected_service}</span>
-                      </div>
-                      <span className="rounded border border-amber-500/40 bg-amber-500/10 px-1 py-0.2 text-[8.5px] font-bold text-amber-400">
-                        [POTENTIAL MATCH]
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {d.security_findings && d.security_findings.length > 0 && (
               <div className="space-y-1 pt-1 border-t border-hairline/30">
                 <div className="text-[10px] font-semibold uppercase tracking-wider text-ink-muted">Security Analysis Findings:</div>
@@ -1834,6 +1998,167 @@ function DeviceDetail({
             )}
           </div>
         )}
+
+        {/* ── Vulnerability Intelligence & Security Finding States (Phase 03) ── */}
+        {((d.cves && d.cves.length > 0) || (vulnQuery.data?.findings && vulnQuery.data.findings.length > 0) || d.scanned || d.capability_state?.includes("ENDPOINT")) && (
+          <div className="mt-4 rounded-lg border border-rose-500/20 bg-surface-2/80 p-3.5 backdrop-blur-xs space-y-2.5">
+            <div className="flex items-center justify-between border-b border-hairline/50 pb-2">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-rose-400 font-mono flex items-center gap-1.5">
+                <Bug className="h-3.5 w-3.5 text-rose-400" />
+                Vulnerability Intelligence &amp; Finding States
+              </span>
+              <div className="flex items-center gap-1 font-mono text-[9px]">
+                <span className="rounded border border-hairline bg-surface-3 px-1.5 py-0.5 text-ink-muted">NVD</span>
+                <span className="rounded border border-hairline bg-surface-3 px-1.5 py-0.5 text-ink-muted">CISA KEV</span>
+                <span className="rounded border border-hairline bg-surface-3 px-1.5 py-0.5 text-ink-muted">OSV</span>
+                <span className="rounded border border-hairline bg-surface-3 px-1.5 py-0.5 text-ink-muted">GHSA</span>
+              </div>
+            </div>
+
+            {/* Source Freshness & Availability */}
+            {vulnQuery.data?.source_statuses && vulnQuery.data.source_statuses.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5 text-[9px] font-mono">
+                <span className="text-ink-muted">Source Feeds:</span>
+                {vulnQuery.data.source_statuses.map((src) => (
+                  <span
+                    key={src.source_name}
+                    className={`rounded px-1.5 py-0.2 border ${
+                      src.available
+                        ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                        : "border-rose-500/30 bg-rose-500/10 text-rose-400 font-bold"
+                    }`}
+                  >
+                    {src.source_name.toUpperCase()}: {src.available ? "ONLINE" : "SOURCE UNAVAILABLE / STALE"}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* Correlated Findings List */}
+            {(() => {
+              const findings: CorrelatedFindingOut[] = vulnQuery.data?.findings?.length ? vulnQuery.data.findings : (d.cves || []).map((c) => ({
+                finding_id: c.finding_id || c.id,
+                device_id: d.id,
+                org_id: "",
+                finding_state: c.finding_state || (c.in_kev ? "KNOWN_EXPLOITED" : "VULNERABLE"),
+                observed_product: c.affected_service,
+                observed_vendor: null,
+                observed_version: null,
+                evidence_source: c.source || "network_service",
+
+                evidence_type: c.evidence_type || "CVE_CORRELATION",
+                cve_id: c.id,
+                cvss: c.cvss,
+                severity: c.severity,
+                in_kev: Boolean(c.in_kev),
+                ghsa_ids: c.ghsa_ids || [],
+                affected_range_text: c.affected_range_text,
+                fixed_version_text: c.fixed_version_text,
+                summary: c.summary,
+                intel_sources: c.intel_sources || ["nvd"],
+                source_freshness: c.source_freshness || "live",
+                source_status_reason: c.source_status_reason,
+                source_details: {},
+              }));
+
+              const verifiedVulns = findings.filter((f) => ["VULNERABLE", "KNOWN_EXPLOITED", "POTENTIAL_MATCH"].includes(f.finding_state));
+
+              if (verifiedVulns.length === 0) {
+                return (
+                  <div className="rounded bg-emerald-500/10 border border-emerald-500/20 p-2.5 text-[11px] font-mono text-emerald-400 flex items-center gap-2">
+                    <ShieldCheck className="h-4 w-4 shrink-0" />
+                    <div>
+                      <span className="font-bold">[NO CONFIRMED VULNERABILITIES]</span>
+                      <p className="text-[10px] text-ink-muted mt-0.5">
+                        Installed software and network services verified against NVD, OSV, and CISA KEV. Zero active vulnerability matches found.
+                      </p>
+                    </div>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                  {verifiedVulns.map((f) => {
+                    const isKev = f.in_kev || f.finding_state === "KNOWN_EXPLOITED";
+                    const isVuln = f.finding_state === "VULNERABLE";
+                    return (
+                      <div
+                        key={f.finding_id || f.cve_id}
+                        className={`rounded border p-2 text-[11px] font-mono space-y-1 ${
+                          isKev
+                            ? "border-rose-500/50 bg-rose-500/10"
+                            : isVuln
+                            ? "border-amber-500/40 bg-surface-3"
+                            : "border-hairline/60 bg-surface-3"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-bold text-ink">{f.cve_id || f.observed_product}</span>
+                            <span
+                              className="rounded px-1.5 py-0.2 text-[8.5px] font-bold uppercase"
+                              style={{ backgroundColor: `${sevHex(f.severity)}22`, color: sevHex(f.severity) }}
+                            >
+                              {f.severity} (CVSS {f.cvss.toFixed(1)})
+                            </span>
+                            <span className="rounded border border-cyan-500/40 bg-cyan-500/10 px-1 py-0.2 text-[8px] font-bold text-cyan-400">
+                              {f.evidence_source === "endpoint_software" ? "[ENDPOINT SOFTWARE]" : "[NETWORK SERVICE]"}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-1 shrink-0">
+                            {isKev ? (
+                              <span
+                                className="rounded border border-rose-500 bg-rose-500/20 px-1.5 py-0.5 text-[8.5px] font-bold text-rose-300 flex items-center gap-1"
+                                title="Known Exploited Vulnerability cataloged by CISA (In the wild). Does NOT imply this specific endpoint was compromised."
+                              >
+                                <span className="inline-block w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse" />
+                                [KNOWN EXPLOITED]
+                              </span>
+                            ) : isVuln ? (
+                              <span className="rounded border border-rose-500/40 bg-rose-500/10 px-1.5 py-0.5 text-[8.5px] font-bold text-rose-400">
+                                [VULNERABLE]
+                              </span>
+                            ) : (
+                              <span className="rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[8.5px] font-bold text-amber-400">
+                                [POTENTIAL MATCH]
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="text-[10px] text-ink-muted truncate">
+                          <span className="text-ink-secondary font-medium">{f.observed_product}</span>
+                          {f.observed_version && <span className="text-ink-muted"> {f.observed_version}</span>}
+                          {f.affected_range_text && <span className="text-ink-muted"> | Range: {f.affected_range_text}</span>}
+                          {f.fixed_version_text && <span className="text-emerald-400"> | Fixed in: {f.fixed_version_text}</span>}
+                        </div>
+
+                        {f.summary && (
+                          <p className="text-[9.5px] text-ink-muted line-clamp-2 leading-relaxed">
+                            {f.summary}
+                          </p>
+                        )}
+
+                        <div className="flex items-center gap-2 pt-0.5 text-[8.5px] text-ink-muted">
+                          <span>Intel: {f.intel_sources?.join(", ").toUpperCase() || "NVD"}</span>
+                          {f.ghsa_ids && f.ghsa_ids.length > 0 && (
+                            <span className="text-purple-300">GHSA: {f.ghsa_ids.join(", ")}</span>
+                          )}
+                          {f.source_freshness && f.source_freshness !== "live" && (
+                            <span className="text-amber-400 uppercase">[{f.source_freshness}]</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+          </div>
+        )}
+
 
         {/* ── Deep scan ──────────────────────────────────────────────── */}
         <div className="mt-4 border-t border-hairline pt-4">

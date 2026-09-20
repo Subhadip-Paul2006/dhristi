@@ -28,6 +28,10 @@ import type {
   DeepScanRangeResult,
   DeepScanResult,
   Distribution,
+  EndpointAgent,
+  EndpointPairingSubmitResult,
+  EndpointTelemetryOut,
+  EndpointVulnerabilitiesResponse,
   LiveThreat,
   MlAnalysis,
   NetconfigAnalysis,
@@ -275,4 +279,15 @@ export const api = {
     post<TrackingSession>("/api/live/tracking/stop", { tracking_session_id }),
   getLiveTrackingResults: (tracking_session_id: string) =>
     get<TrackingResults>(`/api/live/tracking/${tracking_session_id}/results`),
+  pairEndpointAgent: (pairing_code: string) =>
+    post<EndpointPairingSubmitResult>("/api/endpoint/pairing/pair", { pairing_code }),
+  listEndpointAgents: () =>
+    get<EndpointAgent[]>("/api/endpoint/agents"),
+  getEndpointAgent: (agent_id: string) =>
+    get<EndpointAgent>(`/api/endpoint/agents/${agent_id}`),
+  getEndpointTelemetry: (deviceId: string) =>
+    get<EndpointTelemetryOut>(`/api/endpoint/telemetry/${encodeURIComponent(deviceId)}`),
+  getEndpointVulnerabilities: (deviceId: string) =>
+    get<EndpointVulnerabilitiesResponse>(`/api/endpoint/vulnerabilities/${encodeURIComponent(deviceId)}`),
 };
+

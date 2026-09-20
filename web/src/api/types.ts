@@ -395,8 +395,8 @@ export interface BlockFix {
 
 export interface ActivityItem {
   name: string;
-  evidence_type: string;
-  source: string;
+  evidence_type?: string;
+  source?: string;
   observed_at?: string | null;
   details?: string | null;
   browser?: string | null;
@@ -450,6 +450,10 @@ export interface NetworkDevice {
   security_findings?: string[];
   risk_score?: number | null;
   capability_state?: "NETWORK ONLY" | "AGENT CONNECTED" | "BROWSER EXTENSION CONNECTED" | "FULL ENDPOINT TELEMETRY" | string;
+  listening_ports?: ActivityItem[];
+  browser_processes?: ActivityItem[];
+  endpoint_services?: ActivityItem[];
+  is_telemetry_stale?: boolean;
 }
 
 // One network known to exist (whether or not it's been inventoried). The gap
@@ -491,7 +495,63 @@ export interface DeepScanCve {
   summary: string;
   affected_service: string;
   finding_id: string | null; // routes into /app/remediate/:findingId
+  source?: string; // "endpoint_software" | "cve_database"
+  evidence_type?: string;
+  intel_sources?: string[];
+  in_kev?: boolean;
+  ghsa_ids?: string[];
+  finding_state?: "OPEN" | "EXPOSED" | "POTENTIAL_MATCH" | "VULNERABLE" | "KNOWN_EXPLOITED" | "NO_CONFIRMED_VULNERABILITY" | string;
+  source_freshness?: "live" | "cached" | "stale" | "source_unavailable" | string;
+  source_status_reason?: string | null;
+  affected_range_text?: string | null;
+  fixed_version_text?: string | null;
 }
+
+export interface CorrelatedFindingOut {
+  finding_id: string;
+  device_id: string;
+  org_id: string;
+  finding_state: "OPEN" | "EXPOSED" | "POTENTIAL_MATCH" | "VULNERABLE" | "KNOWN_EXPLOITED" | "NO_CONFIRMED_VULNERABILITY" | string;
+  observed_product: string;
+  evidence_source: "endpoint_software" | "network_service" | string;
+  evidence_type: string;
+  observed_vendor?: string | null;
+  observed_version?: string | null;
+  cve_id?: string | null;
+  title?: string | null;
+  summary?: string | null;
+  cvss: number;
+  severity: string;
+  in_kev: boolean;
+  kev_date_added?: string | null;
+  ghsa_ids: string[];
+  affected_range_text?: string | null;
+  fixed_version_text?: string | null;
+  intel_sources: string[];
+  source_freshness: string;
+  source_status_reason?: string | null;
+  source_details: Record<string, any>;
+  observed_at?: string | null;
+}
+
+export interface SourceStatusOut {
+  source_name: string;
+  available: boolean;
+  last_sync?: string | null;
+  error_reason?: string | null;
+  is_stale: boolean;
+}
+
+export interface EndpointVulnerabilitiesResponse {
+  device_id: string;
+  findings: CorrelatedFindingOut[];
+  total_findings: number;
+  vulnerable_count: number;
+  known_exploited_count: number;
+  potential_match_count: number;
+  source_statuses: SourceStatusOut[];
+}
+
 export interface DeepScanResult {
   available: boolean;
   target: string;
@@ -714,5 +774,112 @@ export interface TrackingResults {
     edges: Array<{ source: string; target: string; packet_count: number; byte_count: number; protocol: number }>;
   } | null;
   forecast?: ForecastResult | null;
+}
+
+// ---- Endpoint Agent Foundation (Phase 01) ----
+export interface EndpointAgent {
+  id: string;
+  organization_id: string;
+  agent_id: string;
+  device_id: string;
+  hostname: string;
+  os: string;
+  os_version: string;
+  mac: string | null;
+  current_ip: string | null;
+  agent_version: string;
+  status: "ONLINE" | "STALE" | "OFFLINE" | string;
+  paired_at: string | null;
+  registered_at: string | null;
+  last_heartbeat: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EndpointPairingSubmitResult {
+  success: boolean;
+  message: string;
+  agent: EndpointAgent;
+}
+
+// ---- Endpoint Telemetry (Phase 02) ----
+export interface ProcessTelemetryItem {
+  pid: number;
+  name: string;
+  category?: string;
+  cpu_percent?: number | null;
+  memory_mb?: number | null;
+  exe_path?: string | null;
+  username?: string | null;
+  started_at?: string | null;
+  observed_at?: string | null;
+}
+
+export interface SoftwareTelemetryItem {
+  name: string;
+  version?: string | null;
+  vendor?: string | null;
+  install_date?: string | null;
+  install_location?: string | null;
+  source?: string;
+  observed_at?: string | null;
+}
+
+export interface ServiceTelemetryItem {
+  name: string;
+  display_name: string;
+  status: string;
+  start_type?: string;
+  pid?: number | null;
+  observed_at?: string | null;
+}
+
+export interface ListeningPortTelemetryItem {
+  port: number;
+  protocol: string;
+  bind_address: string;
+  pid?: number | null;
+  process_name?: string | null;
+  observed_at?: string | null;
+}
+
+export interface SocketConnectionTelemetryItem {
+  pid: number;
+  process_name: string;
+  protocol: string;
+  local_address: string;
+  local_port: number;
+  remote_address: string;
+  remote_port: number;
+  state: string;
+  observed_at?: string | null;
+}
+
+export interface BrowserProcessTelemetryItem {
+  browser_name: string;
+  pid: number;
+  exe_path?: string | null;
+  observed_at?: string | null;
+}
+
+export interface EndpointTelemetryOut {
+  device_id: string;
+  agent_id: string;
+  hostname?: string | null;
+  os_name?: string | null;
+  os_version?: string | null;
+  endpoint_processes: ProcessTelemetryItem[];
+  active_apps: string[];
+  installed_software: SoftwareTelemetryItem[];
+  services: ServiceTelemetryItem[];
+  listening_ports: ListeningPortTelemetryItem[];
+  process_connections: SocketConnectionTelemetryItem[];
+  installed_browsers: string[];
+  browser_processes: BrowserProcessTelemetryItem[];
+  os_info?: string | null;
+  last_updated?: string | null;
+  is_stale: boolean;
+  is_software_stale: boolean;
+  source: string;
 }
 
