@@ -18,7 +18,10 @@ CANONICAL_PRODUCTS: list[tuple[re.Pattern, str, str]] = [
     (re.compile(r"\bbrave\b", re.IGNORECASE), "brave", "brave"),
     (re.compile(r"\barc\b", re.IGNORECASE), "thebrowsercompany", "arc"),
     (re.compile(r"\b7-zip\b", re.IGNORECASE), "7-zip", "7-zip"),
+    (re.compile(r"\bwinrar\b", re.IGNORECASE), "rarlab", "winrar"),
+    (re.compile(r"\bnotepad\+\+\b", re.IGNORECASE), "notepad-plus-plus", "notepad++"),
     (re.compile(r"\bpython\b", re.IGNORECASE), "python", "python"),
+
     (re.compile(r"\bnode(?:\.js)?\b", re.IGNORECASE), "nodejs", "node.js"),
     (re.compile(r"\bgit\b", re.IGNORECASE), "git-scm", "git"),
     (re.compile(r"\bapache(?:\s+http\s+server)?\b", re.IGNORECASE), "apache", "http_server"),
