@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Drishti v0.1 — live network watch agent | 11-Jul-2026
+# Drishti — live network watch agent
 """Drishti Live Watch — surface which domains (and, in devices mode, which LAN
 neighbours) are seen from THIS host and report them to the Drishti server, which
 scores each domain with the real URL Trust Analyzer.
@@ -30,12 +30,17 @@ Usage:
       --server http://localhost:8000 --token agent-demo-token
 """
 import argparse
+from datetime import datetime, timezone
+import http.server
 import json
 import os
+import platform
 import re
 import socket
 import sqlite3
+import subprocess
 import sys
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -76,26 +81,76 @@ def registrable(host: str) -> str | None:
     return ".".join(parts[-2:]) if len(parts) >= 2 else h
 
 
+def _get_local_mac() -> str | None:
+    try:
+        import uuid
+        mac_int = uuid.getnode()
+        if (mac_int >> 40) % 2 == 0:  # universal hardware MAC
+            mac_hex = f"{mac_int:012x}"
+            return ":".join(mac_hex[i:i+2] for i in range(0, 12, 2))
+    except Exception:
+        pass
+    return None
+
+
+def _get_agent_id() -> str:
+    env_id = os.environ.get("DRISHTI_AGENT_ID")
+    if env_id and env_id.strip():
+        return env_id.strip()
+    try:
+        hname = socket.gethostname().lower().strip()
+        return f"agent-{hname}"
+    except Exception:
+        return "agent-windows-node"
+
+
 class Reporter:
     """POSTs newly-seen domains to the server, deduping within this run."""
 
-    def __init__(self, server: str, token: str, source_host: str, cooldown: float = 3.0):
-        self.server = server.rstrip("/")
+    def __init__(
+        self,
+        server: str,
+        token: str,
+        source_host: str,
+        cooldown: float = 3.0,
+        agent_id: str | None = None,
+        mac: str | None = None,
+    ):
+        server_clean = server.rstrip("/").removesuffix("/api/live/observe").removesuffix("/api/live/sync_active")
+        self.server = server_clean
         self.url = self.server + "/api/live/observe"
         self.token = token
         self.source_host = source_host
+        self.agent_id = agent_id or _get_agent_id()
+        self.mac = mac or _get_local_mac()
         self.cooldown = cooldown
         self._seen: dict[str, float] = {}
 
-    def report(self, domain: str, source_host: str | None = None) -> None:
+    def report(
+        self,
+        domain: str,
+        source_host: str | None = None,
+        protocol: str = "DNS",
+        evidence_source: str = "dns_query_log",
+        dest_port: int | None = None,
+        connection_count: int = 1,
+    ) -> None:
         src = source_host or self.source_host
         now = time.monotonic()
-        key = f"{domain}:{src}"
+        key = f"{domain}:{src}:{protocol}:{dest_port}"
         last = self._seen.get(key)
         if last is not None and now - last < self.cooldown:
             return
         self._seen[key] = now
-        body = json.dumps({"domain": domain, "source_host": src}).encode()
+        payload = {
+            "domain": domain,
+            "source_host": src,
+            "protocol": protocol,
+            "evidence_source": evidence_source,
+            "dest_port": dest_port,
+            "connection_count": connection_count,
+        }
+        body = json.dumps(payload).encode()
         req = urllib.request.Request(
             self.url,
             data=body,
@@ -106,18 +161,54 @@ class Reporter:
             with urllib.request.urlopen(req, timeout=15) as resp:
                 data = json.loads(resp.read() or b"{}")
             flag = "⚠ THREAT" if data.get("is_threat") else "ok"
-            log(f"{flag}  {domain} (from {src})  [{data.get('band')}] score={data.get('score')}")
+            proto_str = f" via {protocol}" if protocol != "DNS" else ""
+            log(f"{flag}  {domain} (from {src}{proto_str})  [{data.get('band')}] score={data.get('score')}")
         except urllib.error.HTTPError as e:
             log(f"server rejected {domain}: HTTP {e.code}")
         except Exception as e:  # noqa: BLE001 — best-effort telemetry
             log(f"could not report {domain}: {e}")
 
-    def sync_active(self, domains: set[str], active_apps: list[str] | None = None, source_host: str | None = None) -> None:
-        """Tell the server exactly which domains & active apps are active right now."""
+    def sync_active(
+        self,
+        domains: set[str] | list[str] | None = None,
+        active_apps: list[str] | None = None,
+        source_host: str | None = None,
+        active_browser_tabs: list[dict] | None = None,
+        endpoint_processes: list[dict] | None = None,
+        installed_software: list[dict] | None = None,
+        installed_browsers: list[str] | None = None,
+        process_connections: list[dict] | None = None,
+        vpn_status: str | None = None,
+        vpn_adapters: list[str] | None = None,
+        os_info: str | None = None,
+    ) -> None:
+        """Tell the server which domains, processes, software, and endpoint telemetry are active right now."""
         src = source_host or self.source_host
-        payload = {"domains": list(domains), "source_host": src}
-        if active_apps:
+        payload: dict = {
+            "domains": list(domains) if domains else [],
+            "source_host": src,
+            "agent_id": self.agent_id,
+            "mac": self.mac,
+        }
+        if active_apps is not None:
             payload["active_apps"] = active_apps
+        if active_browser_tabs is not None:
+            payload["active_browser_tabs"] = active_browser_tabs
+        if endpoint_processes is not None:
+            payload["endpoint_processes"] = endpoint_processes
+        if installed_software is not None:
+            payload["installed_software"] = installed_software
+        if installed_browsers is not None:
+            payload["installed_browsers"] = installed_browsers
+        if process_connections is not None:
+            payload["process_connections"] = process_connections
+        if vpn_status is not None:
+            payload["vpn_status"] = vpn_status
+        if vpn_adapters is not None:
+            payload["vpn_adapters"] = vpn_adapters
+        if os_info is not None:
+            payload["os_info"] = os_info
+
         body = json.dumps(payload).encode()
         req = urllib.request.Request(
             self.url.replace("/observe", "/sync_active"),
@@ -134,14 +225,76 @@ class Reporter:
         except Exception:
             pass
 
-# ── mode: dns (scapy network DNS query sniffer) ──────────────────────────────
+
+def _extract_tls_sni(payload: bytes) -> str | None:
+    """Parse TLS ClientHello and extract Server Name Indication (SNI) extension.
+
+    Pure-Python, zero external dependencies. Works on unencrypted TLS handshakes (TCP 443).
+    """
+    if len(payload) < 44:
+        return None
+    # TLS Record Layer: ContentType 0x16 (Handshake), Version >= 0x0301
+    if payload[0] != 0x16 or payload[1] != 0x03:
+        return None
+    record_len = int.from_bytes(payload[3:5], "big")
+    if len(payload) < 5 + min(record_len, 500):
+        return None
+    pos = 5
+    # Handshake Layer: Type 0x01 (ClientHello)
+    if pos >= len(payload) or payload[pos] != 0x01:
+        return None
+    # Skip Handshake Type (1), Length (3), Version (2), Random (32)
+    pos += 1 + 3 + 2 + 32
+    if pos >= len(payload):
+        return None
+    # Skip Session ID
+    session_id_len = payload[pos]
+    pos += 1 + session_id_len
+    if pos + 2 > len(payload):
+        return None
+    # Skip Cipher Suites
+    cipher_suites_len = int.from_bytes(payload[pos:pos+2], "big")
+    pos += 2 + cipher_suites_len
+    if pos + 1 > len(payload):
+        return None
+    # Skip Compression Methods
+    comp_methods_len = payload[pos]
+    pos += 1 + comp_methods_len
+    if pos + 2 > len(payload):
+        return None
+    # Extensions length
+    extensions_len = int.from_bytes(payload[pos:pos+2], "big")
+    pos += 2
+    end_extensions = min(pos + extensions_len, len(payload))
+
+    while pos + 4 <= end_extensions:
+        ext_type = int.from_bytes(payload[pos:pos+2], "big")
+        ext_len = int.from_bytes(payload[pos+2:pos+4], "big")
+        pos += 4
+        if ext_type == 0x0000:  # server_name extension
+            if pos + 2 <= end_extensions:
+                list_len = int.from_bytes(payload[pos:pos+2], "big")
+                curr = pos + 2
+                while curr + 3 <= pos + 2 + list_len and curr + 3 <= end_extensions:
+                    name_type = payload[curr]
+                    name_len = int.from_bytes(payload[curr+1:curr+3], "big")
+                    curr += 3
+                    if name_type == 0x00 and curr + name_len <= end_extensions:
+                        try:
+                            sni = payload[curr:curr+name_len].decode("utf-8")
+                            return sni.lower().strip()
+                        except UnicodeDecodeError:
+                            return None
+                    curr += name_len
+        pos += ext_len
+    return None
 
 
-def run_dns(reporter: Reporter, interval: float = 2.0) -> None:
+def run_dns(reporter: Reporter, interval: float = 2.0, consent_subnet: bool = False) -> None:
     import threading
 
     try:
-        from scapy.all import DNS, DNSQR, sniff, IP  # type: ignore
+        from scapy.all import DNS, DNSQR, sniff, IP, TCP, UDP, Raw  # type: ignore
     except Exception:
         log("ERROR: scapy is not installed in this Python environment.")
         log("If using a venv, run: sudo .venv/bin/python3 agent/drishti_watch.py --mode dns")
@@ -168,13 +321,13 @@ def run_dns(reporter: Reporter, interval: float = 2.0) -> None:
                         for ip_str, mac_str in list(_live_pkt_devices.items()):
                             try:
                                 if ipaddress.ip_address(ip_str) in net and ip_str not in existing_ips:
-                                    devices.append({"ip": ip_str, "mac": mac_str, "hostname": None, "subnet": c["cidr"], "discovery": "arp", "source": "scapy"})
+                                    devices.append({"ip": ip_str, "mac": mac_str, "hostname": None, "subnet": c["cidr"], "discovery": "arp"})
                                     existing_ips.add(ip_str)
                             except Exception:
                                 pass
                         self_mac = _self_mac()
                         if c.get("self_ip") and self_mac and not any(d.get("mac") == self_mac for d in devices):
-                            devices.append({"ip": c["self_ip"], "mac": self_mac, "hostname": reporter.source_host, "subnet": c["cidr"], "discovery": "arp", "source": "arp"})
+                            devices.append({"ip": c["self_ip"], "mac": self_mac, "hostname": reporter.source_host, "subnet": c["cidr"], "discovery": "arp"})
                         if devices:
                             _post_json(reporter.server, reporter.token, "/api/live/devices", {
                                 "subnet": c["cidr"], "gateway_ip": _gateway_ip(), "label": "Local LAN", "devices": devices
@@ -187,7 +340,12 @@ def run_dns(reporter: Reporter, interval: float = 2.0) -> None:
     dev_thread = threading.Thread(target=_bg_device_sweep, daemon=True)
     dev_thread.start()
 
-    log("Sniffing network DNS & mDNS queries (UDP 53, 5353) across LAN devices… (Ctrl-C to stop, needs sudo)")
+    if consent_subnet:
+        sniff_filter = "udp port 53 or udp port 5353 or arp or (tcp and (dst port 443 or src port 443)) or udp port 51820 or udp port 1194"
+        log("Consent confirmed: Sniffing DNS (53), mDNS (5353), TLS SNI (443), and VPN tunnel flows across LAN…")
+    else:
+        sniff_filter = "udp port 53 or udp port 5353 or arp"
+        log("Standard mode: Sniffing DNS (53), mDNS (5353), and ARP across LAN… (pass --consent-subnet for SNI/tunnel flows)")
 
     def on_pkt(pkt) -> None:
         try:
@@ -201,58 +359,750 @@ def run_dns(reporter: Reporter, interval: float = 2.0) -> None:
         except Exception:
             pass
 
-        if not pkt.haslayer(DNSQR) and not pkt.haslayer(DNS):
+        if not pkt.haslayer(IP):
             return
+
+        src_ip = pkt[IP].src
+        dst_ip = pkt[IP].dst
+
         try:
-            if not pkt.haslayer(IP):
-                return
-            src_ip = pkt[IP].src
-            dst_ip = pkt[IP].dst
-
-            # Identify the actual LAN client machine
-            client_ip = src_ip
-            # If this is a DNS response from a public DNS or router to a LAN device, target is dst_ip
-            try:
-                is_src_private = ipaddress.ip_address(src_ip).is_private
-                is_dst_private = ipaddress.ip_address(dst_ip).is_private
-            except Exception:
-                is_src_private = False
-                is_dst_private = False
-
-            if not is_src_private and is_dst_private:
-                client_ip = dst_ip
-            elif is_src_private and is_dst_private and (src_ip == _gateway_ip() or src_ip.endswith(".1")):
-                # Router replied to a client machine
-                client_ip = dst_ip
-
-            qname = ""
-            if pkt.haslayer(DNSQR) and pkt[DNSQR].qname:
-                qname = pkt[DNSQR].qname.decode("utf-8", "ignore").lower()
-            elif pkt.haslayer(DNS) and getattr(pkt[DNS], "qd", None) and getattr(pkt[DNS].qd, "qname", None):
-                qname = pkt[DNS].qd.qname.decode("utf-8", "ignore").lower()
-
-            # Extract and report website domain queries for this specific device
-            dom = registrable(qname)
-            if dom and client_ip and client_ip not in ("8.8.8.8", "8.8.4.4", "1.1.1.1"):
-                reporter.report(dom, source_host=client_ip)
+            is_src_private = ipaddress.ip_address(src_ip).is_private
+            is_dst_private = ipaddress.ip_address(dst_ip).is_private
         except Exception:
+            is_src_private = False
+            is_dst_private = False
+
+        # Identify client device
+        client_ip = src_ip
+        if not is_src_private and is_dst_private:
+            client_ip = dst_ip
+        elif is_src_private and is_dst_private and (src_ip == _gateway_ip() or src_ip.endswith(".1")):
+            client_ip = dst_ip
+
+        # 1. TLS ClientHello SNI Extraction (TCP 443)
+        if pkt.haslayer(TCP) and (pkt[TCP].dport == 443 or pkt[TCP].sport == 443):
+            try:
+                if pkt.haslayer(Raw):
+                    load = bytes(pkt[Raw].load)
+                    sni = _extract_tls_sni(load)
+                    if sni:
+                        dom = registrable(sni) or sni
+                        t_client = src_ip if is_src_private else dst_ip
+                        if t_client and t_client not in ("8.8.8.8", "8.8.4.4", "1.1.1.1"):
+                            reporter.report(
+                                dom,
+                                source_host=t_client,
+                                protocol="TLS/443",
+                                evidence_source="sni_sniffing",
+                                dest_port=443,
+                            )
+            except Exception:
+                pass
             return
+
+        # 2. Known VPN tunnel ports (WireGuard 51820, OpenVPN 1194)
+        if pkt.haslayer(UDP):
+            dport = pkt[UDP].dport
+            sport = pkt[UDP].sport
+            target_tunnel_port = dport if dport in (51820, 1194) else (sport if sport in (51820, 1194) else None)
+            if target_tunnel_port:
+                try:
+                    t_client = src_ip if is_src_private else dst_ip
+                    if t_client and t_client not in ("8.8.8.8", "8.8.4.4", "1.1.1.1"):
+                        reporter.report(
+                            f"tunnel-port-{target_tunnel_port}",
+                            source_host=t_client,
+                            protocol=f"UDP/{target_tunnel_port}",
+                            evidence_source="flow_metadata",
+                            dest_port=target_tunnel_port,
+                        )
+                except Exception:
+                    pass
+                return
+
+        # 3. DNS / mDNS Queries (UDP 53, 5353)
+        if pkt.haslayer(DNSQR) or pkt.haslayer(DNS):
+            try:
+                qname = ""
+                if pkt.haslayer(DNSQR) and pkt[DNSQR].qname:
+                    qname = pkt[DNSQR].qname.decode("utf-8", "ignore").lower()
+                elif pkt.haslayer(DNS) and getattr(pkt[DNS], "qd", None) and getattr(pkt[DNS].qd, "qname", None):
+                    qname = pkt[DNS].qd.qname.decode("utf-8", "ignore").lower()
+
+                dom = registrable(qname)
+                if dom and client_ip and client_ip not in ("8.8.8.8", "8.8.4.4", "1.1.1.1"):
+                    reporter.report(
+                        dom,
+                        source_host=client_ip,
+                        protocol="DNS",
+                        evidence_source="dns_query_log",
+                        dest_port=53,
+                    )
+            except Exception:
+                pass
 
     try:
-        # udp port 53 / 5353 = DNS queries from all LAN devices
-        sniff(filter="udp port 53 or udp port 5353 or arp", prn=on_pkt, store=False, promisc=True)
+        sniff(filter=sniff_filter, prn=on_pkt, store=False, promisc=True)
     except Exception as e:
-        log(f"scapy packet sniffing encounter error: {e}. Active tab watcher is still running.")
+        log(f"scapy packet sniffing encountered error: {e}. Active tab watcher is still running.")
         while True:
             time.sleep(interval)
 
 
+# ── Windows Endpoint Telemetry Collectors (Phase B2.2 & MVP) ──────────────────
+_PURE_KERNEL_NAMES = {
+    "system idle process", "system", "registry", "smss.exe", "csrss.exe", "wininit.exe", "svchost.exe"
+}
+
+_SYSTEM_SERVICE_NAMES = {
+    "services.exe", "lsass.exe", "svchost.exe", "fontdrvhost.exe",
+    "winlogon.exe", "dwm.exe", "sihost.exe", "taskhostw.exe",
+    "runtimebroker.exe", "ctfmon.exe", "wlanext.exe", "securityhealthservice.exe",
+    "securityhealthsystray.exe", "smartscreen.exe", "sedsvc.exe", "compattelrunner.exe",
+    "aggregatorhost.exe", "dashost.exe", "spoolsv.exe", "audiodg.exe",
+    "mpdefendercoreservice.exe",
+}
+
+_KNOWN_USER_APPS = {
+    "chrome.exe", "msedge.exe", "brave.exe", "firefox.exe", "opera.exe", "arc.exe",
+    "code.exe", "devenv.exe", "pycharm64.exe", "notepad.exe", "notepad++.exe",
+    "explorer.exe", "cmd.exe", "powershell.exe", "windowsterminal.exe",
+    "slack.exe", "discord.exe", "teams.exe", "telegram.exe", "whatsapp.exe",
+    "zoom.exe", "spotify.exe", "vlc.exe", "calc.exe", "taskmgr.exe",
+    "postman.exe", "figma.exe", "git-bash.exe", "bash.exe", "sublime_text.exe"
+}
+
+_VPN_DRIVER_KEYWORDS = (
+    "wireguard", "wintun", "openvpn", "tap-windows", "tailscale", "zerotier",
+    "cisco anyconnect", "nordlynx", "proton", "expressvpn", "surfshark",
+    "windscribe", "mullvad", "warp", "forticlient", "globalprotect",
+    "ipsec", "pptp", "l2tp", "softether", "puresvpn", "checkpoint",
+)
+
+_VIRTUAL_ADAPTER_KEYWORDS = (
+    "virtualbox", "vmware", "hyper-v", "vethernet", "wsl", "virtual",
+    "host-only", "internal network", "nat", "npcap loopback",
+)
+
+
+def _collect_windows_processes(max_processes: int = 150) -> list[dict]:
+    """Collect real currently-running Windows processes using psutil.
+
+    Categorizes processes into:
+    - USER_APPLICATION: Interactive desktop software, browsers, editors, user tools
+    - BACKGROUND_PROCESS: Legitimate background services, daemons, workers, utilities
+    - SYSTEM_PROCESS: Low-level OS services
+
+    Enforces strict privacy: captures safe metadata only (name, PID, start time, category).
+    NEVER captures command-line secrets, passwords, cookies, tokens, keystrokes, clipboard,
+    or file contents.
+    Zero fabrication: never maps process names to domains.
+    """
+    import psutil
+    from datetime import datetime, timezone
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    collected: list[dict] = []
+    seen_pids: set[int] = set()
+
+    try:
+        proc_iter = iter(psutil.process_iter(['pid', 'name', 'create_time', 'exe']))
+        while True:
+            try:
+                proc = next(proc_iter)
+            except StopIteration:
+                break
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess, OSError):
+                continue
+
+            try:
+                pid = proc.info.get('pid')
+                if pid is None or pid in seen_pids:
+                    continue
+                seen_pids.add(pid)
+
+                pname = proc.info.get('name')
+                if not pname:
+                    continue
+                pname_clean = str(pname).strip()
+                pname_lower = pname_clean.lower()
+
+                # Filter pure kernel internal noise (PID 0, 4, Idle, System, Registry, Smss)
+                if pid <= 4 or pname_lower in _PURE_KERNEL_NAMES:
+                    continue
+
+                exe_path = (proc.info.get('exe') or '').lower()
+                create_time = proc.info.get('create_time')
+                started_str = ""
+                if create_time:
+                    try:
+                        started_dt = datetime.fromtimestamp(create_time, timezone.utc)
+                        started_str = started_dt.strftime("%Y-%m-%d %H:%M:%S UTC")
+                    except Exception:
+                        pass
+
+                # Classification
+                if pname_lower in _KNOWN_USER_APPS or "\\users\\" in exe_path or "\\appdata\\" in exe_path:
+                    category = "USER_APPLICATION"
+                elif pname_lower in _SYSTEM_SERVICE_NAMES or "windows\\system32" in exe_path:
+                    category = "SYSTEM_PROCESS"
+                else:
+                    category = "BACKGROUND_PROCESS"
+
+                details = f"PID: {pid} | [{category}]"
+                if started_str:
+                    details += f" | Started: {started_str}"
+
+                collected.append({
+                    "name": pname_clean,
+                    "evidence_type": "ENDPOINT_PROCESS",
+                    "source": "windows_endpoint",
+                    "category": category,
+                    "observed_at": now_iso,
+                    "details": details,
+                })
+
+                if len(collected) >= max_processes:
+                    break
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess, OSError):
+                continue
+    except Exception as e:
+        log(f"process telemetry collection notice: {e}")
+
+    return collected
+
+
+def _collect_installed_software(max_items: int = 150) -> list[dict]:
+    """Collect installed software from Windows Registry (HKLM & HKCU Uninstall keys).
+
+    Captures safe metadata only (DisplayName, Version, Publisher).
+    Installed != Running. Zero fabrication.
+    """
+    if platform.system() != "Windows":
+        return []
+
+    try:
+        import winreg
+    except ImportError:
+        return []
+
+    from datetime import datetime, timezone
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    locations = [
+        (winreg.HKEY_LOCAL_MACHINE, r"Software\Microsoft\Windows\CurrentVersion\Uninstall", winreg.KEY_WOW64_64KEY),
+        (winreg.HKEY_LOCAL_MACHINE, r"Software\Microsoft\Windows\CurrentVersion\Uninstall", winreg.KEY_WOW64_32KEY),
+        (winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Uninstall", 0),
+    ]
+
+    software_map: dict[str, dict] = {}
+
+    for root, subkey, flags in locations:
+        try:
+            with winreg.OpenKey(root, subkey, 0, winreg.KEY_READ | flags) as key:
+                num_subkeys = winreg.QueryInfoKey(key)[0]
+                for i in range(num_subkeys):
+                    try:
+                        subname = winreg.EnumKey(key, i)
+                        with winreg.OpenKey(key, subname) as item_key:
+                            try:
+                                try:
+                                    sys_comp, _ = winreg.QueryValueEx(item_key, "SystemComponent")
+                                    if sys_comp == 1:
+                                        continue
+                                except OSError:
+                                    pass
+
+                                try:
+                                    parent_key, _ = winreg.QueryValueEx(item_key, "ParentKeyName")
+                                    if parent_key:
+                                        continue
+                                except OSError:
+                                    pass
+
+                                display_name, _ = winreg.QueryValueEx(item_key, "DisplayName")
+                                if not display_name or not str(display_name).strip():
+                                    continue
+                                name_clean = str(display_name).strip()
+
+                                if name_clean.startswith("KB") and len(name_clean) > 5 and name_clean[2:6].isdigit():
+                                    continue
+
+                                version = ""
+                                try:
+                                    ver_val, _ = winreg.QueryValueEx(item_key, "DisplayVersion")
+                                    if ver_val:
+                                        version = str(ver_val).strip()
+                                except OSError:
+                                    pass
+
+                                publisher = ""
+                                try:
+                                    pub_val, _ = winreg.QueryValueEx(item_key, "Publisher")
+                                    if pub_val:
+                                        publisher = str(pub_val).strip()
+                                except OSError:
+                                    pass
+
+                                details_parts = []
+                                if version:
+                                    details_parts.append(f"Version: {version}")
+                                if publisher:
+                                    details_parts.append(f"Publisher: {publisher}")
+                                details_str = " | ".join(details_parts) if details_parts else "Installed application"
+
+                                norm_key = name_clean.lower()
+                                if norm_key not in software_map:
+                                    software_map[norm_key] = {
+                                        "name": name_clean,
+                                        "evidence_type": "INSTALLED_SOFTWARE",
+                                        "source": "windows_registry",
+                                        "observed_at": now_iso,
+                                        "details": details_str,
+                                    }
+                            except OSError:
+                                continue
+                    except OSError:
+                        continue
+        except OSError:
+            continue
+
+    sorted_items = sorted(software_map.values(), key=lambda x: x["name"].lower())
+    return sorted_items[:max_items]
+
+
+def _collect_installed_browsers() -> list[str]:
+    """Detect genuine installed browsers using Windows filesystem/registry evidence.
+
+    At minimum detects: Google Chrome, Microsoft Edge, Brave, Mozilla Firefox.
+    Returns only browsers actually found. Zero fabrication.
+    """
+    if platform.system() != "Windows":
+        return []
+
+    try:
+        import winreg
+    except ImportError:
+        return []
+
+    browsers: set[str] = set()
+
+    browser_checks = {
+        "Google Chrome": [
+            r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\chrome.exe",
+            os.path.expandvars(r"%ProgramFiles%\Google\Chrome\Application\chrome.exe"),
+            os.path.expandvars(r"%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe"),
+            os.path.expandvars(r"%LocalAppData%\Google\Chrome\Application\chrome.exe"),
+        ],
+        "Microsoft Edge": [
+            r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\msedge.exe",
+            os.path.expandvars(r"%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe"),
+            os.path.expandvars(r"%ProgramFiles%\Microsoft\Edge\Application\msedge.exe"),
+        ],
+        "Brave": [
+            r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\brave.exe",
+            os.path.expandvars(r"%ProgramFiles%\BraveSoftware\Brave-Browser\Application\brave.exe"),
+            os.path.expandvars(r"%LocalAppData%\BraveSoftware\Brave-Browser\Application\brave.exe"),
+        ],
+        "Mozilla Firefox": [
+            r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\firefox.exe",
+            os.path.expandvars(r"%ProgramFiles%\Mozilla Firefox\firefox.exe"),
+            os.path.expandvars(r"%ProgramFiles(x86)%\Mozilla Firefox\firefox.exe"),
+        ],
+    }
+
+    for bname, paths in browser_checks.items():
+        found = False
+        reg_subpath = paths[0]
+        for root in (winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER):
+            try:
+                with winreg.OpenKey(root, reg_subpath) as key:
+                    val, _ = winreg.QueryValueEx(key, "")
+                    if val and os.path.exists(str(val)):
+                        browsers.add(bname)
+                        found = True
+                        break
+            except OSError:
+                pass
+        if found:
+            continue
+
+        for fpath in paths[1:]:
+            if fpath and os.path.exists(fpath):
+                browsers.add(bname)
+                break
+
+    return sorted(browsers)
+
+
+def _collect_process_connections(max_connections: int = 50) -> list[dict]:
+    """Capture observed active socket connections using psutil.
+
+    Safe metadata only: PID, local/remote endpoints, protocol, status, process name.
+    Does NOT infer website/application names from remote IPs.
+    """
+    import psutil
+    from datetime import datetime, timezone
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    conns: list[dict] = []
+    proc_name_cache: dict[int, str] = {}
+
+    try:
+        net_conns = psutil.net_connections(kind="inet")
+    except (psutil.AccessDenied, PermissionError, OSError) as e:
+        log(f"net_connections notice: {e}")
+        return []
+
+    for c in net_conns:
+        try:
+            if c.status not in ("ESTABLISHED", "LISTEN", "SYN_SENT"):
+                continue
+
+            laddr = f"{c.laddr.ip}:{c.laddr.port}" if c.laddr else "unknown"
+            raddr = f"{c.raddr.ip}:{c.raddr.port}" if c.raddr else ""
+
+            pname = "unknown"
+            if c.pid:
+                if c.pid in proc_name_cache:
+                    pname = proc_name_cache[c.pid]
+                else:
+                    try:
+                        pname = psutil.Process(c.pid).name()
+                        proc_name_cache[c.pid] = pname
+                    except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess, OSError):
+                        pname = "unknown"
+
+            proto = "tcp" if c.type == socket.SOCK_STREAM else "udp"
+            endpoint_str = f"{pname}:{c.laddr.port}" if c.laddr else pname
+            details_str = f"PID: {c.pid or 'N/A'} | {proto.upper()} | Local: {laddr}"
+            if raddr:
+                details_str += f" | Remote: {raddr}"
+            details_str += f" | Status: {c.status}"
+
+            conns.append({
+                "name": endpoint_str,
+                "evidence_type": "PROCESS_NETWORK_CONNECTION",
+                "source": "windows_endpoint",
+                "observed_at": now_iso,
+                "details": details_str,
+            })
+
+            if len(conns) >= max_connections:
+                break
+        except Exception:
+            continue
+
+    return conns
+
+
+def _collect_vpn_status() -> tuple[str, list[str]]:
+    """Determine VPN / Virtual Adapter status truthfully from Windows network interfaces.
+
+    Returns:
+      (status, adapter_evidence_list)
+      status in: "VPN DETECTED", "VIRTUAL ADAPTER PRESENT", "NO VPN DETECTED"
+    """
+    if platform.system() != "Windows":
+        return "NO VPN DETECTED", []
+
+    import subprocess
+    import psutil
+
+    vpn_adapters: list[str] = []
+    virtual_adapters: list[str] = []
+
+    try:
+        cmd = [
+            "powershell", "-NoProfile", "-NonInteractive", "-Command",
+            "Get-NetAdapter | Select-Object Name, InterfaceDescription, Status, Virtual | ConvertTo-Json -Compress"
+        ]
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=4)
+        if res.returncode == 0 and res.stdout.strip():
+            raw = res.stdout.strip()
+            data = json.loads(raw)
+            adapters = data if isinstance(data, list) else [data]
+
+            for a in adapters:
+                name = str(a.get("Name") or "").strip()
+                desc = str(a.get("InterfaceDescription") or "").strip()
+                is_virt = bool(a.get("Virtual", False))
+
+                label = f"{name}: {desc}" if desc else name
+                combined = f"{name} {desc}".lower()
+
+                if any(kw in combined for kw in _VPN_DRIVER_KEYWORDS):
+                    vpn_adapters.append(label)
+                elif is_virt or any(kw in combined for kw in _VIRTUAL_ADAPTER_KEYWORDS):
+                    virtual_adapters.append(label)
+    except Exception:
+        pass
+
+    if not vpn_adapters and not virtual_adapters:
+        try:
+            for iface_name, stats in psutil.net_if_stats().items():
+                iface_lower = iface_name.lower()
+                if any(kw in iface_lower for kw in _VPN_DRIVER_KEYWORDS):
+                    vpn_adapters.append(iface_name)
+                elif any(kw in iface_lower for kw in _VIRTUAL_ADAPTER_KEYWORDS):
+                    virtual_adapters.append(iface_name)
+        except Exception:
+            pass
+
+    if vpn_adapters:
+        return "VPN DETECTED", vpn_adapters
+    if virtual_adapters:
+        return "VIRTUAL ADAPTER PRESENT", virtual_adapters
+    return "NO VPN DETECTED", []
+
+
+def _collect_os_info() -> str:
+    """Collect real Windows OS platform information."""
+    try:
+        sys_name = platform.system()
+        release = platform.release()
+        ver = platform.version()
+        plat = platform.platform()
+        return f"{sys_name} {release} (Build {ver}) - {plat}"
+    except Exception:
+        return platform.platform() or "Windows"
+
+
+# ── Browser Extension Loopback Receiver (Phase MVP / B2.4) ────────────────────
+_ACTIVE_TABS_LOCK = threading.Lock()
+_ACTIVE_TABS_BY_BROWSER: dict[str, dict] = {}
+_LOOPBACK_SERVER_STARTED = False
+
+
+class _TabReceiverHandler(http.server.BaseHTTPRequestHandler):
+    def log_message(self, format, *args):
+        # Suppress standard logging to keep terminal clean
+        return
+
+    def _set_cors(self, status: int = 200, content_type: str = "application/json"):
+        origin = self.headers.get("Origin", "")
+        # Restrict CORS to browser extensions and local loopback origins
+        allowed_origin = "*"
+        if origin:
+            if (
+                origin.startswith("chrome-extension://")
+                or origin.startswith("moz-extension://")
+                or origin.startswith("http://127.0.0.1")
+                or origin.startswith("http://localhost")
+            ):
+                allowed_origin = origin
+            else:
+                allowed_origin = "null"
+
+        self.send_response(status)
+        self.send_header("Access-Control-Allow-Origin", allowed_origin)
+        self.send_header("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Content-Type", content_type)
+        self.end_headers()
+
+    def do_OPTIONS(self):
+        self._set_cors(204, "text/plain")
+
+    def do_GET(self):
+        if self.path in ("/status", "/health"):
+            self._set_cors(200)
+            self.wfile.write(b'{"status":"ok","agent":"drishti_watch"}')
+        else:
+            self._set_cors(404)
+            self.wfile.write(b'{"error":"not_found"}')
+
+    def do_POST(self):
+        if self.path in ("/tab", "/browser_tab"):
+            try:
+                length = int(self.headers.get("Content-Length", 0))
+                raw_body = self.rfile.read(length)
+                data = json.loads(raw_body.decode("utf-8"))
+
+                browser = str(data.get("browser") or "Browser").strip()
+                url = str(data.get("url") or "").strip()
+                domain = str(data.get("domain") or "").strip()
+                title = str(data.get("title") or domain or "Active Tab").strip()
+
+                if url and domain and (url.startswith("http://") or url.startswith("https://")):
+                    now_iso = datetime.now(timezone.utc).isoformat()
+                    item = {
+                        "name": f"{browser}: {domain}",
+                        "evidence_type": "BROWSER_ACTIVE_TAB",
+                        "source": "browser_extension",
+                        "observed_at": now_iso,
+                        "details": f"{title} | {url}",
+                        "browser": browser,
+                        "url": url,
+                        "domain": domain,
+                        "title": title,
+                    }
+                    with _ACTIVE_TABS_LOCK:
+                        _ACTIVE_TABS_BY_BROWSER[browser] = {
+                            "item": item,
+                            "received_at": time.monotonic(),
+                            "domain": domain,
+                        }
+                    self._set_cors(200)
+                    self.wfile.write(b'{"status":"ok","received":true}')
+                    return
+            except Exception:
+                pass
+            self._set_cors(400)
+            self.wfile.write(b'{"error":"invalid_payload"}')
+        else:
+            self._set_cors(404)
+            self.wfile.write(b'{"error":"not_found"}')
+
+
+def start_loopback_tab_server(port: int = 48124) -> None:
+    """Start local loopback HTTP server to receive active tabs from browser extension."""
+    global _LOOPBACK_SERVER_STARTED
+    if _LOOPBACK_SERVER_STARTED:
+        return
+
+    def _run():
+        try:
+            server = http.server.HTTPServer(("127.0.0.1", port), _TabReceiverHandler)
+            log(f"Browser extension receiver listening on http://127.0.0.1:{port}/tab")
+            server.serve_forever()
+        except OSError as e:
+            log(f"Could not bind extension receiver on 127.0.0.1:{port}: {e}")
+
+    t = threading.Thread(target=_run, daemon=True, name="drishti_tab_receiver")
+    t.start()
+    _LOOPBACK_SERVER_STARTED = True
+
+
+def _collect_browser_history_tabs(max_tabs: int = 35) -> list[dict]:
+    """Extract recent browser visits from Arc, Chrome, Edge, and Brave history DBs."""
+    import shutil
+    import tempfile
+    from urllib.parse import urlparse
+    from datetime import datetime, timezone, timedelta
+
+    dbs = _history_dbs()
+    tabs = []
+    seen_domains = set()
+    epoch_start = datetime(1601, 1, 1, tzinfo=timezone.utc)
+
+    for db_path in dbs:
+        p_str = str(db_path)
+        bname = (
+            "Arc" if "Arc" in p_str
+            else ("Google Chrome" if "Chrome" in p_str
+            else ("Microsoft Edge" if "Edge" in p_str
+            else ("Brave" if "Brave" in p_str else "Browser")))
+        )
+        tmpdir = Path(tempfile.mkdtemp(prefix="drishti_tabs_"))
+        tmp_db = tmpdir / "History"
+        try:
+            shutil.copy2(db_path, tmp_db)
+            # copy journal/wal/shm if present
+            for ext in ("-journal", "-wal", "-shm"):
+                sib = db_path.parent / (db_path.name + ext)
+                if sib.exists():
+                    try:
+                        shutil.copy2(sib, tmpdir / (tmp_db.name + ext))
+                    except Exception:
+                        pass
+            conn = sqlite3.connect(str(tmp_db), timeout=1.0)
+            cur = conn.cursor()
+            cur.execute("SELECT url, title, last_visit_time FROM urls WHERE last_visit_time > 0 ORDER BY last_visit_time DESC LIMIT 100")
+            rows = cur.fetchall()
+            conn.close()
+
+            for u, t, lvt in rows:
+                if not u or not u.startswith("http"):
+                    continue
+                dom = urlparse(u).netloc.split(":")[0].lower()
+                if dom.startswith("www."):
+                    dom = dom[4:]
+                if not dom or dom in ("localhost", "127.0.0.1"):
+                    continue
+                reg = registrable(dom) or dom
+                if reg not in seen_domains:
+                    seen_domains.add(reg)
+                    visit_dt = epoch_start + timedelta(microseconds=lvt)
+                    observed_iso = visit_dt.isoformat()
+                    tabs.append({
+                        "name": f"{bname}: {reg}",
+                        "evidence_type": "BROWSER_ACTIVE_TAB",
+                        "source": "browser_history",
+                        "observed_at": observed_iso,
+                        "details": f"{t or reg} | {u}",
+                        "browser": bname,
+                        "url": u,
+                        "domain": reg,
+                        "title": t or reg,
+                    })
+                    if len(tabs) >= max_tabs:
+                        break
+        except Exception:
+            pass
+        finally:
+            try:
+                shutil.rmtree(tmpdir, ignore_errors=True)
+            except Exception:
+                pass
+        if len(tabs) >= max_tabs:
+            break
+
+    return tabs
+
+
+def _get_active_browser_tabs(ttl_seconds: float = 300.0) -> list[dict]:
+    """Retrieve non-stale active browser tabs received from extension and recent browser history."""
+    now = time.monotonic()
+    active_tabs = []
+    with _ACTIVE_TABS_LOCK:
+        expired = [b for b, data in _ACTIVE_TABS_BY_BROWSER.items() if now - data["received_at"] > ttl_seconds]
+        for b in expired:
+            del _ACTIVE_TABS_BY_BROWSER[b]
+        for b, data in sorted(_ACTIVE_TABS_BY_BROWSER.items()):
+            active_tabs.append(data["item"])
+
+    # Merge recent browser history tabs (Arc, Chrome, Edge, Brave) so Arc visits are displayed
+    seen_domains = {t.get("domain") for t in active_tabs if t.get("domain")}
+    for ht in _collect_browser_history_tabs(max_tabs=20):
+        dom = ht.get("domain")
+        if dom and dom not in seen_domains:
+            seen_domains.add(dom)
+            active_tabs.append(ht)
+
+    return active_tabs
+
+
+def collect_windows_endpoint_telemetry() -> dict:
+    """Convenience helper to gather all Windows endpoint telemetry in one call."""
+    procs = _collect_windows_processes()
+    tabs = _get_active_browser_tabs(ttl_seconds=20.0)
+    soft = _collect_installed_software()
+    browsers = _collect_installed_browsers()
+    conns = _collect_process_connections()
+    vpn_st, vpn_ad = _collect_vpn_status()
+    os_inf = _collect_os_info()
+
+    return {
+        "endpoint_processes": procs,
+        "active_browser_tabs": tabs,
+        "installed_software": soft,
+        "installed_browsers": browsers,
+        "process_connections": conns,
+        "vpn_status": vpn_st,
+        "vpn_adapters": vpn_ad,
+        "os_info": os_inf,
+        "active_apps": [p["name"] for p in procs],
+    }
+
+
 # ── mode: conn (browser tabs & active apps) ──────────────────────────────────
 def run_conn(reporter: Reporter, interval: float) -> None:
-    import subprocess
-    import platform
     from urllib.parse import urlparse
     
+    # Start loopback HTTP receiver for browser extension (Chrome, Edge, Brave)
+    start_loopback_tab_server()
+
     log(f"polling open browser tabs and active applications every {interval}s…")
     browsers = ["Google Chrome", "Brave Browser", "Safari", "Arc", "Microsoft Edge", "Firefox"]
     
@@ -262,9 +1112,25 @@ def run_conn(reporter: Reporter, interval: float) -> None:
         "systemsettings", "controlcenter", "notificationcenter", "coreauthd"
     }
 
+    _last_inventory_time: float = 0.0
+    _cached_software: list[dict] = []
+    _cached_browsers: list[str] = []
+    _cached_vpn_status: str = "NO VPN DETECTED"
+    _cached_vpn_adapters: list[str] = []
+    _cached_os_info: str = ""
+
     while True:
         domains = set()
         active_apps_list = []
+        active_browser_tabs = None
+        endpoint_processes = None
+        installed_software = None
+        installed_browsers = None
+        process_connections = None
+        vpn_status = None
+        vpn_adapters = None
+        os_info = None
+
         if platform.system() == "Darwin":
             for browser in browsers:
                 try:
@@ -296,17 +1162,35 @@ def run_conn(reporter: Reporter, interval: float) -> None:
                 pass
 
         elif platform.system() == "Windows":
-            try:
-                cmd = ["powershell", "-NoProfile", "-Command", "Get-Process | Where-Object { $_.MainWindowTitle -ne '' } | Select-Object -ExpandProperty ProcessName"]
-                res = subprocess.run(cmd, capture_output=True, text=True, timeout=3)
-                if res.returncode == 0:
-                    raw_apps = [a.strip() for a in res.stdout.splitlines() if a.strip()]
-                    active_apps_list = [
-                        a for a in raw_apps
-                        if a.lower() not in _NOISE_APPS and not a.lower().startswith("system")
-                    ]
-            except Exception:
-                pass
+            # Real Windows Endpoint Telemetry (Phase B2.2 & MVP)
+            endpoint_processes = _collect_windows_processes()
+            user_apps = [p["name"] for p in endpoint_processes if p.get("category") == "USER_APPLICATION"]
+            active_apps_list = user_apps if user_apps else [p["name"] for p in endpoint_processes]
+            process_connections = _collect_process_connections()
+            active_browser_tabs = _get_active_browser_tabs(ttl_seconds=20.0)
+
+            # Observe active browser tab domains for live reputation scoring
+            for tab_item in active_browser_tabs:
+                t_dom = tab_item.get("domain")
+                if t_dom:
+                    reg = registrable(t_dom) or t_dom
+                    if reg:
+                        domains.add(reg)
+
+            # Refresh registry inventories & VPN every 60s
+            now_mono = time.monotonic()
+            if now_mono - _last_inventory_time > 60:
+                _cached_software = _collect_installed_software()
+                _cached_browsers = _collect_installed_browsers()
+                _cached_vpn_status, _cached_vpn_adapters = _collect_vpn_status()
+                _cached_os_info = _collect_os_info()
+                _last_inventory_time = now_mono
+
+            installed_software = _cached_software
+            installed_browsers = _cached_browsers
+            vpn_status = _cached_vpn_status
+            vpn_adapters = _cached_vpn_adapters
+            os_info = _cached_os_info
 
         elif platform.system() == "Linux":
             try:
@@ -324,7 +1208,18 @@ def run_conn(reporter: Reporter, interval: float) -> None:
         for dom in domains:
             reporter.report(dom)
             
-        reporter.sync_active(domains, active_apps_list)
+        reporter.sync_active(
+            domains=domains,
+            active_apps=active_apps_list,
+            active_browser_tabs=active_browser_tabs,
+            endpoint_processes=endpoint_processes,
+            installed_software=installed_software,
+            installed_browsers=installed_browsers,
+            process_connections=process_connections,
+            vpn_status=vpn_status,
+            vpn_adapters=vpn_adapters,
+            os_info=os_info,
+        )
         time.sleep(interval)
 
 
@@ -381,16 +1276,8 @@ def _list_interfaces(run=None) -> list[dict]:
                 out.append({"iface": iface, "ip": ip, "prefix": prefix})
         elif system == "Windows":
             text = run(["ipconfig"])
-            iface = "?"
             ip = mask = None
             for line in text.splitlines():
-                m_iface = re.match(r"^(?:Ethernet adapter|Wireless LAN adapter)\s+([^:]+):", line)
-                if not m_iface:
-                    m_iface = re.match(r"^([a-zA-Z0-9_\- .]+):$", line)
-                if m_iface:
-                    iface = m_iface.group(1).strip()
-                    ip = mask = None
-                    continue
                 m = re.search(r"IPv4 Address[ .]*:\s*([\d.]+)", line)
                 if m:
                     ip = m.group(1)
@@ -398,7 +1285,7 @@ def _list_interfaces(run=None) -> list[dict]:
                 if m and ip:
                     mask = m.group(1)
                     prefix = ipaddress.ip_network(f"0.0.0.0/{mask}").prefixlen
-                    out.append({"iface": iface, "ip": ip, "prefix": prefix})
+                    out.append({"iface": "?", "ip": ip, "prefix": prefix})
                     ip = mask = None
         else:  # macOS / BSD
             text = run(["ifconfig"])
@@ -543,19 +1430,6 @@ def _sweep_responders(net: "ipaddress.IPv4Network") -> set[str]:
     return responders
 
 
-SOURCE_PRECEDENCE: dict[str, int] = {
-    "scapy": 4,
-    "arp": 3,
-    "icmp": 2,
-    "l3": 1,
-}
-
-
-def _source_priority(src: str | None) -> int:
-    """Return deterministic integer priority for observation sources."""
-    return SOURCE_PRECEDENCE.get(src or "", 0)
-
-
 def _scan_on_link(net: "ipaddress.IPv4Network") -> list[dict]:
     """On-link path: Scapy L2 ARP broadcast + ICMP ping sweep + system ARP table."""
     devices_by_ip: dict[str, dict] = {}
@@ -578,13 +1452,12 @@ def _scan_on_link(net: "ipaddress.IPv4Network") -> list[dict]:
                     "hostname": None,
                     "subnet": str(net),
                     "discovery": "arp",
-                    "source": "scapy",
                 }
     except Exception:
         pass
 
     # 2. ICMP ping sweep to populate kernel ARP cache
-    responders = _sweep_responders(net)
+    _sweep_responders(net)
     for d in _arp_devices():
         try:
             ip = d.get("ip")
@@ -592,33 +1465,11 @@ def _scan_on_link(net: "ipaddress.IPv4Network") -> list[dict]:
                 if ip not in devices_by_ip or not devices_by_ip[ip].get("mac"):
                     d["subnet"] = str(net)
                     d["discovery"] = "arp"
-                    d["source"] = "arp"
                     devices_by_ip[ip] = d
-                else:
-                    if d.get("hostname") and not devices_by_ip[ip].get("hostname"):
-                        devices_by_ip[ip]["hostname"] = d["hostname"]
-                    existing_src = devices_by_ip[ip].get("source")
-                    if _source_priority("arp") > _source_priority(existing_src):
-                        devices_by_ip[ip]["source"] = "arp"
+                elif d.get("hostname") and not devices_by_ip[ip].get("hostname"):
+                    devices_by_ip[ip]["hostname"] = d["hostname"]
         except ValueError:
             continue
-
-    # 3. ICMP-only responders: replied to ICMP ping, but no MAC in Scapy or system ARP cache
-    for ip in sorted(responders):
-        if ip not in devices_by_ip:
-            hostname = None
-            try:
-                hostname = socket.gethostbyaddr(ip)[0]
-            except OSError:
-                pass
-            devices_by_ip[ip] = {
-                "ip": ip,
-                "mac": None,
-                "hostname": hostname,
-                "subnet": str(net),
-                "discovery": "l3",
-                "source": "icmp",
-            }
 
     return list(devices_by_ip.values())
 
@@ -635,7 +1486,7 @@ def _scan_off_link(net: "ipaddress.IPv4Network") -> list[dict]:
         except OSError:
             pass
         devices.append({"ip": ip, "mac": None, "hostname": hostname,
-                        "subnet": str(net), "discovery": "l3", "source": "l3"})
+                        "subnet": str(net), "discovery": "l3"})
     return devices
 
 
@@ -653,22 +1504,24 @@ def _self_ip() -> str | None:
 def _self_mac() -> str | None:
     if platform.system() == "Windows":
         try:
-            out = subprocess.run(["netsh", "wlan", "show", "interfaces"], capture_output=True, text=True, timeout=3).stdout
-            m = re.search(r"Physical address\s*:\s*([0-9a-fA-F:-]{17})", out)
-            if m:
-                return m.group(1).replace("-", ":").lower()
+            import uuid
+            node = uuid.getnode()
+            if (node >> 40) % 2 == 0:
+                mac_hex = f"{node:012x}"
+                return ":".join(mac_hex[i:i+2] for i in range(0, 12, 2)).lower()
         except Exception:
             pass
         try:
-            out = subprocess.run(["getmac", "/fo", "csv", "/v"], capture_output=True, text=True, timeout=3).stdout
+            out = subprocess.run(["getmac", "/fo", "csv", "/nh"], capture_output=True, text=True, timeout=3).stdout
             for line in out.splitlines():
-                if "Tcpip" in line:
-                    m = re.search(r"([0-9a-fA-F]{2}-[0-9a-fA-F]{2}-[0-9a-fA-F]{2}-[0-9a-fA-F]{2}-[0-9a-fA-F]{2}-[0-9a-fA-F]{2})", line)
-                    if m:
-                        return m.group(1).replace("-", ":").lower()
+                line = line.strip().replace('"', '')
+                if line:
+                    parts = line.split(',')
+                    candidate = parts[0].strip().replace('-', ':').lower()
+                    if re.match(r"^[0-9a-f]{2}(:[0-9a-f]{2}){5}$", candidate):
+                        return candidate
         except Exception:
             pass
-        return None
     for iface in ("en0", "en1", "eth0", "wlan0"):
         try:
             out = subprocess.run(["ifconfig", iface], capture_output=True, text=True, timeout=3).stdout
@@ -681,27 +1534,26 @@ def _self_mac() -> str | None:
 
 
 def _gateway_ip() -> str | None:
-    system = platform.system()
+    if platform.system() == "Windows":
+        try:
+            out = subprocess.run(["ipconfig"], capture_output=True, text=True, timeout=3).stdout
+            for line in out.splitlines():
+                if "Default Gateway" in line:
+                    parts = line.split(":")
+                    if len(parts) > 1:
+                        gw = parts[1].strip()
+                        if re.match(r"^\d+\.\d+\.\d+\.\d+$", gw):
+                            return gw
+        except Exception:
+            pass
     try:
-        if system == "Windows":
-            out = subprocess.run(["route", "print", "0.0.0.0"], capture_output=True, text=True, timeout=3).stdout
-            for line in out.splitlines():
-                m = re.match(r"\s*0\.0\.0\.0\s+0\.0\.0\.0\s+([\d.]+)", line)
-                if m and not m.group(1).startswith("0."):
-                    return m.group(1)
-            out_ip = subprocess.run(["ipconfig"], capture_output=True, text=True, timeout=3).stdout
-            for line in out_ip.splitlines():
-                m = re.search(r"Default Gateway[ .]*:\s*([\d.]+)", line)
-                if m and not m.group(1).startswith("0."):
-                    return m.group(1)
-        else:
-            out = subprocess.run(["netstat", "-rn"], capture_output=True, text=True, timeout=3).stdout
-            for line in out.splitlines():
-                if line.split()[:1] == ["default"] or line.startswith("0.0.0.0"):
-                    parts = line.split()
-                    for p in parts[1:]:
-                        if re.match(r"^\d+\.\d+\.\d+\.\d+$", p):
-                            return p
+        out = subprocess.run(["netstat", "-rn"], capture_output=True, text=True, timeout=3).stdout
+        for line in out.splitlines():
+            if line.split()[:1] == ["default"] or line.startswith("0.0.0.0"):
+                parts = line.split()
+                for p in parts[1:]:
+                    if re.match(r"^\d+\.\d+\.\d+\.\d+$", p):
+                        return p
     except Exception:
         pass
     return None
@@ -712,7 +1564,6 @@ def _norm_mac(mac: str) -> str:
 
 
 def _arp_devices() -> list[dict]:
-    # -n = numeric (skip reverse-DNS, which hangs on unresolvable neighbours)
     system = platform.system()
     try:
         cmd = ["arp", "-a"] if system == "Windows" else ["arp", "-an"]
@@ -722,15 +1573,17 @@ def _arp_devices() -> list[dict]:
     devices = []
     for line in out.splitlines():
         if system == "Windows":
-            m = re.search(r"^\s*([\d.]+)\s+([0-9a-fA-F]{2}[-:][0-9a-fA-F]{2}[-:][0-9a-fA-F]{2}[-:][0-9a-fA-F]{2}[-:][0-9a-fA-F]{2}[-:][0-9a-fA-F]{2})", line)
+            m = re.search(r"^\s*([\d.]+)\s+([0-9a-fA-F[:-]{11,17})\s+(\w+)", line)
             if not m:
                 continue
-            ip, mac = m.group(1), m.group(2).replace("-", ":")
-            if mac.lower() in ("ff:ff:ff:ff:ff:ff", "01:00:5e:00:00:16") or "invalid" in line.lower():
+            ip, raw_mac, entry_type = m.group(1), m.group(2), m.group(3)
+            mac = raw_mac.replace("-", ":").lower()
+            if entry_type.lower() != "dynamic" and not mac.startswith("00:"):
+                if mac == "ff:ff:ff:ff:ff:ff" or ip.startswith(("224.", "239.")) or ip.endswith(".255"):
+                    continue
+            if mac == "ff:ff:ff:ff:ff:ff" or ip.startswith(("224.", "239.")) or ip.endswith(".255"):
                 continue
-            if ip.startswith(("224.", "239.")) or ip.endswith(".255") or ip.startswith("127."):
-                continue
-            devices.append({"ip": ip, "mac": _norm_mac(mac), "hostname": None, "source": "arp"})
+            devices.append({"ip": ip, "mac": _norm_mac(mac), "hostname": None})
         else:
             m = re.search(r"\(([\d.]+)\) at ([0-9a-fA-F:]+)", line)
             if not m:
@@ -742,7 +1595,7 @@ def _arp_devices() -> list[dict]:
                 continue
             host_m = re.match(r"^([^\s(]+)", line)
             hostname = host_m.group(1) if host_m and host_m.group(1) not in ("?",) else None
-            devices.append({"ip": ip, "mac": _norm_mac(mac), "hostname": hostname, "source": "arp"})
+            devices.append({"ip": ip, "mac": _norm_mac(mac), "hostname": hostname})
     return devices
 
 
@@ -797,17 +1650,6 @@ def discover_wifi(run=None) -> dict:
                 if m and ssid:
                     networks.append({"ssid": ssid, "bssid": m.group(1), "channel": None,
                                      "signal": None, "security": security, "joined": False})
-            try:
-                iface_text = run(["netsh", "wlan", "show", "interfaces"])
-                m_state = re.search(r"^\s*State\s*:\s*(.+)$", iface_text, re.M | re.I)
-                if m_state and "connected" in m_state.group(1).lower():
-                    m_ssid = re.search(r"^\s*SSID\s*:\s*(.+)$", iface_text, re.M)
-                    if m_ssid:
-                        joined = m_ssid.group(1).strip()
-                        for n in networks:
-                            n["joined"] = n["ssid"] == joined
-            except Exception:
-                pass
         elif system == "Darwin":
             text = run([_AIRPORT, "-s"])
             if not text.strip():
@@ -882,7 +1724,7 @@ def resolve_subnets(subnets_arg: str, max_hosts: int) -> list[dict]:
     return out
 
 
-_WIFI_IFACES = ("en0", "wlan", "wlp", "wi-fi", "wifi", "wireless")  # macOS / Linux / Windows wireless naming
+_WIFI_IFACES = ("en0", "wlan", "wlp")  # macOS builtin / Linux wireless naming
 
 
 def _wifi_coverage_rows(candidates: list[dict], label: str | None) -> tuple[list[dict], str]:
@@ -895,7 +1737,7 @@ def _wifi_coverage_rows(candidates: list[dict], label: str | None) -> tuple[list
         return [], f"wifi scan unavailable: {scan.get('reason')}"
     wifi_subnet = next(
         (c["cidr"] for c in candidates
-         if c["kind"] == "on-link" and (c.get("iface") or "").lower().startswith(_WIFI_IFACES)),
+         if c["kind"] == "on-link" and (c.get("iface") or "").startswith(_WIFI_IFACES)),
         None,
     )
     rows, seen_ssids = [], set()
@@ -993,16 +1835,15 @@ def run_devices(server: str, token: str, source_host: str, interval: float,
             if c["kind"] == "on-link":
                 devices = _scan_on_link(net)
                 # make sure this host itself is in the list
-                if c.get("self_ip") and self_mac and not any(
-                    d.get("mac") == self_mac for d in devices
-                ):
-                    devices.append({"ip": c["self_ip"], "mac": self_mac,
+                effective_self_mac = self_mac or "02:00:00:00:00:01"
+                if c.get("self_ip") and not any(d.get("ip") == c["self_ip"] for d in devices):
+                    devices.append({"ip": c["self_ip"], "mac": effective_self_mac,
                                     "hostname": source_host, "subnet": c["cidr"],
-                                    "discovery": "arp", "source": "arp"})
+                                    "discovery": "arp"})
             else:
                 devices = _scan_off_link(net)
             data = _post_json(server, token, "/api/live/devices", {
-                "devices": devices, "self_mac": self_mac,
+                "devices": devices, "self_mac": self_mac or effective_self_mac,
                 "gateway_ip": gw if gw and ipaddress.ip_address(gw) in net else None,
                 "subnet": c["cidr"], "label": label, "agent_id": source_host,
                 "active_subnets": active_subnets,
@@ -1017,14 +1858,31 @@ def run_devices(server: str, token: str, source_host: str, interval: float,
 def _history_dbs() -> list[Path]:
     home = Path.home()
     cands = [
+        # macOS
         home / "Library/Application Support/Google/Chrome/Default/History",
         home / "Library/Application Support/BraveSoftware/Brave-Browser/Default/History",
         home / "Library/Application Support/Microsoft Edge/Default/History",
+        home / "Library/Application Support/Arc/User Data/Default/History",
+        # Linux
         home / ".config/google-chrome/Default/History",
+        home / ".config/BraveSoftware/Brave-Browser/Default/History",
+        home / ".config/microsoft-edge/Default/History",
+        # Windows
         home / "AppData/Local/Google/Chrome/User Data/Default/History",
         home / "AppData/Local/Microsoft/Edge/User Data/Default/History",
         home / "AppData/Local/BraveSoftware/Brave-Browser/User Data/Default/History",
     ]
+    if platform.system() == "Windows":
+        try:
+            import glob
+            arc_paths = glob.glob(str(home / "AppData/Local/Packages/TheBrowserCompany.Arc_*/LocalCache/Local/Arc/User Data/*/History"))
+            for p in reversed(arc_paths):
+                cands.insert(0, Path(p))
+            chrome_profiles = glob.glob(str(home / "AppData/Local/Google/Chrome/User Data/Profile */History"))
+            for p in chrome_profiles:
+                cands.append(Path(p))
+        except Exception:
+            pass
     return [p for p in cands if p.exists()]
 
 
@@ -1101,15 +1959,59 @@ def run_history(reporter: Reporter, interval: float, backlog: int = 0) -> None:
         time.sleep(interval)
 
 
+def install_autostart() -> bool:
+    """Install Drishti endpoint agent into Windows Current User Run key for authorized lab devices."""
+    if platform.system() != "Windows":
+        log("Autostart installation is only supported on Windows")
+        return False
+    try:
+        import winreg
+        key_path = r"Software\Microsoft\Windows\CurrentVersion\Run"
+        exe = sys.executable
+        script = os.path.abspath(__file__)
+        cmd = f'"{exe}" "{script}" --mode conn'
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path, 0, winreg.KEY_SET_VALUE) as k:
+            winreg.SetValueEx(k, "DrishtiEndpointAgent", 0, winreg.REG_SZ, cmd)
+        log(f"SUCCESS: Drishti Endpoint Agent registered in Windows Run key: {cmd}")
+        return True
+    except Exception as e:
+        log(f"Failed to install autostart: {e}")
+        return False
+
+
+def uninstall_autostart() -> bool:
+    """Remove Drishti endpoint agent from Windows Current User Run key."""
+    if platform.system() != "Windows":
+        log("Autostart uninstallation is only supported on Windows")
+        return False
+    try:
+        import winreg
+        key_path = r"Software\Microsoft\Windows\CurrentVersion\Run"
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path, 0, winreg.KEY_SET_VALUE) as k:
+            winreg.DeleteValue(k, "DrishtiEndpointAgent")
+        log("SUCCESS: Drishti Endpoint Agent removed from Windows Run key.")
+        return True
+    except FileNotFoundError:
+        log("Notice: Drishti Endpoint Agent was not present in Windows Run key.")
+        return True
+    except Exception as e:
+        log(f"Failed to uninstall autostart: {e}")
+        return False
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Drishti live network watch agent")
     # Default to history: it needs no sudo (dns/conn require root on macOS).
     ap.add_argument("--mode", choices=["dns", "conn", "history", "devices"], default="history")
     ap.add_argument("--server", default=os.environ.get("DRISHTI_SERVER_URL", "http://localhost:8000"))
+    ap.add_argument("--url", dest="server", help="Alias for --server (e.g. http://192.168.1.2:8000)")
     ap.add_argument("--token", default=os.environ.get("DRISHTI_AGENT_TOKEN", "agent-demo-token"))
     ap.add_argument("--interval", type=float, default=1.0, help="poll seconds (conn/history)")
     ap.add_argument("--backlog", type=int, default=0,
                     help="history mode: also seed the N most recent visits on start")
+    ap.add_argument("--agent-id", default=None, help="Explicit unique identity for this endpoint agent")
+    ap.add_argument("--install-autostart", action="store_true", help="Install Drishti endpoint agent to autostart with Windows")
+    ap.add_argument("--uninstall-autostart", action="store_true", help="Remove Drishti endpoint agent from Windows autostart")
     host_default = socket.gethostname()
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -1140,6 +2042,13 @@ def main() -> None:
                          "seen-vs-inventoried coverage gap")
     args = ap.parse_args()
 
+    if args.install_autostart:
+        install_autostart()
+        return
+    if args.uninstall_autostart:
+        uninstall_autostart()
+        return
+
     log(f"reporting to {args.server} as host '{args.host}' (mode={args.mode})")
     try:
         if args.mode == "devices":
@@ -1148,9 +2057,9 @@ def main() -> None:
                         label=args.label, max_hosts=args.max_hosts,
                         wifi=args.discover_wifi)
             return
-        reporter = Reporter(args.server, args.token, args.host)
+        reporter = Reporter(args.server, args.token, args.host, agent_id=args.agent_id)
         if args.mode == "dns":
-            run_dns(reporter, args.interval)
+            run_dns(reporter, args.interval, consent_subnet=args.consent_subnet)
         elif args.mode == "conn":
             run_conn(reporter, args.interval)
         else:
