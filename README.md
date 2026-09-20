@@ -852,7 +852,7 @@ docker compose down -v
 
 ```bash
 # 1. Clone and enter
-git clone https://github.com/Subhadip-Paul2006/dhristi.git && cd dhristi
+git clone https://github.com/<org>/drishti.git && cd drishti
 
 # 2. Start the server (auto-seeds demo org on first boot)
 cd server

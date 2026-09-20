@@ -1,3 +1,13 @@
 {
-  "mcpServers": {}
+  "mcpServers": {
+    "pheromone": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "/Users/soumyachakraborty/Documents/Projects-939/AI-Agents/swarm-ai/pheromone/pheromone-mcp/dist/server.js",
+        "--project",
+        "/Users/soumyachakraborty/Documents/Drishti"
+      ]
+    }
+  }
 }
