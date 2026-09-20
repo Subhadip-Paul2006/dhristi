@@ -1,6 +1,7 @@
 # Drishti v0.1 — SQLAlchemy model registry | 11-Jul-2026
 """Import every mapper so Base.metadata sees all tables."""
 from app.models.asset import Asset, Connection, RiskZone, Service
+from app.models.endpoint import EndpointAgent, EndpointPairingSession
 from app.models.live import (
     AutoScanConfig,
     DeepScan,
@@ -27,6 +28,8 @@ __all__ = [
     "Connection",
     "DeepScan",
     "DevicePresenceSession",
+    "EndpointAgent",
+    "EndpointPairingSession",
     "LiveObservation",
     "NetconfigAnalysis",
     "NetworkCoverage",

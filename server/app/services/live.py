@@ -17,7 +17,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.errors import NotFoundError
-from app.models import DeepScan, DevicePresenceSession, LiveObservation, NetworkDevice
+from app.models import DeepScan, DevicePresenceSession, EndpointAgent, LiveObservation, NetworkDevice
 from app.models.base import utcnow
 from app.schemas.live import (
     ActivityItem,
@@ -36,7 +36,9 @@ from app.schemas.live import (
     TimelineQueryIn,
     TrafficSecurityAnnotation,
 )
+from app.services import endpoint_telemetry
 from app.services.domain_classifier import classify_domain
+from app.services.vuln_intel.models import FindingState
 from app.services.urltrust import analyzer
 
 logger = logging.getLogger("drishti")
@@ -1418,6 +1420,11 @@ def list_devices(db: Session, org_id: str) -> list[NetworkDeviceOut]:
     for s in all_sessions:
         sessions_by_key.setdefault((s.network_key, s.device_key), []).append(s)
 
+    all_endpoint_agents = db.scalars(
+        select(EndpointAgent)
+        .where(EndpointAgent.org_id == org_id)
+    ).all()
+
     out: list[NetworkDeviceOut] = []
     now_time = utcnow()
     for r in rows:
@@ -1563,6 +1570,143 @@ def list_devices(db: Session, org_id: str) -> list[NetworkDeviceOut]:
             vpn_adapters_list = []
             final_os_info = dev_os_from_scan
             final_device_type = "Gateway / Router" if r.is_gateway else None
+
+        # Check endpoint agent telemetry (Phase 02)
+        endpoint_agent_row = None
+        for ag in all_endpoint_agents:
+            if (
+                ag.device_id == r.id
+                or (ag.mac and r.mac and ag.mac.lower().strip() == r.mac.lower().strip())
+                or (ag.current_ip and r.ip and ag.current_ip == r.ip)
+                or (ag.hostname and r.hostname and ag.hostname.lower() == r.hostname.lower())
+                or (r.is_self and ag.status == "ONLINE")
+            ):
+                endpoint_agent_row = ag
+                break
+
+        ep_telem = None
+        if endpoint_agent_row:
+            ep_telem = endpoint_telemetry.get_telemetry_for_device(org_id, endpoint_agent_row.device_id)
+        if not ep_telem:
+            ep_telem = endpoint_telemetry.get_telemetry_for_device(org_id, r.id)
+
+        listening_ports_list: list[ActivityItem] = []
+        browser_processes_list: list[ActivityItem] = []
+        endpoint_services_list: list[ActivityItem] = []
+        is_telem_stale: bool = False
+
+        if ep_telem is not None:
+            is_telem_stale = ep_telem.is_stale
+            if not endpoint_processes_list and ep_telem.endpoint_processes:
+                endpoint_processes_list = [
+                    ActivityItem(
+                        name=p.name,
+                        category=p.category,
+                        pid=p.pid,
+                        cpu_percent=p.cpu_percent,
+                        memory_mb=p.memory_mb,
+                        observed_at=p.observed_at,
+                    )
+                    for p in ep_telem.endpoint_processes
+                ]
+            if not installed_software_list and ep_telem.installed_software:
+                installed_software_list = [
+                    ActivityItem(
+                        name=s.name,
+                        version=s.version,
+                        vendor=s.vendor,
+                        observed_at=s.observed_at,
+                    )
+                    for s in ep_telem.installed_software
+                ]
+            if not installed_browsers_list and ep_telem.installed_browsers:
+                installed_browsers_list = list(ep_telem.installed_browsers)
+            if not process_connections_list and ep_telem.process_connections:
+                process_connections_list = [
+                    ActivityItem(
+                        name=f"{c.process_name} ({c.local_port} -> {c.remote_address}:{c.remote_port})",
+                        state=c.state,
+                        pid=c.pid,
+                        observed_at=c.observed_at,
+                    )
+                    for c in ep_telem.process_connections
+                ]
+            if ep_telem.listening_ports:
+                listening_ports_list = [
+                    ActivityItem(
+                        name=f"{lp.process_name or 'service'} ({lp.protocol} {lp.bind_address}:{lp.port})",
+                        pid=lp.pid,
+                        observed_at=lp.observed_at,
+                    )
+                    for lp in ep_telem.listening_ports
+                ]
+            if ep_telem.browser_processes:
+                browser_processes_list = [
+                    ActivityItem(
+                        name=bp.browser_name,
+                        pid=bp.pid,
+                        observed_at=bp.observed_at,
+                    )
+                    for bp in ep_telem.browser_processes
+                ]
+            if ep_telem.services:
+                endpoint_services_list = [
+                    ActivityItem(
+                        name=s.name,
+                        details=f"{s.display_name or ''} | {s.status} | {s.start_type or ''}".strip(" |"),
+                        observed_at=s.observed_at,
+                    )
+                    for s in ep_telem.services
+                ]
+            if ep_telem.os_info:
+                final_os_info = ep_telem.os_info
+
+            os_low = (ep_telem.os_name or "").lower()
+            if "windows" in os_low:
+                dev_capability_state = "WINDOWS ENDPOINT"
+            elif "darwin" in os_low or "mac" in os_low:
+                dev_capability_state = "MACOS ENDPOINT"
+            else:
+                dev_capability_state = "AGENT CONNECTED"
+
+            if len(active_browser_tabs_list) > 0:
+                dev_capability_state = "FULL ENDPOINT TELEMETRY"
+
+            ep_dev_id = endpoint_agent_row.device_id if endpoint_agent_row else r.id
+            ep_findings = endpoint_telemetry.get_vulnerability_findings_for_device(org_id, ep_dev_id)
+            existing_cve_ids = {c.id for c in dev_cves}
+            for f in ep_findings:
+                if f.cve_id and f.cve_id not in existing_cve_ids and f.finding_state in (
+                    FindingState.VULNERABLE,
+                    FindingState.KNOWN_EXPLOITED,
+                ):
+                    dev_cves.append(
+                        DeepScanCve(
+                            id=f.cve_id,
+                            cvss=f.cvss,
+                            severity=f.severity,
+                            summary=f.summary or "",
+                            affected_service=f"{f.observed_product} {f.observed_version or ''}".strip(),
+                            finding_id=f.finding_id,
+                            evidence_type=f.evidence_type,
+                            source="endpoint_software",
+                            intel_sources=f.intel_sources,
+                            in_kev=f.in_kev,
+                            ghsa_ids=f.ghsa_ids,
+                            evidence_basis="endpoint_software_version",
+                            is_inferred=False,
+                            finding_state=f.finding_state.value if hasattr(f.finding_state, "value") else str(f.finding_state),
+                            source_freshness=f.source_freshness,
+                            source_status_reason=f.source_status_reason,
+                            affected_range_text=f.affected_range_text,
+                            fixed_version_text=f.fixed_version_text,
+                        )
+                    )
+                    existing_cve_ids.add(f.cve_id)
+            if dev_cves and vuln_count is None:
+                vuln_count = len(dev_cves)
+                worst = max(dev_cves, key=lambda c: _SEV_RANK.get(c.severity, 0)).severity
+
 
         # Truthful backward-compatible lists:
         # Remote devices without an agent have no endpoint telemetry -> empty lists.
@@ -1731,7 +1875,9 @@ def list_devices(db: Session, org_id: str) -> list[NetworkDeviceOut]:
             obs_source = dev_sessions[-1].observation_source if dev_sessions else (r.discovery or "arp")
 
         dev_ladder_state: str | None = None
-        if dev_cves:
+        if any(c.in_kev for c in dev_cves):
+            dev_ladder_state = "KNOWN_EXPLOITED"
+        elif dev_cves:
             dev_ladder_state = "VULNERABLE"
         elif any(getattr(s, "cpe", None) for s in dev_services):
             dev_ladder_state = "POTENTIAL_MATCH"
@@ -1861,6 +2007,10 @@ def list_devices(db: Session, org_id: str) -> list[NetworkDeviceOut]:
             network_timeline=dev_timeline,
             network_evidence=dev_network_evidence,
             ladder_state=dev_ladder_state,
+            listening_ports=listening_ports_list,
+            browser_processes=browser_processes_list,
+            endpoint_services=endpoint_services_list,
+            is_telemetry_stale=is_telem_stale,
         ))
     return out
 

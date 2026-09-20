@@ -15,6 +15,7 @@ logger = logging.getLogger("drishti")
 
 # Closed set of error codes — the frontend switches on these.
 CODES = {
+    400: "bad_request",
     401: "unauthorized",
     403: "forbidden",
     404: "not_found",
@@ -37,6 +38,11 @@ class DomainError(Exception):
         super().__init__(message)
         self.message = message
         self.detail = detail
+
+
+class BadRequestError(DomainError):
+    status = 400
+    code = "bad_request"
 
 
 class NotFoundError(DomainError):

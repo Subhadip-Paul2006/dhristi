@@ -76,6 +76,24 @@ def get_current_agent(
     return agent
 
 
+def get_current_endpoint_agent(
+    authorization: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+):
+    from app.models.endpoint import EndpointAgent
+
+    token = _bearer(authorization)
+    agent = db.scalar(
+        select(EndpointAgent).where(
+            EndpointAgent.agent_token_hash == hash_agent_token(token),
+            EndpointAgent.status != "REVOKED",
+        )
+    )
+    if agent is None:
+        raise UnauthorizedError("Unknown or unauthorized endpoint agent")
+    return agent
+
+
 @dataclass
 class _Bucket:
     tokens: float

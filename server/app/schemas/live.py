@@ -100,6 +100,12 @@ class DeepScanCve(BaseModel):
     evidence_basis: str | None = None  # cpe_version | product_version
     is_stale: bool = False
     is_inferred: bool = True
+    finding_state: str = "VULNERABLE"  # OPEN | EXPOSED | POTENTIAL_MATCH | VULNERABLE | KNOWN_EXPLOITED | NO_CONFIRMED_VULNERABILITY
+    source_freshness: str = "live"  # live | cached | stale | source_unavailable
+    source_status_reason: str | None = None
+    affected_range_text: str | None = None
+    fixed_version_text: str | None = None
+
 
 
 class NetworkDestinationOut(BaseModel):
@@ -270,6 +276,11 @@ class NetworkDeviceOut(BaseModel):
     network_timeline: list[EvidenceEnvelope] = []
     network_evidence: list[EvidenceEnvelope] = []
     ladder_state: str | None = None
+    # Phase 02 Endpoint Telemetry additions:
+    listening_ports: list[ActivityItem] = []
+    browser_processes: list[ActivityItem] = []
+    endpoint_services: list[ActivityItem] = []
+    is_telemetry_stale: bool = False
 
 
 
