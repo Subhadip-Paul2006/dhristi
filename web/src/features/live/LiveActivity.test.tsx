@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { LiveActivitySection, CapabilityBadge } from "./LiveWatchPage";
+import {
+  LiveActivitySection,
+  CapabilityBadge,
+  FindingStateBadge,
+  DeviceSecurityProfileSection,
+  AiSecurityStateSection,
+} from "./LiveWatchPage";
 import type { NetworkDevice } from "../../api/types";
 
 function mockDevice(overrides: Partial<NetworkDevice> = {}): NetworkDevice {
@@ -307,6 +313,113 @@ describe("LiveActivitySection UI Component", () => {
     expect(screen.getByText("OS Services & Daemons (1):")).toBeInTheDocument();
     expect(screen.getByText("Spooler")).toBeInTheDocument();
     expect(screen.getByText("[SERVICE]")).toBeInTheDocument();
+  });
+});
+
+describe("Phase 04 Unified Device Security Profile UI Components", () => {
+  it("26. FindingStateBadge renders all six finding states truthfully", () => {
+    const { rerender } = render(<FindingStateBadge state="KNOWN_EXPLOITED" inKev={true} />);
+    expect(screen.getByText(/\[KNOWN EXPLOITED\]/i)).toBeInTheDocument();
+
+    rerender(<FindingStateBadge state="VULNERABLE" />);
+    expect(screen.getByText(/\[VULNERABLE\]/i)).toBeInTheDocument();
+
+    rerender(<FindingStateBadge state="POTENTIAL_MATCH" />);
+    expect(screen.getByText(/\[POTENTIAL MATCH\]/i)).toBeInTheDocument();
+
+    rerender(<FindingStateBadge state="EXPOSED" />);
+    expect(screen.getByText(/\[EXPOSED\]/i)).toBeInTheDocument();
+
+    rerender(<FindingStateBadge state="OPEN" />);
+    expect(screen.getByText(/\[OPEN\]/i)).toBeInTheDocument();
+
+    rerender(<FindingStateBadge state="NO_CONFIRMED_VULNERABILITY" />);
+    expect(screen.getByText(/\[CLEAN\]/i)).toBeInTheDocument();
+  });
+
+  it("27. DeviceSecurityProfileSection renders deterministic score, level, and defensive notice", () => {
+    const dev = mockDevice({
+      device_security_score: 0.75,
+    });
+
+    render(<DeviceSecurityProfileSection device={dev} />);
+
+    expect(screen.getByText(/Unified Device Security Profile/i)).toBeInTheDocument();
+    expect(screen.getByText("75%")).toBeInTheDocument();
+    expect(screen.getByText(/\[HIGH RISK\]/i)).toBeInTheDocument();
+    expect(screen.getByText(/0.750 \/ 1.000/i)).toBeInTheDocument();
+    expect(screen.getByText(/Defensive Verification Notice:/i)).toBeInTheDocument();
+  });
+
+  it("28. DeviceSecurityProfileSection returns null when score is not present", () => {
+    const dev = mockDevice({
+      device_security_score: null,
+    });
+
+    const { container } = render(<DeviceSecurityProfileSection device={dev} />);
+    expect(container.firstChild).toBeNull();
+  });
+
+  it("29. AiSecurityStateSection renders detection verdict, confidence, attack category, and forecast", () => {
+    const dev = mockDevice({
+      ai_tracking_active: true,
+      ai_tracking_session_id: "test-session-12345",
+      ai_detection: {
+        verdict: "SUSPICIOUS",
+        confidence: 0.88,
+        attack_category: "PortScan",
+        signals: ["syn_flood_pattern", "high_flow_rate"],
+      },
+      ai_forecast: {
+        is_available: true,
+        status: "ACTIVE",
+        composite_risk_level: "HIGH",
+        composite_risk_score: 0.82,
+        risk_formula: "Score = 0.40 * Detection + 0.45 * Max(Forecast_i * Conf_i) + 0.15 * GraphDynamics",
+        model_used: "FusionForecaster",
+        horizon_steps: [
+          {
+            step: "T+1",
+            state: "LIKELY_ESCALATION",
+            probability: 0.78,
+            status_label: "PREDICTED",
+            contributing_signals: ["syn_rate"],
+          },
+        ],
+        mitre_attack: {
+          tactic: "Impact",
+          tactic_id: "TA0040",
+          technique: "Network Denial of Service",
+          technique_id: "T1498",
+          confidence: 0.85,
+        },
+      },
+    });
+
+    render(<AiSecurityStateSection device={dev} />);
+
+    expect(screen.getByText(/AI Security State — Real-Time Inference & Progression/i)).toBeInTheDocument();
+    expect(screen.getByText(/\[TRACKING ACTIVE\]/i)).toBeInTheDocument();
+    expect(screen.getByText(/test-session-12345/i)).toBeInTheDocument();
+    expect(screen.getByText(/\[SUSPICIOUS\]/i)).toBeInTheDocument();
+    expect(screen.getByText(/88%/i)).toBeInTheDocument();
+    expect(screen.getByText("PortScan")).toBeInTheDocument();
+    expect(screen.getByText("syn_flood_pattern")).toBeInTheDocument();
+    expect(screen.getByText("high_flow_rate")).toBeInTheDocument();
+    expect(screen.getByText(/Progression Forecast/i)).toBeInTheDocument();
+    expect(screen.getByText("LIKELY ESCALATION")).toBeInTheDocument();
+    expect(screen.getByText(/TA0040/i)).toBeInTheDocument();
+  });
+
+  it("30. AiSecurityStateSection returns null when no AI tracking or state exists", () => {
+    const dev = mockDevice({
+      ai_tracking_active: false,
+      ai_detection: null,
+      ai_forecast: null,
+    });
+
+    const { container } = render(<AiSecurityStateSection device={dev} />);
+    expect(container.firstChild).toBeNull();
   });
 });
 

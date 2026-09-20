@@ -39,14 +39,22 @@ export function RemediationConsole() {
   const toast = useToast();
   const [kind, setKind] = useState("shell");
 
-  // load the finding context via the findings list (filtered client-side)
+  // load the finding context via direct lookup or findings list
   const findingQ = useQuery({
     queryKey: ["finding", findingId],
     queryFn: async () => {
+      if (!findingId) return null;
+      try {
+        const direct = await api.getFinding(findingId);
+        if (direct) return direct;
+      } catch {
+        // Fallback to client-side list filtering
+      }
       const all = await api.findings();
       return all.find((f) => f.id === findingId) ?? null;
     },
   });
+
 
   const gen = useMutation({
     mutationFn: (regenerate: boolean) => api.remediate(findingId!, kind, regenerate),
@@ -220,10 +228,26 @@ function FindingContext({ finding: f }: { finding: Finding }) {
     <div className="space-y-4">
       <div className="rounded border border-hairline bg-surface-1/80 p-5 shadow-sm space-y-4">
         <div>
-          <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-ink-muted">
-            TARGET FINDING SPECIFICATION
-          </span>
-          <h3 className="mt-1.5 font-sans text-sm font-bold leading-snug text-ink-primary">
+          <div className="flex flex-wrap items-center gap-2 mb-1.5">
+            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-ink-muted">
+              TARGET FINDING SPECIFICATION
+            </span>
+            {f.source === "endpoint" ? (
+              <span className="rounded border border-cyan-500/40 bg-cyan-500/10 px-2 py-0.5 text-[9px] font-mono font-bold text-cyan-400">
+                [ENDPOINT SOFTWARE]
+              </span>
+            ) : (
+              <span className="rounded border border-hairline bg-surface-2 px-2 py-0.5 text-[9px] font-mono font-bold text-ink-muted">
+                [NETWORK SCAN]
+              </span>
+            )}
+            {f.in_kev && (
+              <span className="rounded border border-red-500/40 bg-red-500/10 px-2 py-0.5 text-[9px] font-mono font-bold text-red-400 animate-pulse">
+                🚨 KNOWN EXPLOITED — CISA KEV
+              </span>
+            )}
+          </div>
+          <h3 className="font-sans text-sm font-bold leading-snug text-ink-primary">
             {f.title}
           </h3>
           <div className="mt-2.5 flex items-center gap-2">
@@ -233,12 +257,18 @@ function FindingContext({ finding: f }: { finding: Finding }) {
         </div>
 
         <div className="space-y-2.5 border-t border-b border-hairline py-3.5">
+          <DefRow label="Evidence Source" value={f.source === "endpoint" ? "Endpoint Telemetry (Software Inventory)" : "Network DeepScan / Nmap Banner"} mono />
+          {f.observed_product && <DefRow label="Affected Product" value={f.observed_product} mono />}
+          {f.observed_version && <DefRow label="Observed Version" value={f.observed_version} mono />}
           <DefRow label="CVE Identifier" value={f.cve_id ?? "N/A (Architecture / ACL Flaw)"} mono />
+          <DefRow label="Fixed Version" value={f.fixed_version ?? "<patched-version>"} mono />
+          <DefRow label="KEV State" value={f.in_kev ? "YES (CISA KEV Listed)" : "NO"} mono />
           <DefRow label="Target Host" value={f.asset_hostname ?? f.asset_ip} mono />
           <DefRow label="Host IP Address" value={f.asset_ip} mono />
-          <DefRow label="Exposed Port" value={f.service_port ? String(f.service_port) : "All Ingress / Egress Ports"} mono />
+          <DefRow label="Exposed Port" value={f.service_port ? String(f.service_port) : (f.source === "endpoint" ? "Local Host Process / Package" : "All Ingress / Egress Ports")} mono />
           <DefRow label="Finding Status" value={f.status.toUpperCase()} mono />
         </div>
+
 
         {f.description && (
           <div className="rounded bg-surface-2/60 p-3.5 text-xs leading-relaxed text-ink-secondary border-l-2 border-accent-500 space-y-1">

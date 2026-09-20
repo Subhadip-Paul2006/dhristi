@@ -221,7 +221,9 @@ export const api = {
   assets: (query = "") => get<AssetSummary[]>(`/api/assets${query}`),
   asset: (id: string) => get<AssetDetail>(`/api/assets/${id}`),
   findings: (query = "") => get<Finding[]>(`/api/findings${query}`),
+  getFinding: (id: string) => get<Finding>(`/api/findings/${id}`),
   patchFinding: (id: string, status: string) =>
+
     patch<Finding>(`/api/findings/${id}`, { status }),
   remediate: (finding_id: string, preferred_kind: string, regenerate = false) =>
     post<Remediation>("/api/ai/remediate", { finding_id, preferred_kind, regenerate }),

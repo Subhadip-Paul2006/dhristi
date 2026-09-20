@@ -138,7 +138,14 @@ export interface Finding {
   asset_ip: string;
   service_port: number | null;
   detected_at: string | null;
+  source?: "network" | "endpoint";
+  observed_product?: string | null;
+  observed_version?: string | null;
+  fixed_version?: string | null;
+  in_kev?: boolean;
+  finding_state?: string | null;
 }
+
 export interface AssetDetail extends AssetSummary {
   os: string | null;
   services: ServiceOut[];
@@ -454,6 +461,40 @@ export interface NetworkDevice {
   browser_processes?: ActivityItem[];
   endpoint_services?: ActivityItem[];
   is_telemetry_stale?: boolean;
+  // Phase 04 — Unified Device Security Profile
+  ai_detection?: CurrentBehaviour | null;
+  ai_forecast?: ForecastResult | null;
+  ai_tracking_active?: boolean;
+  ai_tracking_session_id?: string | null;
+  device_security_score?: number | null;
+  endpoint_vuln_findings?: EndpointFindingOut[];
+  aiDetection?: CurrentBehaviour | null;
+  aiForecast?: ForecastResult | null;
+  aiTrackingActive?: boolean;
+  deviceSecurityScore?: number | null;
+  endpointVulnFindings?: EndpointFindingOut[];
+}
+
+export type EndpointFinding = EndpointFindingOut;
+export interface EndpointFindingOut {
+  finding_id: string;
+  finding_state: "OPEN" | "EXPOSED" | "POTENTIAL_MATCH" | "VULNERABLE" | "KNOWN_EXPLOITED" | "NO_CONFIRMED_VULNERABILITY" | string;
+  evidence_source: "endpoint_software" | "network_service" | string;
+  observed_product: string;
+  observed_version?: string | null;
+  cve_id?: string | null;
+  title?: string | null;
+  summary?: string | null;
+  cvss: number;
+  severity: string;
+  in_kev: boolean;
+  kev_date_added?: string | null;
+  ghsa_ids: string[];
+  affected_range_text?: string | null;
+  fixed_version_text?: string | null;
+  intel_sources: string[];
+  source_freshness: string;
+  source_status_reason?: string | null;
 }
 
 // One network known to exist (whether or not it's been inventoried). The gap

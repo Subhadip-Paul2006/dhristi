@@ -34,6 +34,7 @@ import {
   Compass,
   Terminal,
   Trash2,
+  TrendingUp,
   Waypoints,
   X,
   Zap,
@@ -909,11 +910,32 @@ function DevicesSection() {
                   </div>
 
                   <div className="mt-1.5 flex items-center justify-between gap-1">
-                    <VulnBadge d={d} />
+                    <div className="flex items-center gap-1">
+                      <VulnBadge d={d} />
+                      {(d.device_security_score ?? d.deviceSecurityScore) != null && (
+                        <span
+                          className="rounded-sm px-1.5 py-0.5 text-[9px] font-bold font-mono"
+                          style={{
+                            backgroundColor: (d.device_security_score ?? d.deviceSecurityScore)! >= 0.7 ? "#ef444422" : (d.device_security_score ?? d.deviceSecurityScore)! >= 0.4 ? "#f59e0b22" : "#10b98122",
+                            color: (d.device_security_score ?? d.deviceSecurityScore)! >= 0.7 ? "#ef4444" : (d.device_security_score ?? d.deviceSecurityScore)! >= 0.4 ? "#f59e0b" : "#10b981",
+                          }}
+                          title={`Unified Deterministic Score: ${Math.round((d.device_security_score ?? d.deviceSecurityScore)! * 100)}% (Risk Signal Composite)`}
+                        >
+                          SCORE: {Math.round((d.device_security_score ?? d.deviceSecurityScore)! * 100)}%
+                        </span>
+                      )}
+                    </div>
                     <span className="font-mono text-[9px] text-ink-muted uppercase">
                       {formatObservationSource(d.observation_source)}
                     </span>
                   </div>
+                  {(d.ai_tracking_active ?? d.aiTrackingActive) && (
+                    <div className="mt-1 flex items-center gap-1 font-mono text-[8.5px]">
+                      <span className="inline-flex items-center gap-1 rounded bg-cyan-500/10 border border-cyan-500/30 px-1.5 py-0.5 font-bold text-cyan-400 animate-pulse">
+                        <Radio className="h-2 w-2" /> AI LIVE: {d.ai_detection?.verdict ?? d.aiDetection?.verdict ?? "ACTIVE"}
+                      </span>
+                    </div>
+                  )}
 
                   {/* ── Compact Presence & Last Observed (Section 10) ──────── */}
                   <div className="mt-2 grid grid-cols-2 gap-1.5 rounded border border-hairline/60 bg-surface-1/60 px-2 py-1.5 font-mono text-[10px]">
@@ -1268,6 +1290,260 @@ export function CapabilityBadge({ state, device: d }: { state?: string; device?:
     <span className={`rounded-sm border px-2 py-0.5 font-mono text-[10px] font-bold ${color}`}>
       [{cap}]
     </span>
+  );
+}
+
+export function FindingStateBadge({ state, inKev }: { state: string; inKev?: boolean }) {
+  if (inKev || state === "KNOWN_EXPLOITED") {
+    return (
+      <span
+        className="rounded border border-rose-500 bg-rose-500/20 px-1.5 py-0.5 text-[8.5px] font-bold text-rose-300 flex items-center gap-1"
+        title="Known Exploited Vulnerability (CISA KEV). Note: CISA KEV indicates active in-the-wild exploitation, NOT proof this device was compromised."
+      >
+        <span className="inline-block w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse" />
+        [KNOWN EXPLOITED]
+      </span>
+    );
+  }
+  if (state === "VULNERABLE") {
+    return (
+      <span
+        className="rounded border border-rose-500/40 bg-rose-500/10 px-1.5 py-0.5 text-[8.5px] font-bold text-rose-400"
+        title="Confirmed version match against vulnerability database."
+      >
+        [VULNERABLE]
+      </span>
+    );
+  }
+  if (state === "POTENTIAL_MATCH") {
+    return (
+      <span
+        className="rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[8.5px] font-bold text-amber-400"
+        title="Potential match — product match confirmed but version unverified or partially matched."
+      >
+        [POTENTIAL MATCH]
+      </span>
+    );
+  }
+  if (state === "EXPOSED") {
+    return (
+      <span
+        className="rounded border border-purple-500/40 bg-purple-500/10 px-1.5 py-0.5 text-[8.5px] font-bold text-purple-300"
+        title="High-risk network service exposed on open port."
+      >
+        [EXPOSED]
+      </span>
+    );
+  }
+  if (state === "OPEN") {
+    return (
+      <span
+        className="rounded border border-sky-500/40 bg-sky-500/10 px-1.5 py-0.5 text-[8.5px] font-bold text-sky-400"
+        title="Port or service observed open."
+      >
+        [OPEN]
+      </span>
+    );
+  }
+  return (
+    <span
+      className="rounded border border-emerald-500/40 bg-emerald-500/10 px-1.5 py-0.5 text-[8.5px] font-bold text-emerald-400"
+      title="Tested against vulnerability intelligence — no confirmed vulnerability."
+    >
+      [CLEAN]
+    </span>
+  );
+}
+
+export function DeviceSecurityProfileSection({ device: d }: { device: NetworkDevice }) {
+  const score = d.device_security_score ?? d.deviceSecurityScore;
+  if (score == null) return null;
+
+  const pct = Math.round(score * 100);
+  const isHigh = score >= 0.7;
+  const isMed = score >= 0.4 && score < 0.7;
+  const levelLabel = isHigh ? "HIGH RISK" : isMed ? "ELEVATED RISK" : "NORMAL / LOW RISK";
+  const badgeColor = isHigh
+    ? "border-rose-500/50 bg-rose-500/10 text-rose-400"
+    : isMed
+    ? "border-amber-500/50 bg-amber-500/10 text-amber-400"
+    : "border-emerald-500/50 bg-emerald-500/10 text-emerald-400";
+  const meterColor = isHigh ? "bg-rose-500" : isMed ? "bg-amber-500" : "bg-emerald-500";
+
+  return (
+    <div className="mt-4 rounded-lg border border-accent-500/25 bg-surface-2/90 p-3.5 backdrop-blur-xs space-y-3">
+      <div className="flex items-center justify-between border-b border-hairline/50 pb-2">
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-accent-400 font-mono flex items-center gap-1.5">
+          <ShieldAlert className="h-3.5 w-3.5 text-accent-400" />
+          Unified Device Security Profile
+        </span>
+        <span className={`rounded border px-2 py-0.5 font-mono text-[9px] font-bold ${badgeColor}`}>
+          [{levelLabel}]
+        </span>
+      </div>
+
+      <div className="flex items-center gap-4">
+        <div className="flex flex-col items-center justify-center rounded-lg border border-hairline bg-surface-1 p-3 text-center min-w-[90px]">
+          <span className="font-mono text-2xl font-black text-ink">{pct}%</span>
+          <span className="text-[9px] font-mono text-ink-muted uppercase">Risk Score</span>
+        </div>
+
+        <div className="flex-1 space-y-1.5">
+          <div className="flex items-center justify-between text-[10px] font-mono">
+            <span className="text-ink-secondary font-medium">Composite Risk Signal</span>
+            <span className="text-ink-muted">{score.toFixed(3)} / 1.000</span>
+          </div>
+          <div className="h-2 w-full overflow-hidden rounded-full bg-surface-3">
+            <div className={`h-full ${meterColor} transition-all duration-500`} style={{ width: `${Math.min(100, pct)}%` }} />
+          </div>
+          <div className="text-[9.5px] text-ink-muted leading-tight">
+            Deterministic formula weighting: Max CVE CVSS (35%), Finding States (20%), CISA KEV (15%), Network Exposure (15%), AI Traffic Signal (15%).
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded border border-dashed border-hairline/70 bg-surface-1/50 px-2.5 py-1.5 text-[9.5px] text-ink-muted leading-relaxed">
+        <span className="font-semibold text-ink-secondary">Defensive Verification Notice:</span> This score reflects evaluated risk signals. AI confidence and CISA KEV catalog presence are risk-weight factors and do not constitute evidence of device breach.
+      </div>
+    </div>
+  );
+}
+
+export function AiSecurityStateSection({ device: d }: { device: NetworkDevice }) {
+  const isTracking = d.ai_tracking_active ?? d.aiTrackingActive;
+  const det = d.ai_detection ?? d.aiDetection;
+  const fc = d.ai_forecast ?? d.aiForecast;
+  const sessionId = d.ai_tracking_session_id;
+
+  if (!isTracking && !det && !fc) return null;
+
+  const verdict = det?.verdict ?? "INSUFFICIENT_DATA";
+  const isAnom = verdict === "ANOMALOUS";
+  const isSusp = verdict === "SUSPICIOUS";
+  const isNorm = verdict === "NORMAL";
+
+  const verdictBadgeColor = isAnom
+    ? "border-rose-500/50 bg-rose-500/20 text-rose-300"
+    : isSusp
+    ? "border-amber-500/50 bg-amber-500/20 text-amber-300"
+    : isNorm
+    ? "border-emerald-500/50 bg-emerald-500/20 text-emerald-300"
+    : "border-neutral-500/50 bg-neutral-500/20 text-neutral-400";
+
+  return (
+    <div className="mt-4 rounded-lg border border-cyan-500/30 bg-surface-2/90 p-3.5 backdrop-blur-xs space-y-3">
+      <div className="flex items-center justify-between border-b border-hairline/50 pb-2">
+        <div className="flex items-center gap-1.5">
+          <Radio className="h-3.5 w-3.5 text-cyan-400 animate-pulse" />
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-cyan-400 font-mono">
+            AI Security State — Real-Time Inference &amp; Progression
+          </span>
+        </div>
+        <span className="rounded border border-cyan-500/40 bg-cyan-500/10 px-1.5 py-0.5 font-mono text-[9px] font-bold text-cyan-400">
+          [TRACKING ACTIVE]
+        </span>
+      </div>
+
+      {sessionId && (
+        <div className="text-[9.5px] font-mono text-ink-muted">
+          Session: <span className="text-ink-secondary">{sessionId}</span>
+        </div>
+      )}
+
+      {/* ── CURRENT DETECTION ── */}
+      {det && (
+        <div className="rounded border border-hairline bg-surface-1 p-2.5 space-y-1.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-ink-secondary font-mono">
+                Current Behaviour
+              </span>
+              <span className={`rounded border px-1.5 py-0.2 font-mono text-[9px] font-bold ${verdictBadgeColor}`}>
+                [{verdict}]
+              </span>
+            </div>
+            <span className="font-mono text-[9.5px] text-ink-muted">
+              Confidence: {Math.round((det.confidence ?? 0) * 100)}%
+            </span>
+          </div>
+
+          <div className="text-[10px] text-ink-muted flex items-center gap-2 font-mono">
+            <span>Category: <strong className="text-ink">{det.attack_category || "None"}</strong></span>
+            <span className="text-ink-muted">|</span>
+            <span className="text-[9px] italic text-ink-muted">
+              Current Detection (Heuristic / ML signal — not confirmed breach)
+            </span>
+          </div>
+
+          {det.signals && det.signals.length > 0 && (
+            <div className="flex flex-wrap gap-1 pt-1">
+              {det.signals.map((sig, i) => (
+                <span key={i} className="rounded bg-surface-3 px-1.5 py-0.5 font-mono text-[8.5px] text-accent-300 border border-hairline/60">
+                  {sig}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── FUTURE PROGRESSION FORECAST ── */}
+      {fc && (
+        <div className="rounded border border-hairline bg-surface-1 p-2.5 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-purple-400 font-mono flex items-center gap-1">
+              <TrendingUp className="h-3 w-3 text-purple-400" />
+              Progression Forecast (Probabilistic Horizon)
+            </span>
+            <span className={`rounded border px-1.5 py-0.2 font-mono text-[8.5px] font-bold ${
+              fc.composite_risk_level === "CRITICAL"
+                ? "border-rose-500/40 bg-rose-500/10 text-rose-400"
+                : fc.composite_risk_level === "HIGH"
+                ? "border-amber-500/40 bg-amber-500/10 text-amber-400"
+                : "border-emerald-500/40 bg-emerald-500/10 text-emerald-400"
+            }`}>
+              [{fc.composite_risk_level || "LOW"}]
+            </span>
+          </div>
+
+          {fc.is_available && fc.horizon_steps && fc.horizon_steps.length > 0 ? (
+            <div className="space-y-1.5">
+              <div className="grid grid-cols-3 gap-1.5 font-mono text-[9px]">
+                {fc.horizon_steps.map((step, idx) => (
+                  <div key={idx} className="rounded border border-hairline bg-surface-2 p-1.5 space-y-0.5">
+                    <div className="flex items-center justify-between text-ink-muted">
+                      <span className="font-bold text-accent-400">{step.step}</span>
+                      <span>{Math.round((step.probability ?? 0) * 100)}%</span>
+                    </div>
+                    <div className="truncate font-medium text-ink" title={step.state}>
+                      {step.state.replace(/_/g, " ")}
+                    </div>
+                    <div className="text-[8px] text-ink-muted">
+                      [{step.status_label || "PREDICTED"}]
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {fc.mitre_attack && (
+                <div className="rounded border border-hairline/60 bg-surface-2/60 px-2 py-1 text-[9.5px] font-mono flex items-center justify-between">
+                  <span className="text-ink-secondary truncate">
+                    MITRE: <strong>{fc.mitre_attack.tactic}</strong> ({fc.mitre_attack.tactic_id}) → {fc.mitre_attack.technique}
+                  </span>
+                  <span className="text-ink-muted shrink-0 ml-1">
+                    {Math.round((fc.mitre_attack.confidence ?? 0) * 100)}% conf
+                  </span>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-[9.5px] font-mono text-ink-muted italic">
+              {fc.status || "Forecast unavailable — accumulating traffic context"}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -1938,6 +2214,12 @@ function DeviceDetail({
         {/* ── LIVE ACTIVITY (Running Apps, Active Browser Tabs, Network Destinations) ── */}
         <LiveActivitySection device={d} threatMap={threatMap} />
 
+        {/* ── UNIFIED DEVICE SECURITY PROFILE (Phase 04) ── */}
+        <DeviceSecurityProfileSection device={d} />
+
+        {/* ── AI SECURITY STATE (Phase 04) ── */}
+        <AiSecurityStateSection device={d} />
+
         {/* ── Network Exposure & Port Intelligence (DeepScan / Nmap Evidence) ── */}
         {((d.services && d.services.length > 0) || (d.open_ports && d.open_ports.length > 0) || (d.security_findings && d.security_findings.length > 0)) && (
           <div className="mt-4 rounded-lg border border-purple-500/20 bg-surface-2/80 p-3.5 backdrop-blur-xs space-y-2.5">
@@ -2036,32 +2318,37 @@ function DeviceDetail({
 
             {/* Correlated Findings List */}
             {(() => {
-              const findings: CorrelatedFindingOut[] = vulnQuery.data?.findings?.length ? vulnQuery.data.findings : (d.cves || []).map((c) => ({
-                finding_id: c.finding_id || c.id,
-                device_id: d.id,
-                org_id: "",
-                finding_state: c.finding_state || (c.in_kev ? "KNOWN_EXPLOITED" : "VULNERABLE"),
-                observed_product: c.affected_service,
-                observed_vendor: null,
-                observed_version: null,
-                evidence_source: c.source || "network_service",
+              const findings: CorrelatedFindingOut[] = vulnQuery.data?.findings?.length
+                ? vulnQuery.data.findings
+                : (d.endpoint_vuln_findings && d.endpoint_vuln_findings.length > 0)
+                ? (d.endpoint_vuln_findings as unknown as CorrelatedFindingOut[])
+                : (d.cves || []).map((c) => ({
+                    finding_id: c.finding_id || c.id,
+                    device_id: d.id,
+                    org_id: "",
+                    finding_state: c.finding_state || (c.in_kev ? "KNOWN_EXPLOITED" : "VULNERABLE"),
+                    observed_product: c.affected_service,
+                    observed_vendor: null,
+                    observed_version: null,
+                    evidence_source: c.source || "network_service",
+                    evidence_type: c.evidence_type || "CVE_CORRELATION",
+                    cve_id: c.id,
+                    cvss: c.cvss,
+                    severity: c.severity,
+                    in_kev: Boolean(c.in_kev),
+                    ghsa_ids: c.ghsa_ids || [],
+                    affected_range_text: c.affected_range_text,
+                    fixed_version_text: c.fixed_version_text,
+                    summary: c.summary,
+                    intel_sources: c.intel_sources || ["nvd"],
+                    source_freshness: c.source_freshness || "live",
+                    source_status_reason: c.source_status_reason,
+                    source_details: {},
+                  }));
 
-                evidence_type: c.evidence_type || "CVE_CORRELATION",
-                cve_id: c.id,
-                cvss: c.cvss,
-                severity: c.severity,
-                in_kev: Boolean(c.in_kev),
-                ghsa_ids: c.ghsa_ids || [],
-                affected_range_text: c.affected_range_text,
-                fixed_version_text: c.fixed_version_text,
-                summary: c.summary,
-                intel_sources: c.intel_sources || ["nvd"],
-                source_freshness: c.source_freshness || "live",
-                source_status_reason: c.source_status_reason,
-                source_details: {},
-              }));
-
-              const verifiedVulns = findings.filter((f) => ["VULNERABLE", "KNOWN_EXPLOITED", "POTENTIAL_MATCH"].includes(f.finding_state));
+              const verifiedVulns = findings.filter((f) =>
+                ["VULNERABLE", "KNOWN_EXPLOITED", "POTENTIAL_MATCH", "EXPOSED"].includes(f.finding_state)
+              );
 
               if (verifiedVulns.length === 0) {
                 return (
@@ -2082,6 +2369,7 @@ function DeviceDetail({
                   {verifiedVulns.map((f) => {
                     const isKev = f.in_kev || f.finding_state === "KNOWN_EXPLOITED";
                     const isVuln = f.finding_state === "VULNERABLE";
+                    const isExposed = f.finding_state === "EXPOSED";
                     return (
                       <div
                         key={f.finding_id || f.cve_id}
@@ -2090,6 +2378,8 @@ function DeviceDetail({
                             ? "border-rose-500/50 bg-rose-500/10"
                             : isVuln
                             ? "border-amber-500/40 bg-surface-3"
+                            : isExposed
+                            ? "border-purple-500/40 bg-purple-500/10"
                             : "border-hairline/60 bg-surface-3"
                         }`}
                       >
@@ -2108,23 +2398,7 @@ function DeviceDetail({
                           </div>
 
                           <div className="flex items-center gap-1 shrink-0">
-                            {isKev ? (
-                              <span
-                                className="rounded border border-rose-500 bg-rose-500/20 px-1.5 py-0.5 text-[8.5px] font-bold text-rose-300 flex items-center gap-1"
-                                title="Known Exploited Vulnerability cataloged by CISA (In the wild). Does NOT imply this specific endpoint was compromised."
-                              >
-                                <span className="inline-block w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse" />
-                                [KNOWN EXPLOITED]
-                              </span>
-                            ) : isVuln ? (
-                              <span className="rounded border border-rose-500/40 bg-rose-500/10 px-1.5 py-0.5 text-[8.5px] font-bold text-rose-400">
-                                [VULNERABLE]
-                              </span>
-                            ) : (
-                              <span className="rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[8.5px] font-bold text-amber-400">
-                                [POTENTIAL MATCH]
-                              </span>
-                            )}
+                            <FindingStateBadge state={f.finding_state} inKev={f.in_kev} />
                           </div>
                         </div>
 
