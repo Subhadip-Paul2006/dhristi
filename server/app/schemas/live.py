@@ -221,6 +221,36 @@ class DeviceBatch(BaseModel):
     active_subnets: list[str] | None = None
 
 
+class EndpointFindingOut(BaseModel):
+    """Phase 04 — all Phase 03 CorrelatedFinding states surfaced to the device profile.
+
+    All six finding states are exposed:
+        OPEN | EXPOSED | POTENTIAL_MATCH | VULNERABLE | KNOWN_EXPLOITED | NO_CONFIRMED_VULNERABILITY
+
+    Labels:
+        ai_detection and ai_forecast on the parent NetworkDeviceOut are CURRENT
+        DETECTION / FORECAST — never "confirmed attack" or "device compromised".
+    """
+    finding_id: str
+    finding_state: str          # one of the six FindingState values
+    evidence_source: str        # endpoint_software | network_service
+    observed_product: str
+    observed_version: str | None = None
+    cve_id: str | None = None
+    title: str | None = None
+    summary: str | None = None
+    cvss: float = 0.0
+    severity: str = "none"
+    in_kev: bool = False        # KEV = known-exploited-in-wild; NOT proof device was exploited
+    kev_date_added: str | None = None
+    ghsa_ids: list[str] = Field(default_factory=list)
+    affected_range_text: str | None = None
+    fixed_version_text: str | None = None
+    intel_sources: list[str] = Field(default_factory=list)
+    source_freshness: str = "live"  # live | cached | stale | source_unavailable
+    source_status_reason: str | None = None
+
+
 class NetworkDeviceOut(BaseModel):
     id: str
     ip: str
@@ -281,6 +311,20 @@ class NetworkDeviceOut(BaseModel):
     browser_processes: list[ActivityItem] = []
     endpoint_services: list[ActivityItem] = []
     is_telemetry_stale: bool = False
+    # Phase 04 — Unified Device Security Profile (all optional, backward-compatible)
+    # AI state: only populated when an active tracking session exists for this device.
+    # CURRENT DETECTION and FORECAST are distinct from confirmed attack status.
+    ai_detection: Any | None = None         # CurrentBehaviourOut — CURRENT DETECTION signal
+    ai_forecast: Any | None = None          # ForecastResultOut  — FORECAST signal (probabilistic)
+    ai_tracking_active: bool = False        # True only when a LIVE tracking session exists
+    ai_tracking_session_id: str | None = None
+    # Unified risk-signal score: 0.0 (no signals) – 1.0 (maximum signals).
+    # This is a risk-signal score, NOT a compromise score or confirmed-attack indicator.
+    device_security_score: float | None = None
+    # All Phase 03 finding states — OPEN | EXPOSED | POTENTIAL_MATCH | VULNERABLE |
+    # KNOWN_EXPLOITED | NO_CONFIRMED_VULNERABILITY — exposed separately so the UI
+    # can distinguish them correctly.
+    endpoint_vuln_findings: list[EndpointFindingOut] = []
 
 
 

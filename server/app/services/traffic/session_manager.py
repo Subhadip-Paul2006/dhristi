@@ -16,6 +16,7 @@ from app.models.base import utcnow
 from app.models.tracking import LiveTrackingSession
 from app.schemas.tracking import (
     CurrentBehaviourOut,
+    ForecastResultOut,
     LiveTrafficMetrics,
     ProtocolBreakdown,
     TopDestinationItem,
@@ -60,6 +61,13 @@ class ActiveTrackingSession:
         self.capture_source = capture_source
         self.status_message: str | None = None
         self.previous_features: dict[str, float] | None = None
+
+        # Phase 04: cache latest detection + forecast so list_devices() can read
+        # them without triggering a new inference pass. These are set inside
+        # get_results() and are always CURRENT DETECTION / FORECAST labels —
+        # never confirmed attack status.
+        self.last_detection: CurrentBehaviourOut | None = None
+        self.last_forecast: ForecastResultOut | None = None
 
         self.aggregator = FlowAggregator(target_ip=self.target_ip, device_id=device_id, session_id=session_id)
         self.window_engine = TimeWindowEngine(target_device_id=device_id, target_ip=self.target_ip)
@@ -197,6 +205,19 @@ class SessionManager:
             byte_count=row.byte_count,
         )
 
+    def get_active_session_for_device(
+        self, org_id: str, device_id: str
+    ) -> "ActiveTrackingSession | None":
+        """Phase 04: return the active tracking session for a device if one exists.
+
+        Strictly device + org scoped — never returns another org's session.
+        Returns None if no active LIVE session exists for this device.
+        """
+        for session in self._active_sessions.values():
+            if session.org_id == org_id and session.device_id == device_id and session.status == "LIVE":
+                return session
+        return None
+
     def get_session(self, db: Session, org_id: str, session_id: str) -> TrackingSessionOut:
         active = self._active_sessions.get(session_id)
         if active and active.org_id == org_id:
@@ -299,6 +320,12 @@ class SessionManager:
         )
         active.previous_features = dict(features)
 
+        # Phase 04: persist latest detection and forecast so device profile
+        # can include AI state without re-running inference on every poll.
+        # These are labeled CURRENT DETECTION / FORECAST — not confirmed attack.
+        active.last_detection = current_behaviour
+        active.last_forecast = forecast
+
         # Check truthful capture status & network visibility
         now = time.time()
         elapsed = now - active.started_at.timestamp()
@@ -399,3 +426,4 @@ class SessionManager:
 
 # Global singleton manager instance
 tracking_manager = SessionManager()
+session_manager = tracking_manager

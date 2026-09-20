@@ -29,6 +29,10 @@ class RemediationOut(BaseModel):
     # Surfaced in the UI as an input→output "what the AI saw" inspector so the
     # fix is verifiably grounded in real data, never invented.
     context: dict | None = None
+    remediation_state: str = "REMEDIATION_AVAILABLE"
+    source: str = "network"
+    in_kev: bool = False
+
 
 
 class ImpactRequest(BaseModel):

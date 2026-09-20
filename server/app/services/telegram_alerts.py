@@ -152,20 +152,55 @@ def _ist_timestamp(dt: datetime | None = None) -> str:
     return ist_dt.strftime("%d-%b-%Y %I:%M:%S %p IST")
 
 
+def make_finding_fingerprint(
+    org_id: str,
+    device_id: str,
+    cve_or_finding_id: str,
+    observed_version: str | None,
+    severity: str,
+    in_kev: bool = False,
+) -> tuple[str, str, str, str, str, bool]:
+    """Deterministic factual fingerprint for vulnerability alert deduplication:
+    (org_id, device_id, cve_or_finding_id, observed_version, severity, in_kev).
+    """
+    return (
+        str(org_id),
+        str(device_id),
+        str(cve_or_finding_id),
+        str(observed_version or "unknown").strip().lower(),
+        str(severity).strip().lower(),
+        bool(in_kev),
+    )
+
+
+def clear_alerted_cache() -> None:
+    """Clear deduplication cache (used for test isolation)."""
+    global _alerted, _initial_scan_done
+    _alerted.clear()
+    _initial_scan_done = False
+
+
+def get_alerted_count() -> int:
+    return len(_alerted)
+
+
 def _format_finding_alert(f) -> tuple[str, str]:
-    """Returns (html_message, plain_text_fallback)."""
+    """Returns (html_message, plain_text_fallback) for database AssetVulnerability."""
     sev = f.vulnerability.severity.upper() if f.vulnerability and f.vulnerability.severity else "HIGH"
     title = f.vulnerability.title if f.vulnerability else "Unknown vulnerability"
     asset = f.asset.hostname if f.asset and f.asset.hostname else (f.asset.ip if f.asset else f.asset_id[:8])
+    asset_ip = f.asset.ip if f.asset and f.asset.ip else "Not available"
     cve = f.vulnerability.cve_id if f.vulnerability and f.vulnerability.cve_id else "N/A"
     detected_time = _ist_timestamp(getattr(f, "detected_at", None))
-    status_str = str(f.status)
+    status_str = str(f.status).upper()
 
     html_msg = (
         f"🚨 <b>[DRISHTI ALERT — {html.escape(sev)}]</b>\n"
         f"<b>{html.escape(title)}</b>\n\n"
-        f"• <b>Asset:</b> <code>{html.escape(asset)}</code>\n"
+        f"• <b>Device:</b> <code>{html.escape(asset)}</code>\n"
+        f"• <b>IP:</b> <code>{html.escape(asset_ip)}</code>\n"
         f"• <b>CVE:</b> <code>{html.escape(cve)}</code>\n"
+        f"• <b>Severity:</b> <code>{html.escape(sev)}</code>\n"
         f"• <b>Status:</b> <code>{html.escape(status_str)}</code>\n"
         f"• <b>Time:</b> <code>{html.escape(detected_time)}</code>\n\n"
         f"🛡️ <i>Drishti Cyber Threat Intelligence</i>"
@@ -174,11 +209,65 @@ def _format_finding_alert(f) -> tuple[str, str]:
     plain_msg = (
         f"[DRISHTI ALERT — {sev}]\n"
         f"{title}\n\n"
-        f"• Asset: {asset}\n"
+        f"• Device: {asset}\n"
+        f"• IP: {asset_ip}\n"
         f"• CVE: {cve}\n"
+        f"• Severity: {sev}\n"
         f"• Status: {status_str}\n"
         f"• Time: {detected_time}\n\n"
         f"Drishti Cyber Threat Intelligence"
+    )
+    return html_msg, plain_msg
+
+
+def _format_endpoint_finding_alert(c_finding, telemetry: dict) -> tuple[str, str]:
+    """Returns (html_message, plain_text_fallback) for endpoint CorrelatedFinding."""
+    sev = c_finding.severity.upper() if c_finding.severity else "HIGH"
+    title = c_finding.title or c_finding.summary or f"Vulnerability in {c_finding.observed_product}"
+    hostname = telemetry.get("hostname") or c_finding.device_id
+    ip = telemetry.get("ip") or c_finding.device_id
+    cve = c_finding.cve_id or "Not available"
+    prod = c_finding.observed_product or "unknown"
+    ver = c_finding.observed_version or "Not available"
+    fixed_ver = c_finding.fixed_version_text or "<patched-version>"
+    in_kev = bool(c_finding.in_kev)
+    kev_header_html = "🚨 <b>KNOWN EXPLOITED — CISA KEV</b>\n" if in_kev else ""
+    kev_header_plain = "🚨 KNOWN EXPLOITED — CISA KEV\n" if in_kev else ""
+    kev_label = "YES — Listed in CISA KEV" if in_kev else "NO"
+    detected_time = _ist_timestamp(None)
+
+    html_msg = (
+        f"🚨 <b>[DRISHTI SECURITY ALERT — {html.escape(sev)}]</b>\n"
+        f"{kev_header_html}"
+        f"<b>{html.escape(title)}</b>\n\n"
+        f"• <b>Device:</b> <code>{html.escape(hostname)}</code>\n"
+        f"• <b>IP:</b> <code>{html.escape(ip)}</code>\n"
+        f"• <b>Product:</b> <code>{html.escape(prod)}</code>\n"
+        f"• <b>Version:</b> <code>{html.escape(ver)}</code>\n"
+        f"• <b>CVE:</b> <code>{html.escape(cve)}</code>\n"
+        f"• <b>Severity:</b> <code>{html.escape(sev)}</code>\n"
+        f"• <b>Fixed Version:</b> <code>{html.escape(fixed_ver)}</code>\n"
+        f"• <b>KEV:</b> <code>{html.escape(kev_label)}</code>\n"
+        f"• <b>Status:</b> <code>REQUIRES REVIEW</code>\n"
+        f"• <b>Time:</b> <code>{html.escape(detected_time)}</code>\n\n"
+        f"🛡️ <i>Drishti Endpoint Intelligence</i>"
+    )
+
+    plain_msg = (
+        f"[DRISHTI SECURITY ALERT — {sev}]\n"
+        f"{kev_header_plain}"
+        f"{title}\n\n"
+        f"• Device: {hostname}\n"
+        f"• IP: {ip}\n"
+        f"• Product: {prod}\n"
+        f"• Version: {ver}\n"
+        f"• CVE: {cve}\n"
+        f"• Severity: {sev}\n"
+        f"• Fixed Version: {fixed_ver}\n"
+        f"• KEV: {kev_label}\n"
+        f"• Status: REQUIRES REVIEW\n"
+        f"• Time: {detected_time}\n\n"
+        f"Drishti Endpoint Intelligence"
     )
     return html_msg, plain_msg
 
@@ -213,121 +302,184 @@ def _format_threat_alert(t) -> tuple[str, str]:
 
 # — scan cycle —
 def _scan(db: Session, bot_token: str, chat_id_conf: str) -> None:
-    """One scan tick: query open high/critical findings + active threats,
+    """One scan tick: query open high/critical findings + endpoint findings + active threats,
     send Telegram alerts for anything new."""
     global _initial_scan_done
     org_ids: list[str] = [
         r[0] for r in db.execute(select(AssetVulnerability.org_id).distinct()).all()
     ]
+    # Also check any orgs present in endpoint telemetry
+    from app.services.endpoint_telemetry import _DEVICE_TELEMETRY_STORE, list_endpoint_findings_for_org
+
+    for (o_id, _) in list(_DEVICE_TELEMETRY_STORE.keys()):
+        if o_id not in org_ids:
+            org_ids.append(o_id)
+
     if not org_ids:
         return
 
     now = datetime.now(timezone.utc)
 
     for org_id in org_ids:
-        # 1. Open high / critical findings
-        findings = db.scalars(
-            select(AssetVulnerability)
-            .join(Vulnerability, AssetVulnerability.vulnerability_id == Vulnerability.id)
-            .where(
-                AssetVulnerability.org_id == org_id,
-                AssetVulnerability.status == "open",
-                Vulnerability.severity.in_(["high", "critical"]),
-            )
-            .order_by(AssetVulnerability.detected_at.desc())
-        ).all()
-
-        # On initial boot tick, mark pre-existing findings older than 15 mins
-        # as already acknowledged so dev server reloads don't blast 90+ old alerts
-        if not _initial_scan_done:
-            recent_cutoff = now - timedelta(minutes=15)
-            for f in findings:
-                f_time = f.detected_at.replace(tzinfo=timezone.utc) if f.detected_at and f.detected_at.tzinfo is None else f.detected_at
-                if f_time and f_time < recent_cutoff:
-                    _alerted.add(("finding", f.id))
-
-        for f in findings:
-            key = ("finding", f.id)
-            if key in _alerted:
-                continue
-            try:
-                html_msg, plain_msg = _format_finding_alert(f)
-                if _dispatch_alert(bot_token, chat_id_conf, html_msg, plain_msg):
-                    _alerted.add(key)
-            except Exception:
-                logger.exception("failed to alert finding %s", f.id)
-
-        # 2. Active network threats
-        since = now - timedelta(minutes=5)
-        rows = db.scalars(
-            select(NetworkDevice).where(
-                NetworkDevice.org_id == org_id,
-                NetworkDevice.last_seen >= since,
-            )
-        ).all()
-
-        from app.services.live import _deepscan_ports_by_ip, _scan_status
-
-        scanned_ips, _ = _scan_status(db, org_id)
-        ports_by_ip = _deepscan_ports_by_ip(db, org_id)
-
-        devices = []
-        for r in rows:
-            scanned = r.ip in scanned_ips or r.last_scanned_at is not None
-            devices.append(
-                DeviceView(
-                    ip=r.ip,
-                    mac=r.mac,
-                    hostname=r.hostname,
-                    is_gateway=r.is_gateway,
-                    is_self=r.is_self,
-                    online=r.online,
-                    first_seen=r.first_seen,
-                    last_seen=r.last_seen,
-                    scanned=scanned,
-                    vuln_count=None,
-                    worst_severity=None,
-                    open_ports=ports_by_ip.get(r.ip, []),
-                )
-            )
-
-        threat_rows = db.scalars(
-            select(LiveObservation).where(
-                LiveObservation.org_id == org_id,
-                LiveObservation.last_seen >= since,
-            )
-        ).all()
-        
-        domains = [
-            DomainView(
-                id=t.id,
-                domain=t.domain,
-                band=t.band,
-                score=float(t.score),
-                source_host=t.source_host,
-                reasons=(
-                    t.verdict_json.get("reasons", [])
-                    if isinstance(t.verdict_json, dict)
-                    else []
-                ),
-            )
-            for t in threat_rows
-        ]
-
-        threats = detect_threats(devices, domains, now)
-
-        for t in threats:
-            key = ("threat", t.id)
-            if key in _alerted:
-                continue
-            try:
-                html_msg, plain_msg = _format_threat_alert(t)
-                if _dispatch_alert(bot_token, chat_id_conf, html_msg, plain_msg):
-                    _alerted.add(key)
-            except Exception:
-                logger.exception("failed to alert threat %s", t.id)
+        _scan_org(db, org_id, bot_token, chat_id_conf, now)
 
     _initial_scan_done = True
+
+
+def _scan_org(db: Session, org_id: str, bot_token: str, chat_id_conf: str, now: datetime | None = None) -> None:
+    """Scan and dispatch alerts for a specific organization with factual deduplication."""
+    global _initial_scan_done
+    if now is None:
+        now = datetime.now(timezone.utc)
+
+    # 1. Open high / critical database findings
+    findings = db.scalars(
+        select(AssetVulnerability)
+        .join(Vulnerability, AssetVulnerability.vulnerability_id == Vulnerability.id)
+        .where(
+            AssetVulnerability.org_id == org_id,
+            AssetVulnerability.status == "open",
+            Vulnerability.severity.in_(["high", "critical"]),
+        )
+        .order_by(AssetVulnerability.detected_at.desc())
+    ).all()
+
+    # On initial boot tick, mark pre-existing findings older than 15 mins as acknowledged
+    if not _initial_scan_done:
+        recent_cutoff = now - timedelta(minutes=15)
+        for f in findings:
+            f_time = f.detected_at.replace(tzinfo=timezone.utc) if f.detected_at and f.detected_at.tzinfo is None else f.detected_at
+            if f_time and f_time < recent_cutoff:
+                dev = f.asset.hostname if f.asset and f.asset.hostname else (f.asset.ip if f.asset else f.asset_id[:8])
+                cve = f.vulnerability.cve_id if f.vulnerability and f.vulnerability.cve_id else f.id
+                ver = f.service.version if f.service and f.service.version else "unknown"
+                sev = f.vulnerability.severity if f.vulnerability else "high"
+                _alerted.add(make_finding_fingerprint(org_id, dev, cve, ver, sev, False))
+
+    for f in findings:
+        dev = f.asset.hostname if f.asset and f.asset.hostname else (f.asset.ip if f.asset else f.asset_id[:8])
+        cve = f.vulnerability.cve_id if f.vulnerability and f.vulnerability.cve_id else f.id
+        ver = f.service.version if f.service and f.service.version else "unknown"
+        sev = f.vulnerability.severity if f.vulnerability else "high"
+        key = make_finding_fingerprint(org_id, dev, cve, ver, sev, False)
+        if key in _alerted:
+            continue
+        try:
+            html_msg, plain_msg = _format_finding_alert(f)
+            if _dispatch_alert(bot_token, chat_id_conf, html_msg, plain_msg):
+                _alerted.add(key)
+        except Exception:
+            logger.exception("failed to alert finding %s", f.id)
+
+    # 2. Phase 03/04 Endpoint software findings
+    from app.services.endpoint_telemetry import (
+        get_endpoint_finding_status,
+        list_endpoint_findings_for_org,
+    )
+
+    try:
+        ep_findings = list_endpoint_findings_for_org(org_id)
+        for c_finding, telemetry in ep_findings:
+            ep_status = get_endpoint_finding_status(org_id, c_finding.finding_id)
+            if ep_status != "open":
+                continue
+            is_high_or_crit = c_finding.severity in ("high", "critical")
+            is_kev = bool(c_finding.in_kev)
+            if not (is_high_or_crit or is_kev):
+                continue
+
+            cve_ref = c_finding.cve_id or c_finding.finding_id
+            ver_ref = c_finding.observed_version or "unknown"
+            key = make_finding_fingerprint(
+                org_id,
+                c_finding.device_id,
+                cve_ref,
+                ver_ref,
+                c_finding.severity,
+                is_kev,
+            )
+            if key in _alerted:
+                continue
+
+            try:
+                html_msg, plain_msg = _format_endpoint_finding_alert(c_finding, telemetry)
+                if _dispatch_alert(bot_token, chat_id_conf, html_msg, plain_msg):
+                    _alerted.add(key)
+            except Exception:
+                logger.exception("failed to alert endpoint finding %s", c_finding.finding_id)
+    except Exception:
+        logger.exception("failed to check endpoint findings for org %s", org_id)
+
+    # 3. Active network threats
+    since = now - timedelta(minutes=5)
+    rows = db.scalars(
+        select(NetworkDevice).where(
+            NetworkDevice.org_id == org_id,
+            NetworkDevice.last_seen >= since,
+        )
+    ).all()
+
+    from app.services.live import _deepscan_ports_by_ip, _scan_status
+
+    scanned_ips, _ = _scan_status(db, org_id)
+    ports_by_ip = _deepscan_ports_by_ip(db, org_id)
+
+    devices = []
+    for r in rows:
+        scanned = r.ip in scanned_ips or r.last_scanned_at is not None
+        devices.append(
+            DeviceView(
+                ip=r.ip,
+                mac=r.mac,
+                hostname=r.hostname,
+                is_gateway=r.is_gateway,
+                is_self=r.is_self,
+                online=r.online,
+                first_seen=r.first_seen,
+                last_seen=r.last_seen,
+                scanned=scanned,
+                vuln_count=None,
+                worst_severity=None,
+                open_ports=ports_by_ip.get(r.ip, []),
+            )
+        )
+
+    threat_rows = db.scalars(
+        select(LiveObservation).where(
+            LiveObservation.org_id == org_id,
+            LiveObservation.last_seen >= since,
+        )
+    ).all()
+
+    domains = [
+        DomainView(
+            id=t.id,
+            domain=t.domain,
+            band=t.band,
+            score=float(t.score),
+            source_host=t.source_host,
+            reasons=(
+                t.verdict_json.get("reasons", [])
+                if isinstance(t.verdict_json, dict)
+                else []
+            ),
+        )
+        for t in threat_rows
+    ]
+
+    threats = detect_threats(devices, domains, now)
+
+    for t in threats:
+        key = ("threat", org_id, t.id)
+        if key in _alerted:
+            continue
+        try:
+            html_msg, plain_msg = _format_threat_alert(t)
+            if _dispatch_alert(bot_token, chat_id_conf, html_msg, plain_msg):
+                _alerted.add(key)
+        except Exception:
+            logger.exception("failed to alert threat %s", t.id)
+
 
 
 # — public control & diagnostics —

@@ -31,6 +31,73 @@ def get_findings(
     return list_findings(db, org.id, {"severity": severity, "status": status})
 
 
+@router.get("/findings/{finding_id}", response_model=FindingOut)
+def get_single_finding(
+    finding_id: str,
+    org: Organization = Depends(get_current_org),
+    db: Session = Depends(get_db),
+) -> FindingOut:
+    finding = db.get(AssetVulnerability, finding_id)
+    if finding is not None and finding.org_id == org.id:
+        vuln = db.get(Vulnerability, finding.vulnerability_id)
+        asset = db.get(Asset, finding.asset_id)
+        svc = db.get(Service, finding.service_id) if finding.service_id else None
+        return FindingOut(
+            id=finding.id,
+            status=finding.status,
+            cve_id=vuln.cve_id if vuln else None,
+            title=vuln.title if vuln else "Unknown vulnerability",
+            severity=vuln.severity if vuln else "medium",
+            cvss=float(vuln.cvss) if vuln else 0.0,
+            exploitability=float(vuln.exploitability) if vuln else 0.30,
+            description=vuln.description if vuln else None,
+            asset_id=asset.id if asset else "",
+            asset_hostname=asset.hostname if asset else None,
+            asset_ip=asset.ip if asset else "0.0.0.0",
+            service_port=svc.port if svc else None,
+            detected_at=finding.detected_at.isoformat() if finding.detected_at else None,
+            source="network",
+        )
+
+    # Check Phase 03/04 Endpoint Finding
+    from app.services.endpoint_telemetry import (
+        get_endpoint_finding_by_id,
+        get_endpoint_finding_status,
+    )
+
+    res = get_endpoint_finding_by_id(org.id, finding_id)
+    if res is not None:
+        c_finding, telemetry = res
+        ep_status = get_endpoint_finding_status(org.id, c_finding.finding_id)
+        return FindingOut(
+            id=c_finding.finding_id,
+            status=ep_status,
+            cve_id=c_finding.cve_id,
+            title=c_finding.title or c_finding.summary or f"Vulnerability in {c_finding.observed_product}",
+            severity=c_finding.severity,
+            cvss=float(c_finding.cvss),
+            exploitability=0.30,
+            description=c_finding.summary or c_finding.affected_range_text,
+            asset_id=c_finding.device_id,
+            asset_hostname=telemetry.get("hostname"),
+            asset_ip=telemetry.get("ip") or c_finding.device_id,
+            service_port=None,
+            detected_at=c_finding.observed_at,
+            source="endpoint",
+            observed_product=c_finding.observed_product,
+            observed_version=c_finding.observed_version,
+            fixed_version=c_finding.fixed_version_text,
+            in_kev=c_finding.in_kev,
+            finding_state=(
+                c_finding.finding_state.value
+                if hasattr(c_finding.finding_state, "value")
+                else str(c_finding.finding_state)
+            ),
+        )
+
+    raise NotFoundError("Finding not found")
+
+
 @router.patch("/findings/{finding_id}", response_model=FindingOut)
 def patch_finding(
     finding_id: str,
@@ -40,35 +107,71 @@ def patch_finding(
     db: Session = Depends(get_db),
 ) -> FindingOut:
     finding = db.get(AssetVulnerability, finding_id)
-    if finding is None or finding.org_id != org.id:
-        raise NotFoundError("Finding not found")
-    finding.status = body.status
-    finding.resolved_at = utcnow() if body.status == "resolved" else None
-    db.flush()
+    if finding is not None and finding.org_id == org.id:
+        finding.status = body.status
+        finding.resolved_at = utcnow() if body.status == "resolved" else None
+        db.flush()
 
-    from app.services.recompute import recompute_org
+        from app.services.recompute import recompute_org
 
-    recompute_org(db, org.id)
-    db.commit()
+        recompute_org(db, org.id)
+        db.commit()
 
-    # build the response straight from the updated row (same mapping as
-    # list_findings) — re-listing every finding just to pick one is wasteful and
-    # IndexErrors to a 500 if the row isn't in the filtered list.
-    vuln = db.get(Vulnerability, finding.vulnerability_id)
-    asset = db.get(Asset, finding.asset_id)
-    svc = db.get(Service, finding.service_id) if finding.service_id else None
-    return FindingOut(
-        id=finding.id,
-        status=finding.status,
-        cve_id=vuln.cve_id,
-        title=vuln.title,
-        severity=vuln.severity,
-        cvss=float(vuln.cvss),
-        exploitability=float(vuln.exploitability),
-        description=vuln.description,
-        asset_id=asset.id,
-        asset_hostname=asset.hostname,
-        asset_ip=asset.ip,
-        service_port=svc.port if svc else None,
-        detected_at=finding.detected_at.isoformat() if finding.detected_at else None,
+        vuln = db.get(Vulnerability, finding.vulnerability_id)
+        asset = db.get(Asset, finding.asset_id)
+        svc = db.get(Service, finding.service_id) if finding.service_id else None
+        return FindingOut(
+            id=finding.id,
+            status=finding.status,
+            cve_id=vuln.cve_id if vuln else None,
+            title=vuln.title if vuln else "Unknown vulnerability",
+            severity=vuln.severity if vuln else "medium",
+            cvss=float(vuln.cvss) if vuln else 0.0,
+            exploitability=float(vuln.exploitability) if vuln else 0.30,
+            description=vuln.description if vuln else None,
+            asset_id=asset.id if asset else "",
+            asset_hostname=asset.hostname if asset else None,
+            asset_ip=asset.ip if asset else "0.0.0.0",
+            service_port=svc.port if svc else None,
+            detected_at=finding.detected_at.isoformat() if finding.detected_at else None,
+            source="network",
+        )
+
+    # Check Phase 03/04 Endpoint Finding
+    from app.services.endpoint_telemetry import (
+        get_endpoint_finding_by_id,
+        update_endpoint_finding_status,
     )
+
+    res = get_endpoint_finding_by_id(org.id, finding_id)
+    if res is not None:
+        c_finding, telemetry = res
+        update_endpoint_finding_status(org.id, finding_id, body.status)
+        return FindingOut(
+            id=c_finding.finding_id,
+            status=body.status,
+            cve_id=c_finding.cve_id,
+            title=c_finding.title or c_finding.summary or f"Vulnerability in {c_finding.observed_product}",
+            severity=c_finding.severity,
+            cvss=float(c_finding.cvss),
+            exploitability=0.30,
+            description=c_finding.summary or c_finding.affected_range_text,
+            asset_id=c_finding.device_id,
+            asset_hostname=telemetry.get("hostname"),
+            asset_ip=telemetry.get("ip") or c_finding.device_id,
+            service_port=None,
+            detected_at=c_finding.observed_at,
+            source="endpoint",
+            observed_product=c_finding.observed_product,
+            observed_version=c_finding.observed_version,
+            fixed_version=c_finding.fixed_version_text,
+            in_kev=c_finding.in_kev,
+            finding_state=(
+                c_finding.finding_state.value
+                if hasattr(c_finding.finding_state, "value")
+                else str(c_finding.finding_state)
+            ),
+        )
+
+    raise NotFoundError("Finding not found")
+

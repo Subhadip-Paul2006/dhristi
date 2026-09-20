@@ -521,9 +521,55 @@ def list_findings(db: Session, org_id: str, filters: dict) -> list[FindingOut]:
                 asset_ip=asset.ip,
                 service_port=svc.port if svc else None,
                 detected_at=av.detected_at.isoformat() if av.detected_at else None,
+                source="network",
             )
         )
+
+    # Phase 05: Include CorrelatedFindings from endpoint telemetry
+    try:
+        from app.services.endpoint_telemetry import (
+            get_endpoint_finding_status,
+            list_endpoint_findings_for_org,
+        )
+
+        for c_finding, telemetry in list_endpoint_findings_for_org(org_id):
+            ep_status = get_endpoint_finding_status(org_id, c_finding.finding_id)
+            if filters.get("severity") and c_finding.severity != filters["severity"]:
+                continue
+            if filters.get("status") and ep_status != filters["status"]:
+                continue
+            out.append(
+                FindingOut(
+                    id=c_finding.finding_id,
+                    status=ep_status,
+                    cve_id=c_finding.cve_id,
+                    title=c_finding.title or c_finding.summary or f"Vulnerability in {c_finding.observed_product}",
+                    severity=c_finding.severity,
+                    cvss=float(c_finding.cvss),
+                    exploitability=0.30,
+                    description=c_finding.summary or c_finding.affected_range_text,
+                    asset_id=c_finding.device_id,
+                    asset_hostname=telemetry.get("hostname"),
+                    asset_ip=telemetry.get("ip") or c_finding.device_id,
+                    service_port=None,
+                    detected_at=c_finding.observed_at,
+                    source="endpoint",
+                    observed_product=c_finding.observed_product,
+                    observed_version=c_finding.observed_version,
+                    fixed_version=c_finding.fixed_version_text,
+                    in_kev=c_finding.in_kev,
+                    finding_state=(
+                        c_finding.finding_state.value
+                        if hasattr(c_finding.finding_state, "value")
+                        else str(c_finding.finding_state)
+                    ),
+                )
+            )
+    except Exception:
+        pass
+
     return out
+
 
 
 def _path_summary(db: Session, p: AttackPath) -> PathSummary:

@@ -103,6 +103,13 @@ class FindingOut(BaseModel):
     asset_ip: str
     service_port: int | None
     detected_at: str | None
+    source: str = "network"
+    observed_product: str | None = None
+    observed_version: str | None = None
+    fixed_version: str | None = None
+    in_kev: bool = False
+    finding_state: str | None = None
+
 
 
 class AssetDetail(AssetSummary):

@@ -35,6 +35,8 @@ from app.services.ai.client import generate
 # payload", "detects malware") and were false-refusing legitimate findings from
 # real scans. This guard only ever runs on model OUTPUT, so it stays a backstop
 # against the model emitting an attack, not a filter on the input vuln context.
+from dataclasses import dataclass, field
+
 _OFFENSIVE_MARKERS = (
     "reverse shell",
     "bind shell",
@@ -47,103 +49,319 @@ _OFFENSIVE_MARKERS = (
 )
 
 
+@dataclass
+class RemediationContext:
+    finding_id: str
+    device_id: str
+    org_id: str
+    source: str  # "network" | "endpoint"
+    hostname: str | None = None
+    ip: str | None = None
+    os: str | None = None
+    asset_type: str = "workstation"
+    criticality: int = 1
+    internet_facing: bool = False
+    product: str | None = None
+    version: str | None = None
+    service_name: str | None = None
+    port: int | None = None
+    protocol: str = "tcp"
+    cve_id: str | None = None
+    title: str | None = None
+    summary: str | None = None
+    cvss: float = 0.0
+    severity: str = "medium"
+    affected_range: str | None = None
+    fixed_version: str | None = None
+    in_kev: bool = False
+    evidence: str | None = None
+    finding_state: str = "CONFIRMED_VULNERABLE"
+    zone: str | None = None
+
+
+# Memory cache for endpoint remediations (avoids inserting invalid foreign keys into DB)
+_ENDPOINT_REMEDIATIONS: dict[tuple[str, str, str], RemediationOut] = {}
+
+
+def resolve_remediation_context(db: Session, org_id: str, finding_id: str) -> RemediationContext:
+    """Resolve finding context from either database AssetVulnerability or endpoint CorrelatedFinding."""
+    # 1. Try DB AssetVulnerability
+    finding = db.get(AssetVulnerability, finding_id)
+    if finding is not None and finding.org_id == org_id:
+        asset = db.get(Asset, finding.asset_id)
+        vuln = db.get(Vulnerability, finding.vulnerability_id)
+        zone = db.get(RiskZone, asset.zone_id) if asset and asset.zone_id else None
+        service = db.get(Service, finding.service_id) if finding.service_id else None
+        return RemediationContext(
+            finding_id=finding.id,
+            device_id=asset.id if asset else finding.asset_id,
+            org_id=org_id,
+            source="network",
+            hostname=asset.hostname if asset else None,
+            ip=asset.ip if asset else "0.0.0.0",
+            os=asset.os if asset else None,
+            asset_type=asset.asset_type if asset else "workstation",
+            criticality=asset.criticality if asset else 1,
+            internet_facing=asset.internet_facing if asset else False,
+            product=service.name if service else None,
+            version=service.version if service else None,
+            service_name=service.name if service else None,
+            port=service.port if service else None,
+            cve_id=vuln.cve_id if vuln else None,
+            title=vuln.title if vuln else "Unknown vulnerability",
+            summary=vuln.description if vuln else None,
+            cvss=float(vuln.cvss) if vuln else 0.0,
+            severity=vuln.severity if vuln else "medium",
+            zone=zone.name if zone else None,
+            finding_state="CONFIRMED_VULNERABLE",
+        )
+
+    # 2. Try Phase 03/04 Endpoint CorrelatedFinding
+    from app.services.endpoint_telemetry import get_endpoint_finding_by_id
+
+    res = get_endpoint_finding_by_id(org_id, finding_id)
+    if res is not None:
+        c_finding, telemetry = res
+        from app.models import NetworkDevice
+
+        row = db.scalar(
+            select(NetworkDevice).where(
+                NetworkDevice.org_id == org_id,
+                (NetworkDevice.id == c_finding.device_id)
+                | (NetworkDevice.mac == c_finding.device_id)
+                | (NetworkDevice.ip == c_finding.device_id),
+            )
+        )
+        ip_val = (
+            row.ip
+            if row
+            else (
+                telemetry.get("ip")
+                or (c_finding.device_id if "." in c_finding.device_id else "127.0.0.1")
+            )
+        )
+        host_val = telemetry.get("hostname") or (
+            row.hostname if row else c_finding.device_id
+        )
+        os_val = telemetry.get("os_name") or telemetry.get("os_info")
+        f_state = (
+            c_finding.finding_state.value
+            if hasattr(c_finding.finding_state, "value")
+            else str(c_finding.finding_state)
+        )
+
+        return RemediationContext(
+            finding_id=c_finding.finding_id,
+            device_id=c_finding.device_id,
+            org_id=org_id,
+            source="endpoint",
+            hostname=host_val,
+            ip=ip_val,
+            os=os_val,
+            asset_type="endpoint",
+            criticality=2,
+            internet_facing=False,
+            product=c_finding.observed_product,
+            version=c_finding.observed_version,
+            service_name=c_finding.observed_product,
+            port=None,
+            cve_id=c_finding.cve_id,
+            title=c_finding.title
+            or c_finding.summary
+            or f"Vulnerability in {c_finding.observed_product}",
+            summary=c_finding.summary or c_finding.affected_range_text,
+            cvss=float(c_finding.cvss),
+            severity=c_finding.severity,
+            affected_range=c_finding.affected_range_text,
+            fixed_version=c_finding.fixed_version_text,
+            in_kev=c_finding.in_kev,
+            evidence=f"Endpoint inventory: {c_finding.observed_product} {c_finding.observed_version or ''}".strip(),
+            finding_state=f_state,
+        )
+
+    # 3. Neither exists: deterministic 404
+    raise NotFoundError("Finding not found")
+
+
 def _guard_offensive(*texts: str | None) -> bool:
     joined = " ".join(t.lower() for t in texts if t)
     return any(m in joined for m in _OFFENSIVE_MARKERS)
 
 
 def remediate(db: Session, org_id: str, finding_id: str, preferred_kind: str, regenerate: bool) -> RemediationOut:
-    finding = db.get(AssetVulnerability, finding_id)
-    if finding is None or finding.org_id != org_id:
-        raise NotFoundError("Finding not found")
+    rem_ctx = resolve_remediation_context(db, org_id, finding_id)
 
-    # cache: return the last remediation unless regenerate requested
-    if not regenerate:
-        existing = db.scalar(
-            select(Remediation)
-            .where(Remediation.asset_vulnerability_id == finding_id)
-            .order_by(Remediation.created_at.desc())
+    # Guard: If no confirmed vulnerability exists, do not generate a false patch
+    if rem_ctx.finding_state == "NO_CONFIRMED_VULNERABILITY":
+        return RemediationOut(
+            refused=True,
+            reason="No confirmed vulnerability detected on this component.",
+            kind=preferred_kind,
+            title=f"No Action Required for {rem_ctx.product or 'component'}",
+            summary=f"Component {rem_ctx.product or 'unknown'} has no confirmed CVE to remediate.",
+            script="# No defensive patch required — component is verified clean.",
+            steps=["Verify component version", "No security updates currently required"],
+            estimated_risk_reduction=0.0,
+            requires_restart=False,
+            disclaimer="Validated: No confirmed CVE found for this software artifact.",
+            model="guardrail",
+            remediation_state="REMEDIATION_UNAVAILABLE",
+            source=rem_ctx.source,
+            in_kev=rem_ctx.in_kev,
+            context={
+                "remediation_state": "REMEDIATION_UNAVAILABLE",
+                "finding_state": rem_ctx.finding_state,
+                "product": rem_ctx.product,
+            },
         )
-        if existing is not None and existing.kind == preferred_kind:
-            return _remediation_from_row(existing)
 
-    asset = db.get(Asset, finding.asset_id)
-    vuln = db.get(Vulnerability, finding.vulnerability_id)
-    zone = db.get(RiskZone, asset.zone_id) if asset and asset.zone_id else None
-    service = db.get(Service, finding.service_id) if finding.service_id else None
+    # Cache check
+    if not regenerate:
+        if rem_ctx.source == "network":
+            existing = db.scalar(
+                select(Remediation)
+                .where(Remediation.asset_vulnerability_id == finding_id)
+                .order_by(Remediation.created_at.desc())
+            )
+            if existing is not None and existing.kind == preferred_kind:
+                out = _remediation_from_row(existing)
+                out.remediation_state = "REMEDIATION_AVAILABLE"
+                out.source = rem_ctx.source
+                out.in_kev = rem_ctx.in_kev
+                return out
+        else:
+            cached_ep = _ENDPOINT_REMEDIATIONS.get((org_id, finding_id, preferred_kind))
+            if cached_ep is not None:
+                return cached_ep
+
+    # Clean versions: Never guess or invent version
+    safe_version = (
+        rem_ctx.version
+        if rem_ctx.version and rem_ctx.version != "UNKNOWN_VERSION"
+        else "Not available"
+    )
+    safe_fixed_version = (
+        rem_ctx.fixed_version if rem_ctx.fixed_version else "<patched-version>"
+    )
 
     ctx = {
         "asset": {
-            "hostname": asset.hostname,
-            "ip": asset.ip,
-            "os": asset.os,
-            "asset_type": asset.asset_type,
-            "zone": zone.name if zone else None,
-            "criticality": asset.criticality,
-            "internet_facing": asset.internet_facing,
+            "hostname": rem_ctx.hostname,
+            "ip": rem_ctx.ip,
+            "os": rem_ctx.os,
+            "asset_type": rem_ctx.asset_type,
+            "zone": rem_ctx.zone,
+            "criticality": rem_ctx.criticality,
+            "internet_facing": rem_ctx.internet_facing,
         },
         "service": (
-            {"name": service.name, "version": service.version, "port": service.port}
-            if service
+            {
+                "name": rem_ctx.product or rem_ctx.service_name or "service",
+                "version": safe_version,
+                "port": rem_ctx.port or ("<port>" if rem_ctx.source == "network" else None),
+            }
+            if (rem_ctx.product or rem_ctx.port or rem_ctx.service_name)
             else None
         ),
         "vulnerability": {
-            "cve_id": vuln.cve_id,
-            "title": vuln.title,
-            "cvss": float(vuln.cvss),
-            "severity": vuln.severity,
-            "description": vuln.description,
+            "cve_id": rem_ctx.cve_id or "N/A",
+            "title": rem_ctx.title or "Vulnerability",
+            "cvss": rem_ctx.cvss,
+            "severity": rem_ctx.severity,
+            "description": rem_ctx.summary,
+            "fixed_version": safe_fixed_version,
+            "in_kev": rem_ctx.in_kev,
+            "finding_state": rem_ctx.finding_state,
         },
+        "source": rem_ctx.source,
         "preferred_kind": preferred_kind,
     }
 
-    # NOTE: no input-side guard on the CVE title/description — describing a real
-    # vulnerability is legitimate defensive context, not an offensive request.
-    # The output guard below still ensures we never emit an offensive fix.
     fallback = _templated_remediation(ctx)
     system, user_json, schema = prompts.build_remediation_messages(ctx)
-    # Mock fixture only for the hero example (the PostgreSQL priv-esc, ansible);
-    # every other finding/kind gets the context-specific template so mocked
-    # output references the real hostname + CVE and changes with the kind tab.
-    is_postgres_hero = (vuln.cve_id or "").endswith("0005") and preferred_kind == "ansible"
+
+    is_postgres_hero = (
+        (rem_ctx.cve_id or "").endswith("0005") and preferred_kind == "ansible"
+    )
     mock_key = "remediate_postgres" if is_postgres_hero else None
     data = generate(system, user_json, mock_key, fallback, schema)
 
     if data.get("refused"):
-        return RemediationOut(refused=True, reason=data.get("reason") or "Not supported")
+        return RemediationOut(
+            refused=True,
+            reason=data.get("reason") or "Not supported",
+            remediation_state="REMEDIATION_UNAVAILABLE",
+            source=rem_ctx.source,
+            in_kev=rem_ctx.in_kev,
+            context=ctx,
+        )
     if not data.get("script"):
-        # never persist an empty fix — fall back to the deterministic checklist
         data = fallback
 
     if _guard_offensive(data.get("title"), data.get("summary"), data.get("script")):
-        return RemediationOut(refused=True, reason="Request could not be answered defensively.")
+        return RemediationOut(
+            refused=True,
+            reason="Request could not be answered defensively.",
+            remediation_state="REMEDIATION_UNAVAILABLE",
+            source=rem_ctx.source,
+            in_kev=rem_ctx.in_kev,
+            context=ctx,
+        )
 
     settings = get_settings()
-    # schema says 0-100 but clamp anyway — the DB column and UI assume a percentage
     risk_reduction = min(max(float(data.get("estimated_risk_reduction") or 0), 0.0), 100.0)
-    row = Remediation(
-        org_id=org_id,
-        asset_vulnerability_id=finding_id,
-        kind=data.get("kind", preferred_kind),
-        title=data.get("title", "")[:255],
-        summary=data.get("summary", ""),
-        script=data.get("script", ""),
-        risk_reduction=Decimal(str(risk_reduction)),
-        generated_by="ai",
-        model=("mock" if settings.ai_mock else settings.resolved_ai_model),
-        reviewed=False,
-        details_json={
-            "steps": data.get("steps", []),
-            "requires_restart": bool(data.get("requires_restart", False)),
-            "disclaimer": data.get("disclaimer"),
-        },
-    )
-    db.add(row)
-    db.commit()
 
-    out = _remediation_from_row(row)
-    out.context = ctx  # exact input handed to the model (UI inspector) — not persisted
-    return out
+    if rem_ctx.source == "network":
+        row = Remediation(
+            org_id=org_id,
+            asset_vulnerability_id=finding_id,
+            kind=data.get("kind", preferred_kind),
+            title=data.get("title", "")[:255],
+            summary=data.get("summary", ""),
+            script=data.get("script", ""),
+            risk_reduction=Decimal(str(risk_reduction)),
+            generated_by="ai",
+            model=("mock" if settings.ai_mock else settings.resolved_ai_model),
+            reviewed=False,
+            details_json={
+                "steps": data.get("steps", []),
+                "requires_restart": bool(data.get("requires_restart", False)),
+                "disclaimer": data.get("disclaimer"),
+            },
+        )
+        db.add(row)
+        db.commit()
+
+        out = _remediation_from_row(row)
+        out.context = ctx
+        out.remediation_state = "REMEDIATION_AVAILABLE"
+        out.source = rem_ctx.source
+        out.in_kev = rem_ctx.in_kev
+        return out
+    else:
+        # Endpoint finding: cache in-memory
+        out = RemediationOut(
+            id=finding_id,
+            refused=False,
+            kind=data.get("kind", preferred_kind),
+            title=data.get("title", f"Defensive Remediation for {rem_ctx.product}"),
+            summary=data.get("summary", ""),
+            script=data.get("script", ""),
+            steps=data.get("steps", []),
+            estimated_risk_reduction=risk_reduction,
+            requires_restart=bool(data.get("requires_restart", False)),
+            disclaimer=data.get("disclaimer")
+            or "Generated suggestion — review and test before running in production.",
+            reviewed=False,
+            model=("mock" if settings.ai_mock else settings.resolved_ai_model),
+            context=ctx,
+            remediation_state="REMEDIATION_AVAILABLE",
+            source=rem_ctx.source,
+            in_kev=rem_ctx.in_kev,
+        )
+        _ENDPOINT_REMEDIATIONS[(org_id, finding_id, preferred_kind)] = out
+        return out
+
 
 
 def _remediation_from_row(row: Remediation) -> RemediationOut:
@@ -180,17 +398,34 @@ def _templated_remediation(ctx: dict) -> dict:
     cve = vuln.get("cve_id") or "the reported finding"
     vuln_title = vuln.get("title") or "the reported vulnerability"
     kind = ctx.get("preferred_kind", "ansible")
+    in_kev = bool(vuln.get("in_kev"))
+    fixed_ver = vuln.get("fixed_version")
+    has_fixed = bool(fixed_ver and fixed_ver != "<patched-version>")
+
+    kev_header = (
+        "# 🚨 Known Exploited Vulnerability — CISA KEV listed (prioritize defensive patch application)\n"
+        if in_kev
+        else ""
+    )
+    ver_directive = (
+        f"# Fixed version confirmed from advisory: {fixed_ver}\n"
+        if has_fixed
+        else "# Exact patched version could not be verified from advisory — substitute <patched-version>\n"
+    )
 
     if kind == "shell":
         host_sh = shlex.quote(str(host))
         name_sh = shlex.quote(str(name))
+        target_pkg = f"{name_sh}={fixed_ver}" if has_fixed else f"{name_sh}=<patched-version>"
         script = (
             "#!/usr/bin/env bash\n"
             f"# Defensive hardening for {cve} ({vuln_title}) on {host_sh}\n"
+            f"{kev_header}"
+            f"{ver_directive}"
             "# Review each step before running in production.\n"
             "set -euo pipefail\n\n"
-            "# 1. Apply vendor security updates\n"
-            "sudo apt-get update && sudo apt-get upgrade -y   # or: sudo dnf upgrade -y\n\n"
+            f"# 1. Apply security update for {name_sh} (pinned to fixed release)\n"
+            f"sudo apt-get install --only-upgrade {target_pkg} -y   # or: pip install {name_sh}=={fixed_ver or '<patched-version>'}\n\n"
             f"# 2. Restrict network access to {name_sh} (scope to your trusted subnet)\n"
             f"# sudo ufw allow from <trusted-subnet> to any port {svc.get('port', '<port>')}\n\n"
             "# 3. Rotate credentials used by the service and enforce least privilege\n"
@@ -223,6 +458,8 @@ def _templated_remediation(ctx: dict) -> dict:
             )
         script = (
             f"# Defensive hardening for {cve} ({vuln_title}) on {host_sh}\n"
+            f"{kev_header}"
+            f"{ver_directive}"
             "# Review each command and substitute your resource IDs before running.\n\n"
             f"{access_block}"
             "# 2. Apply pending patches via your managed patch baseline\n"
@@ -232,17 +469,16 @@ def _templated_remediation(ctx: dict) -> dict:
             "aws secretsmanager rotate-secret --secret-id <secret-id>\n"
         )
     elif kind == "manual":
+        target_ver_str = fixed_ver if has_fixed else "<patched-version>"
         script = (
             f"Manual remediation plan for {cve} ({vuln_title}) on {host}:\n"
-            "1. Apply the vendor security patch for the affected version.\n"
+            f"{kev_header}"
+            f"1. Apply the vendor security patch for {name} (target: {target_ver_str}).\n"
             f"2. Restrict network access to {name} to trusted sources only.\n"
             "3. Rotate any credentials the service uses and enforce least privilege.\n"
             "4. Re-scan the host and verify the finding no longer reproduces.\n"
         )
     else:  # ansible (default)
-        # default_style='"' + a huge width forces a single-line, double-quoted
-        # scalar no matter what host/name contain (quotes, colons, newlines),
-        # so it can't fold into extra lines or break the surrounding indentation.
         def _yaml_kv(key: str, value: str) -> str:
             return yaml.safe_dump(
                 {key: value}, default_flow_style=False, default_style='"',
@@ -252,22 +488,28 @@ def _templated_remediation(ctx: dict) -> dict:
         hosts_line = _yaml_kv("hosts", host)
         name_line = _yaml_kv("name", f"Harden {name} on {host}")
         msg_line = _yaml_kv("msg", f"Restrict firewall rules and rotate credentials for {name}")
+        task_name_line = _yaml_kv("name", f"Apply security updates for {name}")
+        pkg_target = f"{name}={fixed_ver}" if has_fixed else name
+        pkg_line = _yaml_kv("name", pkg_target)
         script = (
             "---\n"
             f"# Defensive hardening for {cve} ({vuln_title}) — review before applying\n"
+            f"{kev_header}"
+            f"{ver_directive}"
             f"- {name_line}\n"
             f"  {hosts_line}\n"
             "  become: true\n"
             "  tasks:\n"
-            "    - name: Apply latest security updates\n"
+            f"    - {task_name_line}\n"
             "      ansible.builtin.package:\n"
-            "        name: '*'\n"
-            "        state: latest\n"
+            f"        {pkg_line}\n"
+            "        state: present\n"
             "    # NOTE: review and scope the following to the affected service\n"
             "    - name: Restrict service to trusted subnet (review before applying)\n"
             "      ansible.builtin.debug:\n"
             f"        {msg_line}\n"
         )
+
 
     return {
         "refused": False,
@@ -279,7 +521,7 @@ def _templated_remediation(ctx: dict) -> dict:
         ),
         "script": script,
         "steps": [
-            "Apply vendor security patches",
+            f"Apply vendor security patches for {name} (target: {fixed_ver or '<patched-version>'})",
             f"Restrict network access to {name} on {host}",
             "Rotate credentials and enforce least privilege",
             "Re-scan to verify the finding is closed",
@@ -288,6 +530,7 @@ def _templated_remediation(ctx: dict) -> dict:
         "requires_restart": False,
         "disclaimer": "Generated suggestion — review and test before running in production.",
     }
+
 
 
 def impact(db: Session, org_id: str, path_id: str) -> ImpactOut:

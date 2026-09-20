@@ -27,6 +27,7 @@ from app.schemas.live import (
     DeepScanService,
     DeviceBatch,
     DeviceBatchResponse,
+    EndpointFindingOut,
     EvidenceEnvelope,
     EvidenceType,
     LiveThreat,
@@ -37,9 +38,11 @@ from app.schemas.live import (
     TrafficSecurityAnnotation,
 )
 from app.services import endpoint_telemetry
+from app.services.device_security_profile import build_score_inputs_from_device, compute_device_security_score
 from app.services.domain_classifier import classify_domain
 from app.services.vuln_intel.models import FindingState
 from app.services.urltrust import analyzer
+
 
 logger = logging.getLogger("drishti")
 
@@ -1447,6 +1450,14 @@ def list_devices(db: Session, org_id: str) -> list[NetworkDeviceOut]:
         dev_cves: list[DeepScanCve] = []
         dev_os_from_scan: str | None = None
         dev_risk_score: float | None = None
+        # Phase 04: all Phase 03 finding states (all 6 states, not just VULNERABLE/KEV)
+        dev_endpoint_vuln_findings: list[EndpointFindingOut] = []
+        # Phase 04: AI state (only populated when LIVE tracking session exists)
+        dev_ai_detection = None
+        dev_ai_forecast = None
+        dev_ai_tracking_active = False
+        dev_ai_session_id = None
+        dev_security_score: float | None = None
 
         if ds and ds.result_json:
             rj = ds.result_json or {}
@@ -1707,12 +1718,59 @@ def list_devices(db: Session, org_id: str) -> list[NetworkDeviceOut]:
                 vuln_count = len(dev_cves)
                 worst = max(dev_cves, key=lambda c: _SEV_RANK.get(c.severity, 0)).severity
 
+            # Phase 04: surface ALL Phase 03 finding states (not just VULNERABLE/KNOWN_EXPLOITED)
+            # OPEN | EXPOSED | POTENTIAL_MATCH | VULNERABLE | KNOWN_EXPLOITED | NO_CONFIRMED_VULNERABILITY
+            for f in ep_findings:
+                dev_endpoint_vuln_findings.append(EndpointFindingOut(
+                    finding_id=f.finding_id,
+                    finding_state=f.finding_state.value if hasattr(f.finding_state, "value") else str(f.finding_state),
+                    evidence_source=f.evidence_source,
+                    observed_product=f.observed_product,
+                    observed_version=f.observed_version,
+                    cve_id=f.cve_id,
+                    title=f.title,
+                    summary=f.summary,
+                    cvss=f.cvss,
+                    severity=f.severity,
+                    in_kev=f.in_kev,
+                    kev_date_added=f.kev_date_added,
+                    ghsa_ids=list(f.ghsa_ids),
+                    affected_range_text=f.affected_range_text,
+                    fixed_version_text=f.fixed_version_text,
+                    intel_sources=list(f.intel_sources),
+                    source_freshness=f.source_freshness,
+                    source_status_reason=f.source_status_reason,
+                ))
+
+        # Phase 04: look up active AI tracking session for this device (org-scoped).
+        # Only populated when a LIVE tracking session exists — never cross-device.
+        # Labels: CURRENT DETECTION and FORECAST — NOT confirmed attack status.
+        from app.services.traffic.session_manager import session_manager as _sm
+        ep_dev_id_for_ai = endpoint_agent_row.device_id if (endpoint_agent_row and matched_host_telem) else None
+        ai_session = None
+        if ep_dev_id_for_ai:
+            ai_session = _sm.get_active_session_for_device(org_id, ep_dev_id_for_ai)
+        dev_ai_detection = ai_session.last_detection if ai_session else None
+        dev_ai_forecast = ai_session.last_forecast if ai_session else None
+        dev_ai_tracking_active = ai_session is not None
+        dev_ai_session_id = ai_session.session_id if ai_session else None
+
+        # Phase 04: compute deterministic device security score.
+        # This is a risk-signal score [0.0–1.0], NOT a compromise or confirmed-attack score.
+        # Forecast probability is intentionally excluded from this formula.
+        score_inputs = build_score_inputs_from_device(
+            cves=dev_cves,
+            ai_verdict=dev_ai_detection.verdict if dev_ai_detection else None,
+            ai_confidence=dev_ai_detection.confidence if dev_ai_detection else 0.0,
+        )
+        dev_security_score = compute_device_security_score(score_inputs)
 
         # Truthful backward-compatible lists:
         # Remote devices without an agent have no endpoint telemetry -> empty lists.
         # Never fabricate running applications from domain traffic or presets.
         final_apps = [p.name for p in endpoint_processes_list]
         final_doms = [t.name for t in active_browser_tabs_list]
+
 
         # 8. Collect passive network destinations (TTL: 30 minutes = 1800s)
         dev_dest_records: list[PassiveDestinationRecord] = []
@@ -2011,6 +2069,16 @@ def list_devices(db: Session, org_id: str) -> list[NetworkDeviceOut]:
             browser_processes=browser_processes_list,
             endpoint_services=endpoint_services_list,
             is_telemetry_stale=is_telem_stale,
+            # Phase 04 — Unified Device Security Profile
+            # AI state: CURRENT DETECTION / FORECAST — NOT confirmed attack status.
+            ai_detection=dev_ai_detection,
+            ai_forecast=dev_ai_forecast,
+            ai_tracking_active=dev_ai_tracking_active,
+            ai_tracking_session_id=dev_ai_session_id,
+            # Risk-signal score [0.0–1.0] — NOT a compromise or confirmed-attack score.
+            device_security_score=dev_security_score,
+            # All Phase 03 finding states (all 6 states)
+            endpoint_vuln_findings=dev_endpoint_vuln_findings,
         ))
     return out
 

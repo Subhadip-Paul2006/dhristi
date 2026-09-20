@@ -170,6 +170,67 @@ def set_correlator(correlator: VulnerabilityCorrelator) -> None:
     _DEFAULT_CORRELATOR = correlator
 
 
+_ENDPOINT_FINDING_STATUSES: dict[tuple[str, str], str] = {}
+
+
+def get_endpoint_finding_by_id(org_id: str, finding_id: str) -> tuple[CorrelatedFinding, dict[str, Any]] | None:
+    """Lookup a CorrelatedFinding and its associated device telemetry strictly within org_id.
+    Returns (finding, device_telemetry_dict) or None.
+    """
+    with _TELEMETRY_LOCK:
+        for (k_org, k_dev), findings in _DEVICE_VULN_FINDINGS.items():
+            if k_org != org_id:
+                continue
+            for f in findings:
+                if f.finding_id == finding_id:
+                    telemetry = _DEVICE_TELEMETRY_STORE.get((k_org, k_dev), {})
+                    return f, telemetry
+
+        # If not in cached findings, check active devices in telemetry store
+        for (k_org, k_dev), telemetry in _DEVICE_TELEMETRY_STORE.items():
+            if k_org != org_id:
+                continue
+            software = telemetry.get("installed_software", [])
+            if software:
+                try:
+                    findings = _DEFAULT_CORRELATOR.correlate_endpoint_software(k_org, k_dev, software)
+                    _DEVICE_VULN_FINDINGS[(k_org, k_dev)] = findings
+                    for f in findings:
+                        if f.finding_id == finding_id:
+                            return f, telemetry
+                except Exception:
+                    pass
+    return None
+
+
+def list_endpoint_findings_for_org(org_id: str) -> list[tuple[CorrelatedFinding, dict[str, Any]]]:
+    """List all correlated endpoint vulnerability findings for an organization."""
+    results: list[tuple[CorrelatedFinding, dict[str, Any]]] = []
+    with _TELEMETRY_LOCK:
+        for (k_org, k_dev), findings in _DEVICE_VULN_FINDINGS.items():
+            if k_org != org_id:
+                continue
+            telemetry = _DEVICE_TELEMETRY_STORE.get((k_org, k_dev), {})
+            for f in findings:
+                results.append((f, telemetry))
+    return results
+
+
+def update_endpoint_finding_status(org_id: str, finding_id: str, status: str) -> bool:
+    """Update mutable triage status for an endpoint finding."""
+    key = (org_id, finding_id)
+    with _TELEMETRY_LOCK:
+        _ENDPOINT_FINDING_STATUSES[key] = status
+    return True
+
+
+def get_endpoint_finding_status(org_id: str, finding_id: str) -> str:
+    """Retrieve triage status for an endpoint finding, defaulting to 'open'."""
+    key = (org_id, finding_id)
+    with _TELEMETRY_LOCK:
+        return _ENDPOINT_FINDING_STATUSES.get(key, "open")
+
+
 def correlate_device_software(org_id: str, device_id: str) -> list[CorrelatedFinding]:
     """Execute vulnerability correlation on a device's genuine installed software."""
     key = (org_id, device_id)
@@ -217,5 +278,7 @@ def clear_telemetry_store() -> None:
     with _TELEMETRY_LOCK:
         _DEVICE_TELEMETRY_STORE.clear()
         _DEVICE_VULN_FINDINGS.clear()
+        _ENDPOINT_FINDING_STATUSES.clear()
     _DEFAULT_CORRELATOR.cache.clear()
+
 
