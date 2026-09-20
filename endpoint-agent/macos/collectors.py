@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import os
+import socket
 import sys
 from datetime import datetime, timezone
 from typing import Any
@@ -199,7 +200,7 @@ class MacOSSocketCollector(BaseSocketCollector):
 
         for conn in net_conns:
             try:
-                proto = "TCP" if conn.type == psutil.SOCK_STREAM else "UDP"
+                proto = "TCP" if conn.type == socket.SOCK_STREAM else "UDP"
                 laddr = conn.laddr
                 raddr = conn.raddr
                 pid = conn.pid
