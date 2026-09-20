@@ -204,6 +204,17 @@ export function LiveTrafficPanel({
         </div>
 
         {/* ── Status Message / Truthful Error Alert ────────────────────────── */}
+        {q.isError && (
+          <div className="mt-3 rounded border border-rose-500/40 bg-rose-500/10 p-3 text-[11px] text-rose-300 flex items-start gap-2.5">
+            <AlertTriangle className="h-4 w-4 shrink-0 text-rose-400 mt-0.5" />
+            <div>
+              <div className="font-bold uppercase tracking-wider text-rose-400">TELEMETRY SYNC ERROR</div>
+              <div className="mt-0.5 text-rose-200">
+                Failed to communicate with Drishti backend telemetry engine. Retrying...
+              </div>
+            </div>
+          </div>
+        )}
         {(session.status_message || visibilityReason) && (
           <div className="mt-3 rounded border border-amber-500/40 bg-amber-500/10 p-3 text-[11px] text-amber-300 flex items-start gap-2.5">
             <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400 mt-0.5" />

@@ -64,6 +64,7 @@ def get_tracking_session(
 
 
 @router.get("/live/tracking/{session_id}/results", response_model=TrackingResultsOut)
+@router.get("/live/tracking/results/{session_id}", response_model=TrackingResultsOut)
 def get_tracking_results(
     session_id: str,
     org: Organization = Depends(get_current_org),

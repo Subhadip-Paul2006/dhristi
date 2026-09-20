@@ -274,5 +274,5 @@ export const api = {
   stopLiveTracking: (tracking_session_id: string) =>
     post<TrackingSession>("/api/live/tracking/stop", { tracking_session_id }),
   getLiveTrackingResults: (tracking_session_id: string) =>
-    get<TrackingResults>(`/api/live/tracking/results/${tracking_session_id}`),
+    get<TrackingResults>(`/api/live/tracking/${tracking_session_id}/results`),
 };

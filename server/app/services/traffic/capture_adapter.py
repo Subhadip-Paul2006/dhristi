@@ -153,6 +153,15 @@ class ScapyCaptureAdapter:
         self.on_packet = on_packet
         self.iface = iface
 
+        if not self.iface:
+            try:
+                from scapy.all import conf  # type: ignore
+                route_entry = conf.route.route(self.target_ip)
+                if route_entry and route_entry[0]:
+                    self.iface = route_entry[0]
+            except Exception:
+                pass
+
         self._stop_event = threading.Event()
         self._thread: threading.Thread | None = None
         self.is_running = False
