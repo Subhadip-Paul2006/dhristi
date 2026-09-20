@@ -25,7 +25,18 @@ export default defineConfig({
     host: true,
     port: 5173,
     proxy: {
-      "/api": { target: apiTarget, changeOrigin: true },
+      "/api": {
+        target: apiTarget,
+        changeOrigin: true,
+        configure: (proxy) => {
+          proxy.on("error", (err) => {
+            // Quietly handle connection errors during backend restarts
+            if ((err as any).code === "ECONNREFUSED" || (err as any).code === "ECONNRESET") {
+              return;
+            }
+          });
+        },
+      },
       "/health": { target: apiTarget, changeOrigin: true },
     },
   },
@@ -36,7 +47,17 @@ export default defineConfig({
     port: 5173,
     allowedHosts: true,
     proxy: {
-      "/api": { target: apiTarget, changeOrigin: true },
+      "/api": {
+        target: apiTarget,
+        changeOrigin: true,
+        configure: (proxy) => {
+          proxy.on("error", (err) => {
+            if ((err as any).code === "ECONNREFUSED" || (err as any).code === "ECONNRESET") {
+              return;
+            }
+          });
+        },
+      },
       "/health": { target: apiTarget, changeOrigin: true },
     },
   },

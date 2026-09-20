@@ -179,3 +179,15 @@ export function isLocallyAdministeredMac(mac: string | null | undefined, vendor?
   }
 }
 
+/**
+ * Format raw bytes into human-readable representation: e.g. "1.5 MB", "512 KB".
+ */
+export function formatBytes(bytes: number | null | undefined): string {
+  if (bytes == null || Number.isNaN(bytes) || bytes <= 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  const i = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)));
+  const val = bytes / Math.pow(1024, i);
+  return `${val.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
+}
+
+

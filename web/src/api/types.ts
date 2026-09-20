@@ -592,3 +592,127 @@ export interface UrlHistoryItem {
   band: TrustBand;
   created_at: string;
 }
+
+// ---- Live Network Traffic Tracking & Phase 03 Forecasting ----
+export interface TrackingSession {
+  tracking_session_id: string;
+  device_id: string;
+  target_ip: string;
+  target_mac?: string | null;
+  target_hostname?: string | null;
+  status: "STARTING" | "LIVE" | "STOPPED" | "ERROR" | "UNAVAILABLE";
+  capture_source: string;
+  status_message?: string | null;
+  started_at: string;
+  ended_at?: string | null;
+  last_event_at?: string | null;
+  packet_count: number;
+  flow_count: number;
+  byte_count: number;
+}
+
+export interface LiveTrafficMetrics {
+  packet_count: number;
+  flow_count: number;
+  byte_count: number;
+  packets_per_sec: number;
+  bytes_per_sec: number;
+  active_connections: number;
+}
+
+export interface ProtocolBreakdown {
+  tcp: number;
+  udp: number;
+  icmp: number;
+  dns: number;
+  http_https: number;
+  other: number;
+}
+
+export interface TopDestinationItem {
+  destination_ip: string;
+  destination_port: number;
+  protocol: string;
+  connection_count: number;
+  last_seen?: string | null;
+}
+
+export interface CurrentBehaviour {
+  verdict: "NORMAL" | "SUSPICIOUS" | "ANOMALOUS" | "INSUFFICIENT_DATA";
+  confidence: number;
+  signals: string[];
+  attack_category?: string | null;
+}
+
+export interface TrafficEvidenceItem {
+  evidence_type: string;
+  source: string;
+  observed_at: string;
+  device_id: string;
+  confidence: string;
+  details: Record<string, any>;
+}
+
+export interface ForecastStep {
+  step: string; // T+1 | T+2 | T+3
+  state:
+    | "NORMAL_CONTINUATION"
+    | "SUSPICIOUS_CONTINUATION"
+    | "LIKELY_ESCALATION"
+    | "POTENTIAL_LATERAL_MOVEMENT"
+    | "POTENTIAL_RECONNAISSANCE_CONTINUATION"
+    | "INSUFFICIENT_HISTORY"
+    | string;
+  probability: number;
+  status_label: "PREDICTED" | string;
+  contributing_signals: string[];
+}
+
+export interface MitreMapping {
+  tactic: string;
+  tactic_id: string;
+  technique: string;
+  technique_id: string;
+  capec_id?: string | null;
+  capec_name?: string | null;
+  confidence: number;
+}
+
+export interface Explainability {
+  top_signals: string[];
+  state_transition: string;
+  graph_dynamics: string[];
+  feature_deltas: Record<string, number>;
+}
+
+export interface ForecastResult {
+  is_available: boolean;
+  status: string;
+  horizon_steps: ForecastStep[];
+  mitre_attack?: MitreMapping | null;
+  explainability?: Explainability | null;
+  composite_risk_score: number;
+  composite_risk_level: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+  risk_formula: string;
+  model_used: string;
+}
+
+export interface TrackingResults {
+  session: TrackingSession;
+  metrics: LiveTrafficMetrics;
+  protocols: ProtocolBreakdown;
+  top_destinations: TopDestinationItem[];
+  current_behaviour: CurrentBehaviour;
+  evidence: TrafficEvidenceItem[];
+  features?: Record<string, number> | null;
+  model_status?: Record<string, string> | null;
+  network_visibility?: "VISIBLE" | "LIMITED" | "UNAVAILABLE" | string | null;
+  visibility_reason?: string | null;
+  window_count?: number | null;
+  graph_summary?: {
+    nodes: Array<{ id: string; is_target?: boolean; packet_count: number; byte_count: number }>;
+    edges: Array<{ source: string; target: string; packet_count: number; byte_count: number; protocol: number }>;
+  } | null;
+  forecast?: ForecastResult | null;
+}
+

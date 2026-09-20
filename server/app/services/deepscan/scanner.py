@@ -7,6 +7,10 @@ exploit. Everything is wrapped so that a missing binary, a timeout, or any
 failure returns a structured available:false result — it NEVER fabricates
 ports or services on failure.
 
+Device scan is isolated from live network traffic capture: this module only
+invokes nmap against consented LAN hosts. It does not read sockets, flows,
+SNI, or packet captures.
+
 `run_nmap` is the single subprocess seam; tests monkeypatch it to run offline."""
 from __future__ import annotations
 
@@ -19,22 +23,21 @@ from app.services.deepscan import parser
 
 logger = logging.getLogger("drishti")
 
-# `-sV` = service/version detection; `-T4` = faster timing; top-200 ports (covers
-# effectively every real listening service far faster than the full 1000).
-# `-Pn` skips host discovery — the device is already known-up from the ARP/ping
-# sweep, so we don't waste time re-pinging. `--version-intensity 2` keeps version
-# probes light. No `-O` (OS detection needs root / a sudo prompt); OS is only
-# reported if nmap includes an <os> block. XML to stdout (`-oX -`) so we parse
-# structured output, never scrape human text.
+# Full TCP coverage (`-p-` = 1–65535), not nmap's default top-1000. Services
+# bound to non-standard ports (8080, 8443, 9000, 32400, …) must not be silently
+# skipped. `-sV` + a moderate `--version-intensity` collects product/version
+# evidence for correlation. `-Pn` skips host discovery — the device is already
+# known-up from the ARP/ping sweep. `--open` keeps XML to listening ports.
+# `--min-rate` keeps a full-port LAN sweep bounded. No `-O` (needs root).
 #
-# Crucially we also pass nmap its OWN `--host-timeout`, set just under the
-# subprocess timeout: nmap then bounds itself and EMITS the XML with whatever it
-# already found (real partial results) instead of us hard-killing it with zero
-# output. A slow host degrades to "fewer ports", never to a blank failure.
+# nmap gets its OWN `--host-timeout` just under the subprocess timeout so it
+# flushes partial XML instead of being hard-killed with empty output.
 def _nmap_args(host_timeout_s: int) -> list[str]:
     return [
-        "-sV", "--version-intensity", "2", "-T4", "-Pn",
-        "--top-ports", "200", "--max-retries", "2",
+        "-sV", "--version-intensity", "5", "-T4", "-Pn",
+        "-p-", "--open",
+        "--max-retries", "1",
+        "--min-rate", "1500",
         f"--host-timeout={host_timeout_s}s", "-oX", "-",
     ]
 
@@ -71,10 +74,22 @@ def run_nmap(ip: str, timeout: float) -> tuple[str | None, str | None]:
     return proc.stdout, None
 
 
+def _host_result(ip: str, parsed: dict) -> dict:
+    services = parsed.get("services") or []
+    return {
+        "available": True,
+        "target": ip,
+        "up": parsed.get("up", False),
+        "os": parsed.get("os"),
+        "services": services,
+        "http_endpoints": parser.http_endpoints(ip, services),
+    }
+
+
 def scan(ip: str, timeout: float | None = None) -> dict:
     """Scan `ip` and return a structured result.
 
-    Success shape: {available: True, target, up, os, services:[...]}.
+    Success shape: {available: True, target, up, os, services, http_endpoints}.
     Failure shape: {available: False, target, reason} — no fabricated data."""
     settings = get_settings()
     to = timeout if timeout is not None else settings.deepscan_timeout_seconds
@@ -88,13 +103,7 @@ def scan(ip: str, timeout: float | None = None) -> dict:
     except ValueError as exc:
         return {"available": False, "target": ip, "reason": f"could not parse nmap output: {exc}"}
 
-    return {
-        "available": True,
-        "target": ip,
-        "up": parsed["up"],
-        "os": parsed["os"],
-        "services": parsed["services"],
-    }
+    return _host_result(ip, parsed)
 
 
 # ── subnet / range scanning ──────────────────────────────────────────────────
@@ -132,16 +141,13 @@ def run_nmap_discovery(cidr: str, timeout: float) -> tuple[str | None, str | Non
 def run_nmap_multi(ips: list[str], timeout: float, host_timeout_s: int) -> tuple[str | None, str | None]:
     """Version-scan several explicit IPs in one nmap run. Returns (xml, error).
 
-    `-Pn` (hosts already known-up from discovery) + a per-host `--host-timeout`
-    so one slow host can't sink the batch and nmap still flushes what it found.
+    Same full-TCP `-p-` coverage as a single-host scan so non-standard listeners
+    are not dropped in a subnet sweep. `-Pn` (hosts already known-up) + a
+    per-host `--host-timeout` so one slow host can't sink the batch.
     Subprocess seam — mocked in tests."""
     if shutil.which("nmap") is None:
         return None, "nmap is not installed on the server"
-    args = [
-        "nmap", "-sV", "--version-intensity", "2", "-T4", "-Pn",
-        "--top-ports", "100", "--max-retries", "1",
-        f"--host-timeout={host_timeout_s}s", "-oX", "-", *ips,
-    ]
+    args = ["nmap", *_nmap_args(host_timeout_s), *ips]
     # give the subprocess a margin above nmap's own per-host budget so nmap
     # self-terminates and flushes partial XML instead of being hard-killed
     try:
@@ -205,7 +211,7 @@ def scan_range(cidr: str, max_hosts: int | None = None, timeout: float | None = 
     for start in range(0, len(targets), max(1, batch_size)):
         chunk = targets[start:start + max(1, batch_size)]
         # split each batch's own budget across its hosts, floored for a real shot
-        per_host = max(25, int(batch_to / max(1, len(chunk))))
+        per_host = max(45, int(batch_to / max(1, len(chunk))))
         xml, err = run_nmap_multi(chunk, batch_to, per_host)
         if err is not None:
             last_err = err  # a bad batch must not sink the others
@@ -221,13 +227,7 @@ def scan_range(cidr: str, max_hosts: int | None = None, timeout: float | None = 
             if not ip or ip in seen or ip not in target_set:
                 continue
             seen.add(ip)
-            hosts.append({
-                "available": True,
-                "target": ip,
-                "up": h["up"],
-                "os": h["os"],
-                "services": h["services"],
-            })
+            hosts.append(_host_result(ip, h))
 
     if not hosts and last_err is not None:
         # every batch failed — surface the truth, don't pretend it scanned

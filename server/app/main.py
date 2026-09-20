@@ -251,7 +251,7 @@ app.add_middleware(MaxBodySizeMiddleware, max_bytes=settings.ingest_max_bytes)
 def _register_routers() -> None:
     from app.api import (
         ai, assets, auth, dashboard, findings, graph, health, ingest, live, netconfig,
-        org, paths, report, urltrust,
+        org, paths, report, tracking, urltrust,
     )
 
     app.include_router(health.router)
@@ -266,6 +266,7 @@ def _register_routers() -> None:
     app.include_router(dashboard.router, prefix="/api", tags=["dashboard"])
     app.include_router(report.router, prefix="/api", tags=["report"])
     app.include_router(live.router, prefix="/api", tags=["live"])
+    app.include_router(tracking.router, prefix="/api", tags=["tracking"])
     app.include_router(netconfig.router, prefix="/api", tags=["netconfig"])
     app.include_router(urltrust.router, prefix="/api", tags=["url-analyzer"])
 

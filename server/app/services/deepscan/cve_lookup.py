@@ -17,6 +17,7 @@ import threading
 import time
 
 from app.config import get_settings
+from app.services.deepscan import intel_correlate
 
 logger = logging.getLogger("drishti")
 
@@ -24,7 +25,7 @@ _NVD_URL = "https://services.nvd.nist.gov/rest/json/cves/2.0"
 _VULNERS_URL = "https://vulners.com/api/v3/burp/software/"
 
 # bound the work: distinct software lookups per scan, CVEs kept per service
-_MAX_LOOKUPS = 8
+_MAX_LOOKUPS = 16
 _MAX_CVES_PER_SERVICE = 6
 
 # in-process cache + polite spacing (module-level; not used inside the risk engine).
@@ -140,14 +141,22 @@ def fetch_vulners(product: str, version: str, timeout: float, api_key: str) -> t
 
 
 # ── parsers (pure) ───────────────────────────────────────────────────────────
-def parse_nvd(payload: dict, affected: str, must_contain: str | None = None) -> list[dict]:
+def parse_nvd(
+    payload: dict,
+    affected: str,
+    must_contain: str | None = None,
+    must_contain_version: str | None = None,
+) -> list[dict]:
     """Extract structured CVEs from a real NVD 2.0 response — source values only.
 
     `must_contain` (used on the keyword fallback path) drops CVEs whose text
     doesn't mention the product token, cutting the noise a broad keyword search
-    returns. CPE-matched results pass it as None (already precise)."""
+    returns. CPE-matched results pass it as None (already precise).
+    `must_contain_version` additionally requires the detected version in the
+    advisory text on the keyword path — a product name alone is not enough."""
     out: list[dict] = []
     token = (must_contain or "").lower().strip()
+    version_token = (must_contain_version or "").lower().strip()
     for item in payload.get("vulnerabilities", []) or []:
         cve = item.get("cve") or {}
         cve_id = cve.get("id")
@@ -158,8 +167,11 @@ def parse_nvd(payload: dict, affected: str, must_contain: str | None = None) -> 
             if d.get("lang") == "en":
                 summary = d.get("value", "")
                 break
-        if token and token not in summary.lower() and token not in cve_id.lower():
+        hay = f"{summary} {cve_id}".lower()
+        if token and token not in hay:
             continue  # keyword hit unrelated to this product → drop
+        if version_token and version_token not in hay:
+            continue  # keyword hit without the detected version → insufficient evidence
         cvss, severity, expl_score, expl_max = _nvd_metrics(cve.get("metrics") or {})
         if cvss is None:
             continue  # no scored metric → don't guess a number
@@ -171,6 +183,8 @@ def parse_nvd(payload: dict, affected: str, must_contain: str | None = None) -> 
                 "summary": summary[:600],
                 "exploitability": _exploitability_from(cvss, expl_score, expl_max),
                 "affected_service": affected,
+                "evidence_basis": "cpe_version" if not token else "product_version",
+                "intel_sources": ["nvd"],
             }
         )
     out.sort(key=lambda c: c["cvss"], reverse=True)
@@ -221,6 +235,8 @@ def parse_vulners(payload: dict, affected: str) -> list[dict]:
                 "summary": (src.get("description") or "")[:600],
                 "exploitability": _exploitability_from(cvss, None),
                 "affected_service": affected,
+                "evidence_basis": "product_version",
+                "intel_sources": ["nvd"],
             }
         )
     # dedupe by id, worst-first
@@ -305,6 +321,11 @@ def _lookup_one(product: str, version: str, cpe: str | None = None) -> tuple[lis
         with _state_lock:
             _cache[key] = cves
 
+    if not (version or "").strip():
+        # product without a version is not enough evidence to claim a CVE
+        _store([])
+        return [], None
+
     if settings.vulners_key:
         _space()
         payload, err = fetch_vulners(product, version, timeout, settings.vulners_key)
@@ -318,7 +339,8 @@ def _lookup_one(product: str, version: str, cpe: str | None = None) -> tuple[lis
 
     cpe23 = _cpe23(cpe, version)
     if cpe23:
-        # precise: match the exact product (+ version if known) by CPE
+        # precise: match the exact product + version by CPE — do not widen to
+        # every version of the product (that would claim vulns without evidence)
         _space()
         payload, err = fetch_nvd_cpe(cpe23, timeout, settings.nvd_api_key)
         if err is not None:
@@ -326,25 +348,24 @@ def _lookup_one(product: str, version: str, cpe: str | None = None) -> tuple[lis
             return None, err
         _clear_failure()
         cves = parse_nvd(payload or {}, affected)
-        # version-pinned CPE found nothing → widen to the product across all versions
-        if not cves and version:
-            wide = _cpe23(cpe, None)
-            if wide and wide != cpe23:
-                _space()
-                payload2, err2 = fetch_nvd_cpe(wide, timeout, settings.nvd_api_key)
-                if err2 is None:
-                    cves = parse_nvd(payload2 or {}, affected)
+        for c in cves:
+            c["evidence_basis"] = "cpe_version"
         _store(cves)
         return cves, None
 
-    # no CPE → keyword search, filtered to the product token to cut noise
+    # no CPE → keyword search, filtered to product AND version to cut noise
     _space()
     payload, err = fetch_nvd(product, version, timeout, settings.nvd_api_key)
     if err is not None:
         _record_failure(err)
         return None, err
     _clear_failure()
-    cves = parse_nvd(payload or {}, affected, must_contain=_product_token(product))
+    cves = parse_nvd(
+        payload or {},
+        affected,
+        must_contain=_product_token(product),
+        must_contain_version=version.strip().split(" ")[0],
+    )
     _store(cves)
     return cves, None
 
@@ -356,9 +377,12 @@ def lookup_for_services(services: list[dict]) -> dict:
     could reach the source at all (offline / rate-limited) — an empty `cves`
     with available:true truthfully means 'no known CVEs matched', which the UI
     renders differently from 'lookup unavailable'."""
-    # software we can identify by a CPE or a product name
+    # identifiable software with a version (or a versioned CPE) — skip banners
+    # that only name a product; that is not enough to claim a vulnerability
     candidates = [
-        s for s in services if (s.get("cpe") or "").strip() or (s.get("product") or "").strip()
+        s for s in services
+        if (s.get("version") or "").strip()
+        and ((s.get("cpe") or "").strip() or (s.get("product") or "").strip())
     ][:_MAX_LOOKUPS]
     if not candidates:
         return {"available": True, "reason": None, "cves": []}
@@ -384,6 +408,11 @@ def lookup_for_services(services: list[dict]) -> dict:
     if not reached_any:
         return {"available": False, "reason": last_reason or "CVE source unreachable", "cves": []}
     all_cves.sort(key=lambda c: c["cvss"], reverse=True)
+    try:
+        timeout = get_settings().deepscan_cve_timeout_seconds
+        all_cves = intel_correlate.enrich(all_cves, services, timeout=timeout)
+    except Exception as exc:  # pragma: no cover - enrichment must never invent or fail the scan
+        logger.warning("intel correlation skipped: %s", exc)
     return {"available": True, "reason": None, "cves": all_cves}
 
 

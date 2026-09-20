@@ -43,6 +43,8 @@ import type {
   Remediation,
   Stats,
   TokenPair,
+  TrackingResults,
+  TrackingSession,
   UrlAnalysisResult,
   UrlHistoryItem,
 } from "./types";
@@ -267,4 +269,10 @@ export const api = {
       success: boolean;
       results: Array<{ chat_id: string; delivered: boolean }>;
     }>("/api/live/telegram-test"),
+  startLiveTracking: (data: { device_id: string; ip: string; mac?: string | null; hostname?: string | null }) =>
+    post<TrackingSession>("/api/live/tracking/start", data),
+  stopLiveTracking: (tracking_session_id: string) =>
+    post<TrackingSession>("/api/live/tracking/stop", { tracking_session_id }),
+  getLiveTrackingResults: (tracking_session_id: string) =>
+    get<TrackingResults>(`/api/live/tracking/results/${tracking_session_id}`),
 };

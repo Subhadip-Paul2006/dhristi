@@ -21,6 +21,7 @@ import {
   Minimize2,
   Network,
   Power,
+  Radio,
   RefreshCw,
   Router,
   ScanLine,
@@ -44,6 +45,7 @@ import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import { api, ApiError } from "../../api/client";
 import { ForceMap, CoverageStrip } from "./ForceMap";
+import { LiveTrafficPanel } from "./LiveTrafficPanel";
 import { Panel } from "../../components/ui/console";
 import type {
   BlockFix,
@@ -53,6 +55,7 @@ import type {
   LiveThreat,
   NetworkDevice,
   NetworkThreat,
+  TrackingSession,
 } from "../../api/types";
 import { Button } from "../../components/Button";
 import { Card, EmptyState, LoadingBlock, Select } from "../../components/primitives";
@@ -1572,6 +1575,23 @@ function DeviceDetail({
   const [phase, setPhase] = useState<"idle" | "consent" | "scanning" | "result">("idle");
   const [consented, setConsented] = useState(false);
   const [result, setResult] = useState<DeepScanResult | null>(null);
+  const [trackingSession, setTrackingSession] = useState<TrackingSession | null>(null);
+
+  const startTracking = useMutation({
+    mutationFn: () =>
+      api.startLiveTracking({
+        device_id: d.id,
+        ip: d.ip,
+        mac: d.mac,
+        hostname: d.hostname,
+      }),
+    onSuccess: (session) => setTrackingSession(session),
+    onError: (e) =>
+      toast.show(
+        e instanceof ApiError ? e.message : "Couldn't start traffic capture",
+        "error"
+      ),
+  });
 
   const threatMap = useMemo(() => {
     const m: Record<string, LiveThreat> = {};
@@ -1895,12 +1915,42 @@ function DeviceDetail({
           )}
         </div>
 
+        {/* ── Live Network Traffic Scanner ──────────────────────────── */}
+        <div className="mt-4 border-t border-hairline pt-4">
+          <div className="flex items-center gap-2 text-small text-ink">
+            <Radio className="h-4 w-4 text-accent-400" />
+            <span className="font-medium">Live Network Traffic Scanner</span>
+          </div>
+          <p className="mt-1 text-[11px] text-ink-muted">
+            Start a real-time packet capture on this device's traffic — AI analyses protocol
+            distribution, top destinations, behavioural anomalies, and forecasts threats.
+          </p>
+          <Button
+            variant="primary"
+            className="mt-3 w-full"
+            loading={startTracking.isPending}
+            onClick={() => startTracking.mutate()}
+          >
+            <Radio className="mr-1.5 h-4 w-4" /> Start live traffic scan
+          </Button>
+        </div>
+
         <div className="mt-3 rounded-md border border-hairline bg-canvas p-2.5 text-[11px] text-ink-muted">
           Devices are discovered by an ARP/ping sweep of your subnet (presence + identity only). A
           deep scan only runs on the device you explicitly consent to. Drishti never inspects
           another device's traffic.
         </div>
       </div>
+
+      {/* Live Traffic Panel overlay */}
+      {trackingSession &&
+        createPortal(
+          <LiveTrafficPanel
+            initialSession={trackingSession}
+            onClose={() => setTrackingSession(null)}
+          />,
+          document.body
+        )}
     </div>
   );
 }

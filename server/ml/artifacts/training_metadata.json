@@ -1,0 +1,75 @@
+{
+  "timestamp": "2026-09-19T09:52:32.245680+00:00",
+  "canonical_features": [
+    "flow_duration",
+    "total_fwd_packets",
+    "total_bwd_packets",
+    "total_fwd_bytes",
+    "total_bwd_bytes",
+    "flow_bytes_per_sec",
+    "flow_packets_per_sec",
+    "fwd_iat_mean",
+    "fwd_iat_std",
+    "fwd_iat_max",
+    "fwd_iat_min",
+    "bwd_iat_mean",
+    "bwd_iat_std",
+    "flag_syn_count",
+    "flag_ack_count",
+    "flag_fin_count",
+    "flag_rst_count",
+    "flag_psh_count",
+    "flag_urg_count",
+    "fwd_avg_bytes_per_pkt",
+    "bwd_avg_bytes_per_pkt",
+    "active_mean",
+    "idle_mean",
+    "port_scan_score",
+    "mean_ttl",
+    "mean_tcp_window",
+    "payload_entropy"
+  ],
+  "feature_dim": 27,
+  "sequence_length": 5,
+  "classes": {
+    "BENIGN": 0,
+    "DoS": 1,
+    "PortScan": 2,
+    "BruteForce": 3,
+    "Infiltration": 4,
+    "Botnet": 5,
+    "WebAttack": 6,
+    "Generic": 7
+  },
+  "metrics": {
+    "lstm": {
+      "accuracy": 0.745,
+      "precision": 0.555,
+      "recall": 0.745,
+      "f1": 0.6361
+    },
+    "transformer": {
+      "accuracy": 0.745,
+      "precision": 0.555,
+      "recall": 0.745,
+      "f1": 0.6361
+    },
+    "gnn": {
+      "accuracy": 0.876,
+      "precision": 0.7673,
+      "recall": 0.876,
+      "f1": 0.8181
+    },
+    "fusion": {
+      "accuracy": 0.749,
+      "f1": 0.6458
+    }
+  },
+  "artifacts": {
+    "scaler": "scaler.joblib",
+    "lstm": "lstm_checkpoint.pt",
+    "transformer": "transformer_checkpoint.pt",
+    "gnn": "gnn_checkpoint.pt",
+    "fusion": "fusion_checkpoint.pt"
+  }
+}

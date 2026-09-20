@@ -2,6 +2,7 @@
 """Live network watch: the edge agent POSTs observed domains (agent-token auth);
 the UI polls the live threat list and requests a defensive block on demand
 (user auth). Thin router — logic in services/live.py."""
+from datetime import datetime
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
@@ -20,10 +21,12 @@ from app.schemas.live import (
     DeepScanResult,
     DeviceBatch,
     DeviceBatchResponse,
+    EvidenceEnvelope,
     LiveThreat,
     NetworkDeviceOut,
     ObserveRequest,
     ObserveResponse,
+    SyncActiveRequest,
 )
 from app.schemas.live_threats import NetworkThreat
 from app.services import autoscan, live
@@ -39,16 +42,43 @@ def observe_domain(
     agent: Agent = Depends(get_current_agent),
     db: Session = Depends(get_db),
 ) -> ObserveResponse:
-    return live.observe(db, agent.org_id, body.domain, body.source_host)
+    return live.observe(
+        db,
+        agent.org_id,
+        body.domain,
+        body.source_host,
+        protocol=body.protocol,
+        evidence_source=body.evidence_source,
+        dest_port=body.dest_port,
+        connection_count=body.connection_count,
+    )
 
 
 @router.post("/live/sync_active")
 def sync_active_domains(
-    body: __import__("app.schemas.live", fromlist=["SyncActiveRequest"]).SyncActiveRequest,
+    body: SyncActiveRequest,
     agent: Agent = Depends(get_current_agent),
     db: Session = Depends(get_db),
 ) -> dict:
-    return live.sync_active(db, agent.org_id, body.domains, body.source_host, body.active_apps)
+    return live.sync_active(
+        db,
+        agent.org_id,
+        body.domains,
+        body.source_host,
+        agent_id=body.agent_id or agent.id,
+        mac=body.mac,
+        active_apps=body.active_apps,
+        active_browser_tabs=body.active_browser_tabs,
+        endpoint_processes=body.endpoint_processes,
+        installed_software=body.installed_software,
+        installed_browsers=body.installed_browsers,
+        process_connections=body.process_connections,
+        vpn_status=body.vpn_status,
+        vpn_adapters=body.vpn_adapters,
+        os_info=body.os_info,
+        dns_queries=body.dns_queries,
+        network_traffic=body.network_traffic,
+    )
 
 
 @router.post("/live/check", response_model=ObserveResponse,
@@ -60,7 +90,16 @@ def check_domain(
 ) -> ObserveResponse:
     """Manual check from the UI (user-authed) — same real analysis + live node as
     the agent's observe, so a judge can test any URL instantly."""
-    return live.observe(db, org.id, body.domain, body.source_host or "manual")
+    return live.observe(
+        db,
+        org.id,
+        body.domain,
+        body.source_host or "manual",
+        protocol=body.protocol,
+        evidence_source=body.evidence_source,
+        dest_port=body.dest_port,
+        connection_count=body.connection_count,
+    )
 
 
 @router.get("/live/threats", response_model=list[LiveThreat])
@@ -241,3 +280,49 @@ def deep_scan_last(
 ) -> DeepScanResult:
     """Re-fetch the most recent deep-scan result for a scanned asset."""
     return deepscan.get_last(db, org.id, asset_id)
+
+
+@router.get("/live/telegram-status")
+def get_telegram_status(
+    org: Organization = Depends(get_current_org),
+):
+    """Retrieve Telegram alert dispatcher configuration and operational status."""
+    from app.services.telegram_alerts import get_status
+    return get_status()
+
+
+@router.post("/live/telegram-test")
+def trigger_telegram_test(
+    org: Organization = Depends(get_current_org),
+):
+    """Trigger an immediate diagnostic verification alert to configured Telegram chat(s)."""
+    from app.services.telegram_alerts import send_test_alert
+    from fastapi import HTTPException, status
+    res = send_test_alert("Manual test alert triggered via Drishti Operator Console")
+    if not res.get("success"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=res.get("error", "Failed to deliver Telegram test message"),
+        )
+    return res
+
+
+@router.get("/live/timeline/{device_id}", response_model=list[EvidenceEnvelope])
+@router.get("/v1/live/timeline/{device_id}", response_model=list[EvidenceEnvelope])
+def get_device_timeline_endpoint(
+    device_id: str,
+    since: datetime | None = None,
+    until: datetime | None = None,
+    limit: int = 200,
+    org: Organization = Depends(get_current_org),
+) -> list[EvidenceEnvelope]:
+    """Query per-device network evidence timeline strictly bounded by time and device."""
+    return live.get_device_timeline(
+        org_id=org.id,
+        device_identifier=device_id,
+        since=since,
+        until=until,
+        limit=limit,
+    )
+
+

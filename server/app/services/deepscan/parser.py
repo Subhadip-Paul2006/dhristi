@@ -48,7 +48,11 @@ def _parse_host(host: ET.Element) -> dict:
             name = (svc.get("name") if svc is not None else None) or "unknown"
             product = svc.get("product") if svc is not None else None
             version = svc.get("version") if svc is not None else None
+            tunnel = (svc.get("tunnel") if svc is not None else None) or None
+            extrainfo = (svc.get("extrainfo") if svc is not None else None) or None
             cpe = _first_app_cpe(svc)  # accurate product identifier for CVE matching
+            confidence = _service_confidence(svc)
+            banner = _banner(product, version, extrainfo)
             services.append(
                 {
                     "port": port_num,
@@ -57,6 +61,13 @@ def _parse_host(host: ET.Element) -> dict:
                     "product": product or None,
                     "version": version or None,
                     "cpe": cpe,
+                    "tunnel": tunnel,
+                    "extrainfo": extrainfo,
+                    "banner": banner,
+                    "confidence": confidence,
+                    "evidence_type": "SERVICE_DETECTION",
+                    "source": "nmap",
+                    "is_inferred": False,
                 }
             )
 
@@ -77,6 +88,63 @@ def parse_hosts(xml_text: str) -> list[dict]:
     """All <host> elements → [{ip, up, os, services}]. Raises ValueError on bad XML."""
     root = _root(xml_text)
     return [_parse_host(h) for h in root.findall("host")]
+
+
+def http_endpoints(ip: str, services: list[dict]) -> list[dict]:
+    """Identify HTTP/HTTPS listeners from nmap service evidence (including
+    non-standard ports). Never infers HTTP from a port number alone."""
+    out: list[dict] = []
+    for s in services:
+        endpoint = _http_endpoint(ip, s)
+        if endpoint:
+            out.append(endpoint)
+    return out
+
+
+def _http_endpoint(ip: str, svc: dict) -> dict | None:
+    name = (svc.get("service_name") or "").lower()
+    tunnel = (svc.get("tunnel") or "").lower()
+    extra = (svc.get("extrainfo") or "").lower()
+    if "http" not in name and "http" not in extra:
+        return None
+    port = int(svc["port"])
+    https = (
+        "https" in name
+        or tunnel in ("ssl", "tls")
+        or "ssl" in extra
+        or "tls" in extra
+    )
+    scheme = "https" if https else "http"
+    host = ip or "0.0.0.0"
+    return {
+        "url": f"{scheme}://{host}:{port}/",
+        "port": port,
+        "scheme": scheme,
+        "service_name": svc.get("service_name") or "http",
+        "product": svc.get("product"),
+        "version": svc.get("version"),
+        "evidence_type": "SERVICE_DETECTION",
+        "source": "nmap",
+        "is_inferred": False,
+    }
+
+
+def _service_confidence(svc: ET.Element | None) -> float | None:
+    """nmap `conf` is 0–10; normalize to 0–1. None if nmap omitted it."""
+    if svc is None:
+        return None
+    raw = svc.get("conf")
+    if raw is None:
+        return None
+    try:
+        return round(min(max(int(raw) / 10.0, 0.0), 1.0), 2)
+    except (TypeError, ValueError):
+        return None
+
+
+def _banner(product: str | None, version: str | None, extrainfo: str | None) -> str | None:
+    parts = [p for p in (product, version, extrainfo) if p]
+    return " ".join(parts)[:400] if parts else None
 
 
 def parse_live_ips(xml_text: str) -> list[str]:

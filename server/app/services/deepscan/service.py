@@ -27,6 +27,7 @@ from app.schemas.live import (
     DeepScanRangeResult,
     DeepScanResult,
     DeepScanService,
+    HttpEndpoint,
 )
 from app.services.deepscan import cve_lookup, integration, scanner
 
