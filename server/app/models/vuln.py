@@ -60,3 +60,4 @@ class AssetVulnerability(Base):
 
     asset: Mapped["Asset"] = relationship(back_populates="findings")  # noqa: F821
     vulnerability: Mapped[Vulnerability] = relationship(back_populates="findings")
+    service: Mapped["Service | None"] = relationship(foreign_keys=[service_id])  # noqa: F821

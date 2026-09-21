@@ -7,6 +7,9 @@ caller marks domain age "unknown" — it never guesses an age or registrar.
 """
 from __future__ import annotations
 
+import contextlib
+import io
+import ipaddress
 from datetime import datetime, timezone
 
 
@@ -23,6 +26,14 @@ def _first(value, latest=False):
 
 
 def domain_facts(host: str) -> dict | None:
+    # An IP address (IPv4 or IPv6) is not a domain; python-whois only supports domain names.
+    # Querying an IP causes invalid TLD queries and noisy socket connection errors.
+    try:
+        ipaddress.ip_address(host)
+        return None
+    except ValueError:
+        pass
+
     try:
         import whois  # python-whois
     except Exception:
@@ -35,7 +46,11 @@ def domain_facts(host: str) -> dict | None:
         # WHOIS_QUICK suppresses that auto-recursion (see
         # NICClient.whois_lookup), so pass it explicitly rather than relying
         # on the library's default.
-        record = whois.whois(host, flags=whois.NICClient.WHOIS_QUICK)
+        # Redirect stderr/stdout so python-whois's internal socket print statements
+        # do not pollute the application console when a port 43 connection fails.
+        f = io.StringIO()
+        with contextlib.redirect_stderr(f), contextlib.redirect_stdout(f):
+            record = whois.whois(host, flags=whois.NICClient.WHOIS_QUICK)
     except Exception:
         return None
 

@@ -364,6 +364,19 @@ def get_endpoint_device_telemetry(
             | (EndpointAgent.id == device_id)
         )
     )
+    if not agent:
+        from app.models.live import NetworkDevice
+        net_dev = db.get(NetworkDevice, device_id)
+        if net_dev:
+            agent = db.scalar(
+                select(EndpointAgent).where(
+                    EndpointAgent.org_id == org.id,
+                    (EndpointAgent.device_id == net_dev.id)
+                    | ((EndpointAgent.current_ip.is_not(None)) & (EndpointAgent.current_ip == net_dev.ip))
+                    | ((EndpointAgent.mac.is_not(None)) & (EndpointAgent.mac == net_dev.mac))
+                    | ((EndpointAgent.hostname.is_not(None)) & (EndpointAgent.hostname == net_dev.hostname))
+                )
+            )
     if agent:
         telem = endpoint_telemetry.get_telemetry_for_device(org.id, agent.device_id)
         if telem:
@@ -396,6 +409,19 @@ def get_endpoint_device_vulnerabilities(
             | (EndpointAgent.id == device_id),
         )
     )
+    if not agent:
+        from app.models.live import NetworkDevice
+        net_dev = db.get(NetworkDevice, device_id)
+        if net_dev:
+            agent = db.scalar(
+                select(EndpointAgent).where(
+                    EndpointAgent.org_id == org.id,
+                    (EndpointAgent.device_id == net_dev.id)
+                    | ((EndpointAgent.current_ip.is_not(None)) & (EndpointAgent.current_ip == net_dev.ip))
+                    | ((EndpointAgent.mac.is_not(None)) & (EndpointAgent.mac == net_dev.mac))
+                    | ((EndpointAgent.hostname.is_not(None)) & (EndpointAgent.hostname == net_dev.hostname))
+                )
+            )
     if agent:
         target_device_id = agent.device_id
 

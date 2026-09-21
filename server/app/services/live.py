@@ -1676,6 +1676,8 @@ def list_devices(db: Session, org_id: str) -> list[NetworkDeviceOut]:
                 dev_capability_state = "WINDOWS ENDPOINT"
             elif "darwin" in os_low or "mac" in os_low:
                 dev_capability_state = "MACOS ENDPOINT"
+            elif "android" in os_low:
+                dev_capability_state = "ANDROID ENDPOINT"
             else:
                 dev_capability_state = "AGENT CONNECTED"
 
@@ -1746,6 +1748,8 @@ def list_devices(db: Session, org_id: str) -> list[NetworkDeviceOut]:
                 dev_capability_state = "WINDOWS ENDPOINT"
             elif "darwin" in os_low or "mac" in os_low:
                 dev_capability_state = "MACOS ENDPOINT"
+            elif "android" in os_low:
+                dev_capability_state = "ANDROID ENDPOINT"
             else:
                 dev_capability_state = "AGENT CONNECTED"
             if not final_os_info:
@@ -2109,25 +2113,39 @@ def upsert_device_from_endpoint_agent(db: Session, org_id: str, agent: EndpointA
     The row is created with discovery='endpoint_agent' to distinguish it from
     ARP / nmap-discovered peers.  Idempotent: safe to call on every heartbeat.
     """
+    import uuid
     ip = (agent.current_ip or "").strip()
-    if not ip:
-        return  # agent hasn't reported an IP yet — skip
 
     now = utcnow()
-    row: NetworkDevice | None = db.scalar(
-        select(NetworkDevice).where(
-            NetworkDevice.org_id == org_id,
-            NetworkDevice.ip == ip,
+    row: NetworkDevice | None = None
+    if agent.device_id:
+        row = db.get(NetworkDevice, agent.device_id)
+    if row is None and ip:
+        row = db.scalar(
+            select(NetworkDevice).where(
+                NetworkDevice.org_id == org_id,
+                NetworkDevice.ip == ip,
+            )
         )
-    )
+    if row is None and agent.mac:
+        row = db.scalar(
+            select(NetworkDevice).where(
+                NetworkDevice.org_id == org_id,
+                NetworkDevice.mac == agent.mac,
+            )
+        )
+
+    init_vendor = "Android" if "android" in (agent.os or "").lower() else None
 
     if row is None:
         row = NetworkDevice(
+            id=agent.device_id or str(uuid.uuid4()),
             org_id=org_id,
             ip=ip,
             mac=agent.mac,
             hostname=agent.hostname,
-            vendor=None,
+            vendor=init_vendor,
+            source_agent_id=agent.agent_id,
             discovery="endpoint_agent",
             label=agent.hostname,
             is_self=False,
@@ -2143,21 +2161,28 @@ def upsert_device_from_endpoint_agent(db: Session, org_id: str, agent: EndpointA
             db.flush()
         except IntegrityError:
             db.rollback()
-            row = db.scalar(
-                select(NetworkDevice).where(
-                    NetworkDevice.org_id == org_id,
-                    NetworkDevice.ip == ip,
+            if agent.device_id:
+                row = db.get(NetworkDevice, agent.device_id)
+            if row is None and ip:
+                row = db.scalar(
+                    select(NetworkDevice).where(
+                        NetworkDevice.org_id == org_id,
+                        NetworkDevice.ip == ip,
+                    )
                 )
-            )
             if row is None:
                 return
     else:
         row.online = True
         row.last_seen = now
+        if ip and not row.ip:
+            row.ip = ip
         if not row.hostname and agent.hostname:
             row.hostname = agent.hostname
         if not row.mac and agent.mac:
             row.mac = agent.mac
+        if not row.vendor and init_vendor:
+            row.vendor = init_vendor
 
     try:
         db.commit()

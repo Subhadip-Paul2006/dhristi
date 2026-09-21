@@ -46,6 +46,14 @@ def _is_safe_ip(ip: str) -> bool:
     )
 
 
+def _ip_sort_key(ip: str) -> tuple[int, int]:
+    try:
+        addr = ipaddress.ip_address(ip)
+        return (0 if addr.version == 4 else 1, int(addr))
+    except ValueError:
+        return (2, 0)
+
+
 def _resolve_ips(host: str, timeout: float) -> list[str]:
     """getaddrinfo has no timeout of its own; run it on the shared worker pool
     so a stalling DNS server can't hang the caller past `timeout`. On timeout
@@ -56,7 +64,7 @@ def _resolve_ips(host: str, timeout: float) -> list[str]:
         infos = future.result(timeout=timeout)
     finally:
         future.cancel()
-    return sorted({info[4][0] for info in infos})
+    return sorted({info[4][0] for info in infos}, key=_ip_sort_key)
 
 
 def _safe_ips(host: str, timeout: float) -> list[str] | None:

@@ -429,3 +429,121 @@ def test_missing_fields_formatting_renders_not_available():
     assert "Not available" in html_msg
     assert "unknown-daemon" in html_msg
 
+
+def test_scan_org_db_findings_without_service():
+    """Verify database AssetVulnerability without service does not raise AttributeError."""
+    from app.models import Asset, AssetVulnerability, Vulnerability
+
+    mock_db = MagicMock()
+    org_id = "org-test-db"
+
+    vuln = Vulnerability(
+        id=str(uuid.uuid4()),
+        cve_id="CVE-2024-9999",
+        title="Critical Vulnerability",
+        severity="critical",
+    )
+    asset = Asset(
+        id=str(uuid.uuid4()),
+        org_id=org_id,
+        hostname="srv-prod-01",
+        ip="192.168.1.50",
+    )
+    finding = AssetVulnerability(
+        id=str(uuid.uuid4()),
+        org_id=org_id,
+        asset_id=asset.id,
+        vulnerability_id=vuln.id,
+        service_id=None,
+        status="open",
+        detected_at=datetime.now(timezone.utc),
+    )
+    finding.asset = asset
+    finding.vulnerability = vuln
+    # finding.service is None
+
+    def mock_scalars_no_svc(statement):
+        res = MagicMock()
+        if "asset_vulnerabilities" in str(statement):
+            res.all.return_value = [finding]
+        else:
+            res.all.return_value = []
+        return res
+
+    mock_db.scalars.side_effect = mock_scalars_no_svc
+
+    dispatched = []
+
+    def fake_dispatch(bot_token, chat_id, html_text, plain_text):
+        dispatched.append(html_text)
+        return True
+
+    with patch("app.services.telegram_alerts._dispatch_alert", side_effect=fake_dispatch):
+        _scan_org(mock_db, org_id, "test-bot-token", "123456")
+        assert len(dispatched) == 1
+        assert "CVE-2024-9999" in dispatched[0]
+        assert "srv-prod-01" in dispatched[0]
+
+
+def test_scan_org_db_findings_with_service():
+    """Verify database AssetVulnerability with service resolves version correctly."""
+    from app.models import Asset, AssetVulnerability, Service, Vulnerability
+
+    mock_db = MagicMock()
+    org_id = "org-test-db"
+
+    vuln = Vulnerability(
+        id=str(uuid.uuid4()),
+        cve_id="CVE-2023-1234",
+        title="Apache Vulnerability",
+        severity="high",
+    )
+    asset = Asset(
+        id=str(uuid.uuid4()),
+        org_id=org_id,
+        hostname="web-prod-01",
+        ip="192.168.1.80",
+    )
+    service = Service(
+        id=str(uuid.uuid4()),
+        org_id=org_id,
+        asset_id=asset.id,
+        port=80,
+        protocol="tcp",
+        name="apache",
+        version="2.4.49",
+    )
+    finding = AssetVulnerability(
+        id=str(uuid.uuid4()),
+        org_id=org_id,
+        asset_id=asset.id,
+        vulnerability_id=vuln.id,
+        service_id=service.id,
+        status="open",
+        detected_at=datetime.now(timezone.utc),
+    )
+    finding.asset = asset
+    finding.vulnerability = vuln
+    finding.service = service
+
+    def mock_scalars_svc(statement):
+        res = MagicMock()
+        if "asset_vulnerabilities" in str(statement):
+            res.all.return_value = [finding]
+        else:
+            res.all.return_value = []
+        return res
+
+    mock_db.scalars.side_effect = mock_scalars_svc
+
+    dispatched = []
+
+    def fake_dispatch(bot_token, chat_id, html_text, plain_text):
+        dispatched.append(html_text)
+        return True
+
+    with patch("app.services.telegram_alerts._dispatch_alert", side_effect=fake_dispatch):
+        _scan_org(mock_db, org_id, "test-bot-token", "123456")
+        assert len(dispatched) == 1
+        assert "CVE-2023-1234" in dispatched[0]
+

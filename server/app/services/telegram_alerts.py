@@ -21,7 +21,7 @@ import urllib.request
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import AssetVulnerability, LiveObservation, NetworkDevice, Vulnerability
+from app.models import AssetVulnerability, LiveObservation, NetworkDevice, Service, Vulnerability
 from app.services.live_threats import detect_threats, DeviceView, DomainView
 from app.db import SessionLocal
 
@@ -186,18 +186,23 @@ def get_alerted_count() -> int:
 
 def _format_finding_alert(f) -> tuple[str, str]:
     """Returns (html_message, plain_text_fallback) for database AssetVulnerability."""
-    sev = f.vulnerability.severity.upper() if f.vulnerability and f.vulnerability.severity else "HIGH"
-    title = f.vulnerability.title if f.vulnerability else "Unknown vulnerability"
-    asset = f.asset.hostname if f.asset and f.asset.hostname else (f.asset.ip if f.asset else f.asset_id[:8])
-    asset_ip = f.asset.ip if f.asset and f.asset.ip else "Not available"
-    cve = f.vulnerability.cve_id if f.vulnerability and f.vulnerability.cve_id else "N/A"
+    vuln = getattr(f, "vulnerability", None)
+    asset = getattr(f, "asset", None)
+    sev = vuln.severity.upper() if vuln and getattr(vuln, "severity", None) else "HIGH"
+    title = vuln.title if vuln and getattr(vuln, "title", None) else "Unknown vulnerability"
+    dev_name = (
+        asset.hostname if asset and getattr(asset, "hostname", None)
+        else (asset.ip if asset and getattr(asset, "ip", None) else getattr(f, "asset_id", "")[:8])
+    )
+    asset_ip = asset.ip if asset and getattr(asset, "ip", None) else "Not available"
+    cve = vuln.cve_id if vuln and getattr(vuln, "cve_id", None) else "N/A"
     detected_time = _ist_timestamp(getattr(f, "detected_at", None))
-    status_str = str(f.status).upper()
+    status_str = str(getattr(f, "status", "OPEN")).upper()
 
     html_msg = (
         f"🚨 <b>[DRISHTI ALERT — {html.escape(sev)}]</b>\n"
         f"<b>{html.escape(title)}</b>\n\n"
-        f"• <b>Device:</b> <code>{html.escape(asset)}</code>\n"
+        f"• <b>Device:</b> <code>{html.escape(dev_name)}</code>\n"
         f"• <b>IP:</b> <code>{html.escape(asset_ip)}</code>\n"
         f"• <b>CVE:</b> <code>{html.escape(cve)}</code>\n"
         f"• <b>Severity:</b> <code>{html.escape(sev)}</code>\n"
@@ -209,7 +214,7 @@ def _format_finding_alert(f) -> tuple[str, str]:
     plain_msg = (
         f"[DRISHTI ALERT — {sev}]\n"
         f"{title}\n\n"
-        f"• Device: {asset}\n"
+        f"• Device: {dev_name}\n"
         f"• IP: {asset_ip}\n"
         f"• CVE: {cve}\n"
         f"• Severity: {sev}\n"
@@ -350,17 +355,23 @@ def _scan_org(db: Session, org_id: str, bot_token: str, chat_id_conf: str, now: 
         for f in findings:
             f_time = f.detected_at.replace(tzinfo=timezone.utc) if f.detected_at and f.detected_at.tzinfo is None else f.detected_at
             if f_time and f_time < recent_cutoff:
-                dev = f.asset.hostname if f.asset and f.asset.hostname else (f.asset.ip if f.asset else f.asset_id[:8])
-                cve = f.vulnerability.cve_id if f.vulnerability and f.vulnerability.cve_id else f.id
-                ver = f.service.version if f.service and f.service.version else "unknown"
-                sev = f.vulnerability.severity if f.vulnerability else "high"
+                dev = f.asset.hostname if getattr(f, "asset", None) and f.asset.hostname else (f.asset.ip if getattr(f, "asset", None) else getattr(f, "asset_id", "")[:8])
+                cve = f.vulnerability.cve_id if getattr(f, "vulnerability", None) and f.vulnerability.cve_id else getattr(f, "id", "")
+                svc = getattr(f, "service", None)
+                if svc is None and getattr(f, "service_id", None):
+                    svc = db.get(Service, f.service_id)
+                ver = svc.version if svc and getattr(svc, "version", None) else "unknown"
+                sev = f.vulnerability.severity if getattr(f, "vulnerability", None) and getattr(f.vulnerability, "severity", None) else "high"
                 _alerted.add(make_finding_fingerprint(org_id, dev, cve, ver, sev, False))
 
     for f in findings:
-        dev = f.asset.hostname if f.asset and f.asset.hostname else (f.asset.ip if f.asset else f.asset_id[:8])
-        cve = f.vulnerability.cve_id if f.vulnerability and f.vulnerability.cve_id else f.id
-        ver = f.service.version if f.service and f.service.version else "unknown"
-        sev = f.vulnerability.severity if f.vulnerability else "high"
+        dev = f.asset.hostname if getattr(f, "asset", None) and f.asset.hostname else (f.asset.ip if getattr(f, "asset", None) else getattr(f, "asset_id", "")[:8])
+        cve = f.vulnerability.cve_id if getattr(f, "vulnerability", None) and f.vulnerability.cve_id else getattr(f, "id", "")
+        svc = getattr(f, "service", None)
+        if svc is None and getattr(f, "service_id", None):
+            svc = db.get(Service, f.service_id)
+        ver = svc.version if svc and getattr(svc, "version", None) else "unknown"
+        sev = f.vulnerability.severity if getattr(f, "vulnerability", None) and getattr(f.vulnerability, "severity", None) else "high"
         key = make_finding_fingerprint(org_id, dev, cve, ver, sev, False)
         if key in _alerted:
             continue

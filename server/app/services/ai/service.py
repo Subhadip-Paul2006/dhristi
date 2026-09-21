@@ -215,6 +215,37 @@ def remediate(db: Session, org_id: str, finding_id: str, preferred_kind: str, re
             },
         )
 
+    # Guard: Android endpoints cannot execute arbitrary shell scripts or root playbooks
+    is_android = "android" in (rem_ctx.os or "").lower()
+    if is_android and preferred_kind in ("shell", "ansible", "cloud_cli"):
+        return RemediationOut(
+            refused=True,
+            reason="Automated shell/script execution is unavailable on Android endpoints for security and privilege boundaries.",
+            kind=preferred_kind,
+            title=f"Manual Guidance Required for {rem_ctx.product or 'Android Application'}",
+            summary=f"Automated script execution is unavailable on Android endpoints. Defensive remediation must be applied manually via Google Play Store, Enterprise MDM, or Android System Settings.",
+            script="# Automated script remediation is unavailable on Android endpoints.\n# Use manual remediation guidance to update the package via Play Store/MDM or revoke permissions.",
+            steps=[
+                f"Update {rem_ctx.product or 'the application'} via Google Play Store or Enterprise MDM",
+                "Review and revoke excessive app permissions in Android Settings > Apps",
+                "Check and apply latest Android System Security Update in Settings > Security",
+                "If unsupported or untrusted, uninstall the application from the device",
+            ],
+            estimated_risk_reduction=0.0,
+            requires_restart=False,
+            disclaimer="Defensive Android remediation guidance. Never execute root or unauthorized scripts on mobile devices.",
+            model="guardrail",
+            remediation_state="REMEDIATION_UNAVAILABLE",
+            source=rem_ctx.source,
+            in_kev=rem_ctx.in_kev,
+            context={
+                "remediation_state": "REMEDIATION_UNAVAILABLE",
+                "finding_state": rem_ctx.finding_state,
+                "product": rem_ctx.product,
+                "os": rem_ctx.os,
+            },
+        )
+
     # Cache check
     if not regenerate:
         if rem_ctx.source == "network":
@@ -412,6 +443,31 @@ def _templated_remediation(ctx: dict) -> dict:
         if has_fixed
         else "# Exact patched version could not be verified from advisory — substitute <patched-version>\n"
     )
+
+    is_android = "android" in (ctx.get("asset", {}).get("os") or "").lower()
+    if is_android:
+        target_ver_str = fixed_ver if has_fixed else "<patched-version>"
+        script = (
+            f"Android Defensive Remediation for {cve} ({vuln_title}) on {host}:\n"
+            f"{kev_header}"
+            f"1. Open Google Play Store or Enterprise MDM and install the security update for {name} (target version: {target_ver_str}).\n"
+            f"2. In Android Settings > Apps > {name}, review granted permissions and revoke excessive privileges.\n"
+            f"3. In Android Settings > Security, check for and apply system security updates.\n"
+            f"4. If {name} is unverified or no patch is provided, uninstall the package from the device.\n"
+        )
+        return {
+            "title": f"Update {name} on Android",
+            "summary": f"Defensive manual remediation steps for {cve} affecting {name} on Android.",
+            "script": script,
+            "steps": [
+                f"Update {name} to {target_ver_str} via Play Store or Enterprise MDM",
+                f"Review and restrict permissions for {name} in Android Settings",
+                "Verify Android security patch level is up to date",
+            ],
+            "estimated_risk_reduction": 0.8 if in_kev else 0.6,
+            "requires_restart": False,
+            "remediation_state": "REMEDIATION_AVAILABLE" if kind == "manual" else "REMEDIATION_UNAVAILABLE",
+        }
 
     if kind == "shell":
         host_sh = shlex.quote(str(host))

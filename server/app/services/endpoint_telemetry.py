@@ -60,6 +60,28 @@ def record_telemetry(
             else (existing.get("last_software_updated", now_utc) if existing else now_utc)
         )
 
+        # If payload has applications (e.g. from Android) and installed_software was not explicitly passed,
+        # map packages into installed_software so the vulnerability correlator seamlessly evaluates them.
+        if payload.applications and payload.installed_software is None:
+            synth_software = []
+            for app_item in payload.applications:
+                pkg_name = app_item.get("package_name") or app_item.get("name")
+                label = app_item.get("label") or pkg_name
+                ver_name = app_item.get("version_name") or app_item.get("version")
+                classification = app_item.get("classification", "USER_APP")
+                if pkg_name:
+                    synth_software.append({
+                        "name": label or pkg_name,
+                        "version": ver_name,
+                        "vendor": classification,
+                        "source": "android_package",
+                        "observed_at": now_utc.isoformat(),
+                    })
+            if synth_software:
+                software = synth_software
+                software_mono = now_mono
+                software_dt = now_utc
+
         record: dict[str, Any] = {
             "org_id": org_id,
             "agent_id": agent_id,
@@ -76,6 +98,17 @@ def record_telemetry(
             "process_connections": [pc.model_dump() for pc in (payload.process_connections or [])],
             "installed_browsers": list(payload.installed_browsers or []),
             "browser_processes": [bp.model_dump() for bp in (payload.browser_processes or [])],
+            # Android & extended platform telemetry fields
+            "device_model": payload.device_model or (existing.get("device_model") if existing else None),
+            "manufacturer": payload.manufacturer or (existing.get("manufacturer") if existing else None),
+            "sdk_version": payload.sdk_version if payload.sdk_version is not None else (existing.get("sdk_version") if existing else None),
+            "cpu_info": payload.cpu_info or (existing.get("cpu_info") if existing else None),
+            "memory_info": payload.memory_info or (existing.get("memory_info") if existing else None),
+            "storage_info": payload.storage_info or (existing.get("storage_info") if existing else None),
+            "battery_info": payload.battery_info or (existing.get("battery_info") if existing else None),
+            "network_info": payload.network_info or (existing.get("network_info") if existing else None),
+            "security_posture": payload.security_posture or (existing.get("security_posture") if existing else None),
+            "applications": [dict(a) for a in (payload.applications or (existing.get("applications", []) if existing else []))],
             "last_updated_mono": now_mono,
             "last_updated": now_utc,
             "last_software_updated_mono": software_mono,
@@ -84,7 +117,7 @@ def record_telemetry(
 
         _DEVICE_TELEMETRY_STORE[key] = record
 
-    if payload.installed_software is not None:
+    if payload.installed_software is not None or (payload.applications and software):
         try:
             correlate_device_software(org_id, device_id)
         except Exception as exc:
@@ -151,6 +184,16 @@ def get_telemetry_for_device(
         installed_browsers=rec.get("installed_browsers", []),
         browser_processes=rec.get("browser_processes", []),
         os_info=rec.get("os_info"),
+        device_model=rec.get("device_model"),
+        manufacturer=rec.get("manufacturer"),
+        sdk_version=rec.get("sdk_version"),
+        cpu_info=rec.get("cpu_info"),
+        memory_info=rec.get("memory_info"),
+        storage_info=rec.get("storage_info"),
+        battery_info=rec.get("battery_info"),
+        network_info=rec.get("network_info"),
+        security_posture=rec.get("security_posture"),
+        applications=rec.get("applications", []),
         last_updated=rec.get("last_updated"),
         is_stale=is_stale,
         is_software_stale=is_software_stale,

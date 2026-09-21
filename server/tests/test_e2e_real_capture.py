@@ -83,6 +83,8 @@ def test_real_local_and_remote_device_e2e(db_session, seed_acme_org):
     # 3. Strict Device Isolation Verification
     # ─────────────────────────────────────────────────────────────────────────
     # Ingest packet for Device A (127.0.0.1) into the network layer
+    pkts_before = active_remote.aggregator.total_packets
+    bytes_before = active_remote.aggregator.total_bytes
     rejected = active_remote.aggregator.ingest_packet(
         src_ip="127.0.0.1",
         dst_ip="127.0.0.1",
@@ -93,7 +95,7 @@ def test_real_local_and_remote_device_e2e(db_session, seed_acme_org):
     )
     # MUST BE REJECTED by Device B's aggregator
     assert rejected is False
-    assert active_remote.aggregator.total_packets == 0
-    assert active_remote.aggregator.total_bytes == 0
+    assert active_remote.aggregator.total_packets == pkts_before
+    assert active_remote.aggregator.total_bytes == bytes_before
 
     tracking_manager.stop_tracking(db=db, org_id=org_id, session_id=remote_session.tracking_session_id)

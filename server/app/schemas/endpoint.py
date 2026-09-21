@@ -153,6 +153,17 @@ class EndpointTelemetrySubmitRequest(BaseModel):
     installed_browsers: list[str] | None = None
     browser_processes: list[BrowserProcessTelemetryItem] | None = None
     os_info: str | None = None
+    # Android & extended platform telemetry fields (backward-compatible)
+    device_model: str | None = None
+    manufacturer: str | None = None
+    sdk_version: int | None = None
+    cpu_info: dict[str, Any] | None = None
+    memory_info: dict[str, Any] | None = None
+    storage_info: dict[str, Any] | None = None
+    battery_info: dict[str, Any] | None = None
+    network_info: dict[str, Any] | None = None
+    security_posture: dict[str, Any] | None = None
+    applications: list[dict[str, Any]] | None = None
 
 
 class EndpointTelemetrySubmitResponse(BaseModel):
@@ -184,6 +195,17 @@ class EndpointTelemetryOut(BaseModel):
     is_stale: bool = False
     is_software_stale: bool = False
     source: str = "endpoint_agent"
+    # Android & extended platform telemetry fields (backward-compatible)
+    device_model: str | None = None
+    manufacturer: str | None = None
+    sdk_version: int | None = None
+    cpu_info: dict[str, Any] | None = None
+    memory_info: dict[str, Any] | None = None
+    storage_info: dict[str, Any] | None = None
+    battery_info: dict[str, Any] | None = None
+    network_info: dict[str, Any] | None = None
+    security_posture: dict[str, Any] | None = None
+    applications: list[dict[str, Any]] = Field(default_factory=list)
 
 
 # Phase 03 — Vulnerability Intelligence Schemas
