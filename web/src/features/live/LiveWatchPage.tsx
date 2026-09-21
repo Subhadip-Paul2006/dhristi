@@ -1582,8 +1582,22 @@ export function LiveActivitySection({
     capBadgeColor = "border-sky-500/40 bg-sky-500/10 text-sky-400";
   }
 
-  const isMac = Boolean(d.os_info?.toLowerCase().includes("mac") || capState === "MACOS ENDPOINT");
-  const platformBadge = isMac ? "[MACOS ENDPOINT]" : "[WINDOWS ENDPOINT]";
+  const firstProcSource = (d.endpoint_processes?.[0]?.source ?? "").toLowerCase();
+  const isMac = Boolean(
+    d.os_info?.toLowerCase().includes("mac") ||
+    capState === "MACOS ENDPOINT" ||
+    firstProcSource.includes("macos")
+  );
+  const isLinux = Boolean(
+    d.os_info?.toLowerCase().includes("linux") ||
+    capState === "LINUX ENDPOINT" ||
+    firstProcSource.includes("linux")
+  );
+  const platformBadge = isMac
+    ? "[MACOS ENDPOINT]"
+    : isLinux
+    ? "[LINUX ENDPOINT]"
+    : "[WINDOWS ENDPOINT]";
 
   // Separate user apps from background processes
   const userApps = (d.endpoint_processes ?? []).filter(
@@ -1595,6 +1609,7 @@ export function LiveActivitySection({
   const effectiveUserApps = userApps.length > 0
     ? userApps
     : (d.active_apps ?? []).map((app) => ({ name: app, observed_at: d.last_seen, details: null, category: "USER_APPLICATION" }));
+
 
   return (
     <div className="mt-4 border-t border-hairline pt-4 space-y-3" data-testid="live-activity-section">

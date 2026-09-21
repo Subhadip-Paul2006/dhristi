@@ -42,19 +42,27 @@ def _nmap_args(host_timeout_s: int) -> list[str]:
     ]
 
 
+def _nmap_bin() -> str | None:
+    return (
+        shutil.which("nmap")
+        or shutil.which("nmap", path="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin")
+    )
+
+
 def run_nmap(ip: str, timeout: float) -> tuple[str | None, str | None]:
     """Invoke the nmap binary. Returns (xml, error).
 
     (xml, None)  → success, xml is nmap's -oX output (possibly partial).
     (None, msg)  → nmap missing / produced nothing / failed; msg is a short reason.
     This is the ONLY place a subprocess runs; the whole thing is caught."""
-    if shutil.which("nmap") is None:
+    nmap_path = _nmap_bin()
+    if nmap_path is None:
         return None, "nmap is not installed on the server"
     # let nmap self-terminate ~15s before we would, so it flushes its XML
     host_timeout_s = max(30, int(timeout) - 15)
     try:
         proc = subprocess.run(
-            ["nmap", *_nmap_args(host_timeout_s), ip],
+            [nmap_path, *_nmap_args(host_timeout_s), ip],
             capture_output=True,
             text=True,
             timeout=timeout,
@@ -118,11 +126,12 @@ def run_nmap_discovery(cidr: str, timeout: float) -> tuple[str | None, str | Non
 
     This is the ping/ARP sweep that finds which hosts on the subnet are up so we
     only version-scan the responsive ones. Subprocess seam — mocked in tests."""
-    if shutil.which("nmap") is None:
+    nmap_path = _nmap_bin()
+    if nmap_path is None:
         return None, "nmap is not installed on the server"
     try:
         proc = subprocess.run(
-            ["nmap", "-sn", "-T4", "-oX", "-", cidr],
+            [nmap_path, "-sn", "-T4", "-oX", "-", cidr],
             capture_output=True,
             text=True,
             timeout=timeout,
@@ -145,9 +154,10 @@ def run_nmap_multi(ips: list[str], timeout: float, host_timeout_s: int) -> tuple
     are not dropped in a subnet sweep. `-Pn` (hosts already known-up) + a
     per-host `--host-timeout` so one slow host can't sink the batch.
     Subprocess seam — mocked in tests."""
-    if shutil.which("nmap") is None:
+    nmap_path = _nmap_bin()
+    if nmap_path is None:
         return None, "nmap is not installed on the server"
-    args = ["nmap", *_nmap_args(host_timeout_s), *ips]
+    args = [nmap_path, *_nmap_args(host_timeout_s), *ips]
     # give the subprocess a margin above nmap's own per-host budget so nmap
     # self-terminates and flushes partial XML instead of being hard-killed
     try:

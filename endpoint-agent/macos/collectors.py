@@ -188,55 +188,74 @@ class MacOSSocketCollector(BaseSocketCollector):
         self.source_label = source_label
 
     def collect_sockets(self) -> tuple[list[ListeningPortItem], list[SocketConnectionItem]]:
+        """Collect sockets using per-process iteration.
+
+        macOS (Apple Silicon + recent macOS versions) blocks the system-wide
+        psutil.net_connections() with AccessDenied unless running as root.
+        Iterating per-process works for all processes the current user owns.
+        """
         listening_ports: list[ListeningPortItem] = []
         connections: list[SocketConnectionItem] = []
         now_iso = datetime.now(timezone.utc).isoformat()
+        seen_listening: set[tuple] = set()
+        seen_conns: set[tuple] = set()
 
-        try:
-            net_conns = psutil.net_connections(kind="inet")
-        except Exception as e:
-            logger.debug("Failed to query macOS net_connections: %s", e)
-            return listening_ports, connections
-
-        for conn in net_conns:
+        for proc in psutil.process_iter(["pid", "name"]):
             try:
-                proto = "TCP" if conn.type == socket.SOCK_STREAM else "UDP"
-                laddr = conn.laddr
-                raddr = conn.raddr
-                pid = conn.pid
-
-                if not laddr:
-                    continue
-
-                if conn.status == psutil.CONN_LISTEN:
-                    listening_ports.append(
-                        ListeningPortItem(
-                            protocol=proto,
-                            local_address=laddr.ip,
-                            local_port=laddr.port,
-                            pid=pid,
-                            process_name=None,
-                            observed_at=now_iso,
-                            source=self.source_label,
-                        )
-                    )
-                elif raddr:
-                    connections.append(
-                        SocketConnectionItem(
-                            pid=pid,
-                            process_name=None,
-                            protocol=proto,
-                            local_address=laddr.ip,
-                            local_port=laddr.port,
-                            remote_address=raddr.ip,
-                            remote_port=raddr.port,
-                            state=str(conn.status or "ESTABLISHED").upper(),
-                            observed_at=now_iso,
-                            source=self.source_label,
-                        )
-                    )
-            except Exception:
+                proc_conns = proc.net_connections(kind="inet")
+            except (psutil.AccessDenied, psutil.NoSuchProcess, psutil.ZombieProcess):
                 continue
+            except Exception as e:
+                logger.debug("macOS net_connections error for pid %s: %s", getattr(proc, 'pid', '?'), e)
+                continue
+
+            for conn in proc_conns:
+                try:
+                    proto = "TCP" if conn.type == socket.SOCK_STREAM else "UDP"
+                    laddr = conn.laddr
+                    raddr = conn.raddr
+                    pid = conn.pid if conn.pid else getattr(proc, 'pid', None)
+
+                    if not laddr:
+                        continue
+
+                    if conn.status == psutil.CONN_LISTEN:
+                        dedup_key = (laddr.ip, laddr.port, proto)
+                        if dedup_key in seen_listening:
+                            continue
+                        seen_listening.add(dedup_key)
+                        listening_ports.append(
+                            ListeningPortItem(
+                                protocol=proto,
+                                local_address=laddr.ip,
+                                local_port=laddr.port,
+                                pid=pid,
+                                process_name=None,
+                                observed_at=now_iso,
+                                source=self.source_label,
+                            )
+                        )
+                    elif raddr:
+                        dedup_key = (laddr.ip, laddr.port, raddr.ip, raddr.port, proto)
+                        if dedup_key in seen_conns:
+                            continue
+                        seen_conns.add(dedup_key)
+                        connections.append(
+                            SocketConnectionItem(
+                                pid=pid,
+                                process_name=None,
+                                protocol=proto,
+                                local_address=laddr.ip,
+                                local_port=laddr.port,
+                                remote_address=raddr.ip,
+                                remote_port=raddr.port,
+                                state=str(conn.status or "ESTABLISHED").upper(),
+                                observed_at=now_iso,
+                                source=self.source_label,
+                            )
+                        )
+                except Exception:
+                    continue
 
         return listening_ports, connections
 

@@ -71,6 +71,29 @@ describe("LiveActivitySection UI Component", () => {
     expect(screen.getByText("[FULL ENDPOINT TELEMETRY]")).toBeInTheDocument();
   });
 
+  it("13b. renders running user applications with [MACOS ENDPOINT] badge for macOS agents", () => {
+    const dev = mockDevice({
+      is_self: true,
+      capability_state: "FULL ENDPOINT TELEMETRY",
+      endpoint_processes: [
+        {
+          name: "Code",
+          evidence_type: "ENDPOINT_PROCESS",
+          source: "macos_endpoint",
+          category: "USER_APPLICATION",
+          observed_at: "2026-09-18T10:00:00Z",
+          details: "PID: 1234 | [USER_APPLICATION]",
+        },
+      ],
+    });
+
+    render(<LiveActivitySection device={dev} />);
+
+    expect(screen.getByText("Code")).toBeInTheDocument();
+    expect(screen.getByText("[USER APPLICATION]")).toBeInTheDocument();
+    expect(screen.getAllByText("[MACOS ENDPOINT]")[0]).toBeInTheDocument();
+  });
+
   it("14. renders background processes separately with [BACKGROUND PROCESS] badge", () => {
     const dev = mockDevice({
       is_self: true,
