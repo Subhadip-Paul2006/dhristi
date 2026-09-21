@@ -444,5 +444,32 @@ describe("Phase 04 Unified Device Security Profile UI Components", () => {
     const { container } = render(<AiSecurityStateSection device={dev} />);
     expect(container.firstChild).toBeNull();
   });
+
+  it("31. LiveActivitySection renders [ANDROID ENDPOINT] platform badge for Android devices", () => {
+    const dev = mockDevice({
+      is_self: false,
+      capability_state: "ANDROID ENDPOINT",
+      paired_endpoint_os: "Android",
+      endpoint_processes: [
+        {
+          name: "com.drishti.agent",
+          evidence_type: "ENDPOINT_PROCESS",
+          source: "android_endpoint",
+          category: "USER_APPLICATION",
+          observed_at: "2026-09-18T10:00:00Z",
+          details: "PID: 10452 | [USER_APPLICATION]",
+        },
+      ],
+    });
+
+    render(<LiveActivitySection device={dev} />);
+    expect(screen.getAllByText(/\[ANDROID ENDPOINT\]/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("com.drishti.agent")).toBeInTheDocument();
+  });
+
+  it("32. CapabilityBadge renders ANDROID ENDPOINT badge cleanly", () => {
+    render(<CapabilityBadge state="ANDROID ENDPOINT" />);
+    expect(screen.getByText(/\[ANDROID ENDPOINT\]/i)).toBeInTheDocument();
+  });
 });
 

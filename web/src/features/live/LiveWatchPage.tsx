@@ -38,6 +38,9 @@ import {
   Waypoints,
   X,
   Zap,
+  Battery,
+  HardDrive,
+  Lock,
   Check,
   CheckCircle2,
   ChevronDown,
@@ -211,9 +214,12 @@ function deviceAccent(d: NetworkDevice): string {
 function deviceType(d: NetworkDevice): string {
   if (d.is_gateway) return "Router / Gateway";
   if (d.is_self) return "This computer";
+  const os = (d.paired_endpoint_os ?? d.os_info ?? "").toLowerCase();
+  if (os.includes("android")) return "Android device";
   const v = (d.vendor ?? "").toLowerCase();
+  if (v.includes("android")) return "Android device";
   if (v.includes("apple")) return "Apple device (iPhone / Mac)";
-  if (v.includes("samsung") || v.includes("xiaomi")) return "Android phone";
+  if (v.includes("samsung") || v.includes("xiaomi") || v.includes("pixel")) return "Android phone";
   if (v.includes("raspberry")) return "Raspberry Pi / IoT";
   if (v.includes("private")) return "Phone / privacy-enabled device";
   return "Network client";
@@ -936,6 +942,22 @@ function DevicesSection() {
                       </span>
                     </div>
                   )}
+                  {d.paired_endpoint_agent_id && (
+                    <div className="mt-1 flex items-center gap-1 font-mono text-[8.5px]">
+                      <span className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 font-bold ${
+                        d.paired_endpoint_status === "ONLINE"
+                          ? "border-sky-500/40 bg-sky-500/10 text-sky-400"
+                          : d.paired_endpoint_status === "STALE"
+                          ? "border-amber-500/40 bg-amber-500/10 text-amber-400"
+                          : "border-rose-500/40 bg-rose-500/10 text-rose-400"
+                      }`}>
+                        <span className={`h-1.5 w-1.5 rounded-full ${
+                          d.paired_endpoint_status === "ONLINE" ? "bg-sky-400 animate-pulse" : d.paired_endpoint_status === "STALE" ? "bg-amber-400" : "bg-rose-400"
+                        }`} />
+                        AGENT: {d.paired_endpoint_status || "ONLINE"} ({d.paired_endpoint_os ? d.paired_endpoint_os.toUpperCase() : "PAIRED"})
+                      </span>
+                    </div>
+                  )}
 
                   {/* ── Compact Presence & Last Observed (Section 10) ──────── */}
                   <div className="mt-2 grid grid-cols-2 gap-1.5 rounded border border-hairline/60 bg-surface-1/60 px-2 py-1.5 font-mono text-[10px]">
@@ -1283,7 +1305,7 @@ export function CapabilityBadge({ state, device: d }: { state?: string; device?:
     color = "border-emerald-500/40 bg-emerald-500/10 text-emerald-400";
   } else if (cap === "BROWSER EXTENSION CONNECTED") {
     color = "border-cyan-500/40 bg-cyan-500/10 text-cyan-400";
-  } else if (cap === "AGENT CONNECTED" || cap === "WINDOWS ENDPOINT" || cap === "MACOS ENDPOINT") {
+  } else if (cap === "AGENT CONNECTED" || cap === "WINDOWS ENDPOINT" || cap === "MACOS ENDPOINT" || cap === "ANDROID ENDPOINT") {
     color = "border-sky-500/40 bg-sky-500/10 text-sky-400";
   }
   return (
@@ -1556,6 +1578,7 @@ export function LiveActivitySection({
 }) {
   const hasEndpointAgent = Boolean(
     d.is_self ||
+    d.paired_endpoint_agent_id ||
     (d.endpoint_processes && d.endpoint_processes.length > 0) ||
     (d.installed_software && d.installed_software.length > 0) ||
     (d.listening_ports && d.listening_ports.length > 0) ||
@@ -1563,6 +1586,7 @@ export function LiveActivitySection({
     (d.active_browser_tabs && d.active_browser_tabs.length > 0) ||
     d.capability_state === "WINDOWS ENDPOINT" ||
     d.capability_state === "MACOS ENDPOINT" ||
+    d.capability_state === "ANDROID ENDPOINT" ||
     d.capability_state === "AGENT CONNECTED" ||
     d.capability_state === "FULL ENDPOINT TELEMETRY"
   );
@@ -1578,11 +1602,22 @@ export function LiveActivitySection({
     capBadgeColor = "border-emerald-500/40 bg-emerald-500/10 text-emerald-400";
   } else if (capState === "BROWSER EXTENSION CONNECTED") {
     capBadgeColor = "border-cyan-500/40 bg-cyan-500/10 text-cyan-400";
-  } else if (capState === "AGENT CONNECTED" || capState === "WINDOWS ENDPOINT" || capState === "MACOS ENDPOINT") {
+  } else if (
+    capState === "AGENT CONNECTED" ||
+    capState === "WINDOWS ENDPOINT" ||
+    capState === "MACOS ENDPOINT" ||
+    capState === "ANDROID ENDPOINT"
+  ) {
     capBadgeColor = "border-sky-500/40 bg-sky-500/10 text-sky-400";
   }
 
   const firstProcSource = (d.endpoint_processes?.[0]?.source ?? "").toLowerCase();
+  const isAndroid = Boolean(
+    d.os_info?.toLowerCase().includes("android") ||
+    d.paired_endpoint_os?.toLowerCase().includes("android") ||
+    capState === "ANDROID ENDPOINT" ||
+    firstProcSource.includes("android")
+  );
   const isMac = Boolean(
     d.os_info?.toLowerCase().includes("mac") ||
     capState === "MACOS ENDPOINT" ||
@@ -1593,7 +1628,9 @@ export function LiveActivitySection({
     capState === "LINUX ENDPOINT" ||
     firstProcSource.includes("linux")
   );
-  const platformBadge = isMac
+  const platformBadge = isAndroid
+    ? "[ANDROID ENDPOINT]"
+    : isMac
     ? "[MACOS ENDPOINT]"
     : isLinux
     ? "[LINUX ENDPOINT]"
@@ -2034,6 +2071,15 @@ export function EndpointAgentSection({ device: d }: { device: NetworkDevice }) {
   const isStale = status === "STALE";
   const isOffline = status === "OFFLINE";
 
+  const telemQuery = useQuery({
+    queryKey: ["endpoint-telemetry", d.paired_endpoint_device_id || d.id],
+    queryFn: () => api.getEndpointTelemetry(d.paired_endpoint_device_id || d.id),
+    enabled: Boolean(d.paired_endpoint_device_id || d.id) && isPaired,
+    staleTime: 5000,
+    refetchInterval: 10000,
+  });
+  const telem = telemQuery.data;
+
   const statusBadge = isOnline ? (
     <span className="inline-flex items-center gap-1 rounded border border-emerald-500/40 bg-emerald-500/10 px-1.5 py-0.5 font-mono text-[9px] font-bold text-emerald-400">
       <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -2054,6 +2100,14 @@ export function EndpointAgentSection({ device: d }: { device: NetworkDevice }) {
       UNPAIRED
     </span>
   );
+
+  const formatBytes = (b?: number) => {
+    if (b == null || isNaN(b) || b <= 0) return "—";
+    const gb = b / (1024 * 1024 * 1024);
+    if (gb >= 1) return `${gb.toFixed(1)} GB`;
+    const mb = b / (1024 * 1024);
+    return `${mb.toFixed(0)} MB`;
+  };
 
   return (
     <div className="mt-4 rounded-lg border border-sky-500/30 bg-surface-2/90 p-3.5 backdrop-blur-xs space-y-3">
@@ -2129,6 +2183,145 @@ export function EndpointAgentSection({ device: d }: { device: NetworkDevice }) {
                   </div>
                 </div>
               </div>
+
+              {/* Hardware Telemetry (CPU, Memory, Storage, Battery) */}
+              {(telem?.cpu_info || telem?.memory_info || telem?.storage_info || telem?.battery_info) && (
+                <div className="rounded border border-sky-500/20 bg-surface-1 p-2.5 space-y-2 text-[10px] font-mono">
+                  <div className="text-[9px] font-bold text-sky-400 uppercase tracking-wider flex items-center gap-1.5 border-b border-hairline pb-1">
+                    <Cpu className="h-3 w-3 text-sky-400" />
+                    System Hardware Telemetry
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {/* CPU */}
+                    {telem.cpu_info && (
+                      <div className="space-y-0.5">
+                        <div className="text-ink-muted text-[8.5px] uppercase">CPU ({telem.cpu_info.cores ?? "—"} Cores)</div>
+                        <div className="text-ink font-semibold">
+                          {telem.cpu_info.usage_percent != null ? `${telem.cpu_info.usage_percent.toFixed(1)}%` : "Active"}
+                          <span className="text-[8.5px] text-ink-muted ml-1">({telem.cpu_info.architecture || "ARM"})</span>
+                        </div>
+                        <div className="text-[8px] text-ink-muted">
+                          {telem.cpu_info.per_core_supported ? "Per-core load enabled" : "SELinux: per-core restricted"}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Memory */}
+                    {telem.memory_info && (
+                      <div className="space-y-0.5">
+                        <div className="text-ink-muted text-[8.5px] uppercase">Memory (RAM)</div>
+                        <div className="text-ink font-semibold">
+                          {formatBytes(telem.memory_info.used_bytes)} / {formatBytes(telem.memory_info.total_bytes)}
+                        </div>
+                        <div className="text-[8px] text-ink-muted">
+                          Avail: {formatBytes(telem.memory_info.available_bytes)} {telem.memory_info.low_memory ? "· Low RAM alert" : ""}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Storage */}
+                    {telem.storage_info && (
+                      <div className="space-y-0.5">
+                        <div className="text-ink-muted text-[8.5px] uppercase flex items-center gap-1">
+                          <HardDrive className="h-2.5 w-2.5" /> Storage
+                        </div>
+                        <div className="text-ink font-semibold">
+                          {formatBytes(telem.storage_info.used_bytes)} / {formatBytes(telem.storage_info.total_bytes)}
+                        </div>
+                        <div className="text-[8px] text-ink-muted">
+                          Free: {formatBytes(telem.storage_info.available_bytes)}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Battery */}
+                    {telem.battery_info && (
+                      <div className="space-y-0.5">
+                        <div className="text-ink-muted text-[8.5px] uppercase flex items-center gap-1">
+                          <Battery className="h-2.5 w-2.5 text-emerald-400" /> Battery
+                        </div>
+                        <div className="text-ink font-semibold flex items-center gap-1">
+                          <span>{telem.battery_info.percentage ?? "—"}%</span>
+                          {telem.battery_info.charging && (
+                            <span className="text-emerald-400 text-[8.5px] font-bold">[CHARGING]</span>
+                          )}
+                        </div>
+                        <div className="text-[8px] text-ink-muted">
+                          Health: {telem.battery_info.health || "Good"} {telem.battery_info.temperature_c != null ? `· ${telem.battery_info.temperature_c}°C` : ""}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Security Posture Telemetry */}
+              {telem?.security_posture && (
+                <div className="rounded border border-indigo-500/20 bg-surface-1 p-2.5 space-y-2 text-[10px] font-mono">
+                  <div className="text-[9px] font-bold text-indigo-400 uppercase tracking-wider flex items-center gap-1.5 border-b border-hairline pb-1">
+                    <ShieldCheck className="h-3 w-3 text-indigo-400" />
+                    Device Security Posture
+                  </div>
+                  <div className="grid grid-cols-2 gap-1.5 text-[9px]">
+                    <div>
+                      <span className="text-ink-muted">Screen Lock: </span>
+                      <span className={telem.security_posture.screen_lock ? "text-emerald-400 font-bold" : "text-amber-400 font-bold"}>
+                        {telem.security_posture.screen_lock ? "SECURE" : "UNLOCKED"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-ink-muted">Storage: </span>
+                      <span className="text-emerald-400 font-bold">{telem.security_posture.encryption || "ENCRYPTED"}</span>
+                    </div>
+                    <div>
+                      <span className="text-ink-muted">Dev Options: </span>
+                      <span className={telem.security_posture.developer_options ? "text-amber-400 font-bold" : "text-emerald-400 font-bold"}>
+                        {telem.security_posture.developer_options ? "ENABLED" : "OFF"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-ink-muted">USB Debugging: </span>
+                      <span className={telem.security_posture.usb_debugging ? "text-amber-400 font-bold" : "text-emerald-400 font-bold"}>
+                        {telem.security_posture.usb_debugging ? "ENABLED" : "OFF"}
+                      </span>
+                    </div>
+                    {telem.security_posture.security_patch && (
+                      <div className="col-span-2">
+                        <span className="text-ink-muted">Security Patch: </span>
+                        <span className="text-ink font-semibold">{telem.security_posture.security_patch}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Installed Android Applications */}
+              {telem?.applications && telem.applications.length > 0 && (
+                <div className="rounded border border-hairline bg-surface-1 p-2.5 space-y-1.5 text-[10px] font-mono">
+                  <div className="text-[9px] font-bold text-emerald-400 uppercase tracking-wider flex items-center justify-between border-b border-hairline pb-1">
+                    <span className="flex items-center gap-1">
+                      <Layers className="h-3 w-3 text-emerald-400" />
+                      Installed Applications ({telem.applications.length})
+                    </span>
+                    <span className="text-[8px] text-ink-muted">Package Visibility Compliant</span>
+                  </div>
+                  <div className="max-h-36 overflow-y-auto space-y-1 pr-1">
+                    {telem.applications.map((app, idx) => (
+                      <div key={`${app.package_name}-${idx}`} className="flex items-center justify-between rounded bg-surface-2 px-2 py-1">
+                        <div className="flex items-center gap-1.5 truncate max-w-[200px]">
+                          <span className="text-ink font-medium truncate">{app.label || app.package_name}</span>
+                          {app.version_name && (
+                            <span className="text-[8.5px] text-ink-muted">v{app.version_name}</span>
+                          )}
+                        </div>
+                        <span className="rounded border border-hairline px-1 py-0.2 text-[8px] text-ink-muted shrink-0">
+                          {app.classification || "USER_APP"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="rounded border border-emerald-500/20 bg-emerald-500/5 px-2.5 py-1.5 text-[9.5px] font-mono text-emerald-300 flex items-center gap-1.5">
                 <CheckCircle2 className="h-3 w-3 shrink-0 text-emerald-400" />

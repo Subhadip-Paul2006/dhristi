@@ -932,5 +932,56 @@ export interface EndpointTelemetryOut {
   is_stale: boolean;
   is_software_stale: boolean;
   source: string;
+  device_model?: string | null;
+  manufacturer?: string | null;
+  sdk_version?: number | null;
+  cpu_info?: {
+    cores?: number;
+    usage_percent?: number | null;
+    per_core_supported?: boolean;
+    per_core_usage?: number[];
+    architecture?: string;
+  } | null;
+  memory_info?: {
+    total_bytes?: number;
+    available_bytes?: number;
+    used_bytes?: number;
+    low_memory?: boolean;
+  } | null;
+  storage_info?: {
+    total_bytes?: number;
+    available_bytes?: number;
+    used_bytes?: number;
+  } | null;
+  battery_info?: {
+    percentage?: number;
+    charging?: boolean;
+    health?: string;
+    temperature_c?: number;
+  } | null;
+  network_info?: {
+    connection_type?: string;
+    local_ip?: string;
+    interface?: string;
+    link_speed_kbps?: number;
+  } | null;
+  security_posture?: {
+    screen_lock?: boolean;
+    encryption?: string;
+    developer_options?: boolean;
+    usb_debugging?: boolean;
+    verified_boot?: string;
+    security_patch?: string;
+    biometric_capability?: string;
+    root_detected?: boolean;
+  } | null;
+  applications?: {
+    package_name: string;
+    label: string;
+    version_name?: string | null;
+    version_code?: number | null;
+    classification?: "USER_APP" | "SYSTEM_APP" | string;
+    is_enabled?: boolean;
+  }[];
 }
 
