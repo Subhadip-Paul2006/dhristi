@@ -37,7 +37,7 @@ from app.schemas.endpoint import (
     PairingSubmitResponse,
     SourceStatusOut,
 )
-from app.services import endpoint_telemetry
+from app.services import endpoint_telemetry, live
 
 router = APIRouter(prefix="/endpoint", tags=["endpoint"])
 
@@ -195,6 +195,8 @@ def submit_pairing(
     session.consumed_at = now
     db.commit()
 
+    live.upsert_device_from_endpoint_agent(db, org.id, agent)
+
     return PairingSubmitResponse(
         success=True,
         message=f"Endpoint agent on '{agent.hostname}' paired successfully",
@@ -261,6 +263,8 @@ def agent_heartbeat(
 
     db.commit()
 
+    live.upsert_device_from_endpoint_agent(db, agent.org_id, agent)
+
     return HeartbeatResponse(
         status="ACK",
         server_time=now,
@@ -318,6 +322,8 @@ def submit_endpoint_telemetry(
     agent.last_heartbeat = now
     agent.status = "ONLINE"
     db.commit()
+
+    live.upsert_device_from_endpoint_agent(db, agent.org_id, agent)
 
     res = endpoint_telemetry.record_telemetry(
         org_id=agent.org_id,

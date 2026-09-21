@@ -5,6 +5,7 @@ import uuid
 from datetime import datetime, timezone
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import NetworkDevice
@@ -172,16 +173,28 @@ def test_endpoint_telemetry_full_e2e_flow(client: TestClient, db_session: Sessio
     assert telemetry_data["listening_ports"][0]["port"] == 9001
     assert telemetry_data["is_stale"] is False
 
-    # 7. Add two network devices: Device 1 matches agent IP/MAC; Device 2 is an unmanaged printer
-    dev1 = NetworkDevice(
-        org_id=org.id,
-        ip=ip_addr,
-        mac=mac_addr,
-        hostname=hostname,
-        online=True,
-        first_seen=utcnow(),
-        last_seen=utcnow(),
+    # 7. Device 1 is automatically upserted by agent pairing/heartbeat; ensure printer device exists
+    dev1 = db_session.scalar(
+        select(NetworkDevice).where(
+            NetworkDevice.org_id == org.id,
+            NetworkDevice.ip == ip_addr,
+        )
     )
+    if dev1 is None:
+        dev1 = NetworkDevice(
+            org_id=org.id,
+            ip=ip_addr,
+            mac=mac_addr,
+            hostname=hostname,
+            online=True,
+            first_seen=utcnow(),
+            last_seen=utcnow(),
+        )
+        db_session.add(dev1)
+    else:
+        dev1.mac = mac_addr
+        dev1.hostname = hostname
+
     printer = NetworkDevice(
         org_id=org.id,
         ip="192.168.1.250",
@@ -191,7 +204,7 @@ def test_endpoint_telemetry_full_e2e_flow(client: TestClient, db_session: Sessio
         first_seen=utcnow(),
         last_seen=utcnow(),
     )
-    db_session.add_all([dev1, printer])
+    db_session.add(printer)
     db_session.commit()
 
     # 8. Dashboard fetches /api/live/devices

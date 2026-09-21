@@ -1740,6 +1740,16 @@ def list_devices(db: Session, org_id: str) -> list[NetworkDeviceOut]:
                     source_freshness=f.source_freshness,
                     source_status_reason=f.source_status_reason,
                 ))
+        elif endpoint_agent_row:
+            os_low = (endpoint_agent_row.os or "").lower()
+            if "windows" in os_low:
+                dev_capability_state = "WINDOWS ENDPOINT"
+            elif "darwin" in os_low or "mac" in os_low:
+                dev_capability_state = "MACOS ENDPOINT"
+            else:
+                dev_capability_state = "AGENT CONNECTED"
+            if not final_os_info:
+                final_os_info = f"{endpoint_agent_row.os} {endpoint_agent_row.os_version or ''}".strip()
 
         # Phase 04: look up active AI tracking session for this device (org-scoped).
         # Only populated when a LIVE tracking session exists — never cross-device.
@@ -2078,8 +2088,82 @@ def list_devices(db: Session, org_id: str) -> list[NetworkDeviceOut]:
             device_security_score=dev_security_score,
             # All Phase 03 finding states (all 6 states)
             endpoint_vuln_findings=dev_endpoint_vuln_findings,
+            paired_endpoint_agent_id=endpoint_agent_row.agent_id if endpoint_agent_row else None,
+            paired_endpoint_device_id=endpoint_agent_row.device_id if endpoint_agent_row else None,
+            paired_endpoint_status=endpoint_agent_row.calculate_status(now_time) if endpoint_agent_row else None,
+            paired_endpoint_hostname=endpoint_agent_row.hostname if endpoint_agent_row else None,
+            paired_endpoint_os=endpoint_agent_row.os if endpoint_agent_row else None,
+            paired_endpoint_os_version=endpoint_agent_row.os_version if endpoint_agent_row else None,
+            paired_endpoint_agent_version=endpoint_agent_row.agent_version if endpoint_agent_row else None,
+            paired_endpoint_last_heartbeat=endpoint_agent_row.last_heartbeat if endpoint_agent_row else None,
+            paired_endpoint_paired_at=endpoint_agent_row.paired_at if endpoint_agent_row else None,
         ))
     return out
+
+
+def upsert_device_from_endpoint_agent(db: Session, org_id: str, agent: EndpointAgent) -> None:
+    """Ensure the endpoint agent's host appears in the NetworkDevice grid.
+
+    Called from agent_heartbeat() and submit_pairing() so a paired endpoint host
+    shows up in Live Watch immediately — without waiting for an ARP scan.
+    The row is created with discovery='endpoint_agent' to distinguish it from
+    ARP / nmap-discovered peers.  Idempotent: safe to call on every heartbeat.
+    """
+    ip = (agent.current_ip or "").strip()
+    if not ip:
+        return  # agent hasn't reported an IP yet — skip
+
+    now = utcnow()
+    row: NetworkDevice | None = db.scalar(
+        select(NetworkDevice).where(
+            NetworkDevice.org_id == org_id,
+            NetworkDevice.ip == ip,
+        )
+    )
+
+    if row is None:
+        row = NetworkDevice(
+            org_id=org_id,
+            ip=ip,
+            mac=agent.mac,
+            hostname=agent.hostname,
+            vendor=None,
+            discovery="endpoint_agent",
+            label=agent.hostname,
+            is_self=False,
+            is_gateway=False,
+            online=True,
+            first_seen=now,
+            last_seen=now,
+            subnet=None,
+            subnet_inferred=True,
+        )
+        try:
+            db.add(row)
+            db.flush()
+        except IntegrityError:
+            db.rollback()
+            row = db.scalar(
+                select(NetworkDevice).where(
+                    NetworkDevice.org_id == org_id,
+                    NetworkDevice.ip == ip,
+                )
+            )
+            if row is None:
+                return
+    else:
+        row.online = True
+        row.last_seen = now
+        if not row.hostname and agent.hostname:
+            row.hostname = agent.hostname
+        if not row.mac and agent.mac:
+            row.mac = agent.mac
+
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        logger.warning("upsert_device_from_endpoint_agent: commit failed (non-fatal)")
 
 
 def clear_devices(db: Session, org_id: str) -> int:

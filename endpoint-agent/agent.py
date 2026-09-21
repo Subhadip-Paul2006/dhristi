@@ -31,6 +31,7 @@ class DrishtiEndpointAgent:
         platform_adapter: BasePlatformAdapter | None = None,
         transport: BackendTransport | None = None,
         collector_manager: CollectorManager | None = None,
+        force_pair: bool = False,
     ):
         self.config = config or AgentConfig.default()
         self.platform = platform_adapter or get_platform_adapter()
@@ -55,6 +56,7 @@ class DrishtiEndpointAgent:
             software_interval_seconds=self.config.software_interval_seconds,
         )
         self._last_telemetry_time: float = 0.0
+        self._force_pair: bool = force_pair
 
         logger.info(
             "[Drishti Agent] Initialized on '%s' (%s %s) [Agent ID: %s]",
@@ -281,6 +283,14 @@ class DrishtiEndpointAgent:
         self._stop_event.clear()
 
         def _target():
+            # --force-pair: always start a fresh pairing session by discarding
+            # any locally-saved credentials. This guarantees /pairing/init is
+            # called, a new EndpointPairingSession is written to the server DB,
+            # and the dashboard code the operator enters will match that session.
+            if self._force_pair:
+                logger.info("[Drishti Agent] --force-pair: clearing saved credentials for fresh pairing.")
+                self.state_store.clear_auth()
+
             token, _ = self.state_store.load_auth()
             if token:
                 logger.info("[Drishti Agent] Found existing authenticated credentials. Testing connection...")

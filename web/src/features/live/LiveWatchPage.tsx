@@ -2025,6 +2025,132 @@ export function LiveActivitySection({
   );
 }
 
+export function EndpointAgentSection({ device: d }: { device: NetworkDevice }) {
+  const isPaired = Boolean(d.paired_endpoint_agent_id);
+  const [isOpen, setIsOpen] = useState(isPaired);
+  const status = d.paired_endpoint_status || (isPaired ? "ONLINE" : "UNPAIRED");
+
+  const isOnline = status === "ONLINE";
+  const isStale = status === "STALE";
+  const isOffline = status === "OFFLINE";
+
+  const statusBadge = isOnline ? (
+    <span className="inline-flex items-center gap-1 rounded border border-emerald-500/40 bg-emerald-500/10 px-1.5 py-0.5 font-mono text-[9px] font-bold text-emerald-400">
+      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+      ONLINE
+    </span>
+  ) : isStale ? (
+    <span className="inline-flex items-center gap-1 rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 font-mono text-[9px] font-bold text-amber-400">
+      <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+      STALE
+    </span>
+  ) : isOffline ? (
+    <span className="inline-flex items-center gap-1 rounded border border-rose-500/40 bg-rose-500/10 px-1.5 py-0.5 font-mono text-[9px] font-bold text-rose-400">
+      <span className="h-1.5 w-1.5 rounded-full bg-rose-400" />
+      OFFLINE
+    </span>
+  ) : (
+    <span className="inline-flex items-center gap-1 rounded border border-neutral-500/40 bg-neutral-500/10 px-1.5 py-0.5 font-mono text-[9px] font-bold text-neutral-400">
+      UNPAIRED
+    </span>
+  );
+
+  return (
+    <div className="mt-4 rounded-lg border border-sky-500/30 bg-surface-2/90 p-3.5 backdrop-blur-xs space-y-3">
+      <div
+        className="flex items-center justify-between cursor-pointer select-none"
+        onClick={() => setIsOpen((prev) => !prev)}
+      >
+        <div className="flex items-center gap-1.5">
+          <Terminal className="h-3.5 w-3.5 text-sky-400" />
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-sky-400 font-mono">
+            Endpoint Agent
+          </span>
+          {isPaired && (
+            <span className="text-[9.5px] font-mono text-ink-muted">
+              ({d.paired_endpoint_hostname || d.hostname || "Agent Host"})
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {statusBadge}
+          {isOpen ? (
+            <ChevronUp className="h-3.5 w-3.5 text-ink-muted" />
+          ) : (
+            <ChevronDown className="h-3.5 w-3.5 text-ink-muted" />
+          )}
+        </div>
+      </div>
+
+      {isOpen && (
+        <div className="space-y-2.5 pt-1 border-t border-hairline/40">
+          {isPaired ? (
+            <>
+              <div className="grid grid-cols-2 gap-2 text-[10px] font-mono">
+                <div className="rounded border border-hairline bg-surface-1 p-2 space-y-0.5">
+                  <div className="text-ink-muted uppercase tracking-wider text-[8.5px]">Agent ID</div>
+                  <div className="text-ink font-semibold truncate" title={d.paired_endpoint_agent_id ?? ""}>
+                    {d.paired_endpoint_agent_id}
+                  </div>
+                </div>
+
+                <div className="rounded border border-hairline bg-surface-1 p-2 space-y-0.5">
+                  <div className="text-ink-muted uppercase tracking-wider text-[8.5px]">Device ID</div>
+                  <div className="text-ink font-semibold truncate" title={d.paired_endpoint_device_id ?? d.id}>
+                    {d.paired_endpoint_device_id ?? d.id}
+                  </div>
+                </div>
+
+                <div className="rounded border border-hairline bg-surface-1 p-2 space-y-0.5">
+                  <div className="text-ink-muted uppercase tracking-wider text-[8.5px]">Hostname &amp; OS</div>
+                  <div className="text-ink font-semibold truncate">
+                    {d.paired_endpoint_hostname || d.hostname || "—"} ({[d.paired_endpoint_os, d.paired_endpoint_os_version].filter(Boolean).join(" ") || "—"})
+                  </div>
+                </div>
+
+                <div className="rounded border border-hairline bg-surface-1 p-2 space-y-0.5">
+                  <div className="text-ink-muted uppercase tracking-wider text-[8.5px]">Agent Version</div>
+                  <div className="text-ink font-semibold">
+                    v{d.paired_endpoint_agent_version || "0.1.0"}
+                  </div>
+                </div>
+
+                <div className="rounded border border-hairline bg-surface-1 p-2 space-y-0.5">
+                  <div className="text-ink-muted uppercase tracking-wider text-[8.5px]">Last Heartbeat</div>
+                  <div className="text-ink font-semibold">
+                    {formatExactTimestamp(d.paired_endpoint_last_heartbeat)}
+                  </div>
+                </div>
+
+                <div className="rounded border border-hairline bg-surface-1 p-2 space-y-0.5">
+                  <div className="text-ink-muted uppercase tracking-wider text-[8.5px]">Paired At</div>
+                  <div className="text-ink font-semibold">
+                    {formatExactTimestamp(d.paired_endpoint_paired_at)}
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded border border-emerald-500/20 bg-emerald-500/5 px-2.5 py-1.5 text-[9.5px] font-mono text-emerald-300 flex items-center gap-1.5">
+                <CheckCircle2 className="h-3 w-3 shrink-0 text-emerald-400" />
+                <span>Endpoint telemetry and live network tracking are unified for this device.</span>
+              </div>
+            </>
+          ) : (
+            <div className="rounded border border-dashed border-hairline bg-surface-1/50 p-3 text-center space-y-1">
+              <div className="text-[11px] font-mono text-ink-muted">
+                No Endpoint Agent paired with this device.
+              </div>
+              <div className="text-[9.5px] text-ink-muted leading-tight">
+                To link live OS telemetry, start the agent with <code className="text-accent-300">--force-pair</code> and enter the pairing code in SOC settings.
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DeviceDetail({
   device: d,
   threats = [],
@@ -2225,6 +2351,9 @@ function DeviceDetail({
             </div>
           ))}
         </dl>
+
+        {/* ── ENDPOINT AGENT SECTION (Phase 01 / End-to-End Grid Integration) ── */}
+        <EndpointAgentSection device={d} />
 
         {/* ── LIVE ACTIVITY (Running Apps, Active Browser Tabs, Network Destinations) ── */}
         <LiveActivitySection device={d} threatMap={threatMap} />

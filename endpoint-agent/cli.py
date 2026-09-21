@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 import signal
 import sys
 from pathlib import Path
@@ -20,19 +21,26 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Drishti Endpoint Agent (Phase 01)")
     parser.add_argument(
         "--server",
-        default="http://localhost:8000",
-        help="Drishti Backend Server URL (default: http://localhost:8000)",
+        default=os.environ.get("DRISHTI_SERVER_URL", "http://localhost:8000"),
+        help="Drishti Backend Server URL (default: http://localhost:8000 or DRISHTI_SERVER_URL env var)",
     )
     parser.add_argument(
         "--state-dir",
-        default=None,
-        help="Custom directory for identity and credentials storage (default: ~/.drishti/agent)",
+        default=os.environ.get("DRISHTI_STATE_DIR"),
+        help="Custom directory for identity and credentials storage (default: ~/.drishti/agent or DRISHTI_STATE_DIR env var)",
     )
     parser.add_argument(
         "--heartbeat-interval",
         type=float,
         default=45.0,
         help="Heartbeat reporting interval in seconds (default: 45s)",
+    )
+    parser.add_argument(
+        "--force-pair",
+        action="store_true",
+        default=False,
+        help="Clear saved credentials and force a fresh pairing flow on every start. "
+             "Use this whenever the dashboard reports 'Invalid pairing code'.",
     )
     parser.add_argument(
         "--verbose",
@@ -55,7 +63,7 @@ def main() -> None:
         heartbeat_interval_seconds=args.heartbeat_interval,
     )
 
-    agent = DrishtiEndpointAgent(config=config)
+    agent = DrishtiEndpointAgent(config=config, force_pair=args.force_pair)
 
     def handle_signal(sig, frame):
         print("\n[Drishti Agent] Caught termination signal. Shutting down cleanly...")

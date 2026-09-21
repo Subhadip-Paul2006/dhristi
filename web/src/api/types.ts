@@ -473,6 +473,16 @@ export interface NetworkDevice {
   aiTrackingActive?: boolean;
   deviceSecurityScore?: number | null;
   endpointVulnFindings?: EndpointFindingOut[];
+  // Endpoint Agent fields (Phase 01 / End-to-End Grid Integration)
+  paired_endpoint_agent_id?: string | null;
+  paired_endpoint_device_id?: string | null;
+  paired_endpoint_status?: "ONLINE" | "STALE" | "OFFLINE" | string | null;
+  paired_endpoint_hostname?: string | null;
+  paired_endpoint_os?: string | null;
+  paired_endpoint_os_version?: string | null;
+  paired_endpoint_agent_version?: string | null;
+  paired_endpoint_last_heartbeat?: string | null;
+  paired_endpoint_paired_at?: string | null;
 }
 
 export type EndpointFinding = EndpointFindingOut;

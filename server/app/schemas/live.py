@@ -325,6 +325,16 @@ class NetworkDeviceOut(BaseModel):
     # KNOWN_EXPLOITED | NO_CONFIRMED_VULNERABILITY — exposed separately so the UI
     # can distinguish them correctly.
     endpoint_vuln_findings: list[EndpointFindingOut] = []
+    # Endpoint Agent fields (Phase 01 / End-to-End Grid Integration)
+    paired_endpoint_agent_id: str | None = None
+    paired_endpoint_device_id: str | None = None
+    paired_endpoint_status: str | None = None     # ONLINE | STALE | OFFLINE
+    paired_endpoint_hostname: str | None = None
+    paired_endpoint_os: str | None = None
+    paired_endpoint_os_version: str | None = None
+    paired_endpoint_agent_version: str | None = None
+    paired_endpoint_last_heartbeat: datetime | None = None
+    paired_endpoint_paired_at: datetime | None = None
 
 
 
