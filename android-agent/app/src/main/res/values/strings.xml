@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">Drishti Agent</string>
+    <string name="title_pairing">Device Pairing</string>
+    <string name="title_status">Endpoint Status</string>
+    <string name="title_permissions">Agent Permissions</string>
+    <string name="btn_pair">Pair Device</string>
+    <string name="btn_force_repair">Force Re-pair</string>
+    <string name="btn_start_agent">Start Agent</string>
+    <string name="btn_stop_agent">Stop Agent</string>
+    <string name="notification_channel_name">Drishti Security Agent</string>
+    <string name="notification_channel_desc">Active monitoring of device security and telemetry posture</string>
+    <string name="notification_title">Drishti Security Agent Active</string>
+    <string name="notification_text">Reporting telemetry and presence to Drishti SOC</string>
+</resources>
