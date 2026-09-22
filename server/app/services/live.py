@@ -2175,14 +2175,16 @@ def upsert_device_from_endpoint_agent(db: Session, org_id: str, agent: EndpointA
     else:
         row.online = True
         row.last_seen = now
-        if ip and not row.ip:
-            row.ip = ip
-        if not row.hostname and agent.hostname:
+        if ip:
+            row.ip = ip  # Always sync current IP (handles DHCP reassignment)
+        if agent.hostname:
             row.hostname = agent.hostname
         if not row.mac and agent.mac:
             row.mac = agent.mac
         if not row.vendor and init_vendor:
             row.vendor = init_vendor
+        if not row.source_agent_id and agent.agent_id:
+            row.source_agent_id = agent.agent_id
 
     try:
         db.commit()

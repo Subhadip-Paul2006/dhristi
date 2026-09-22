@@ -65,10 +65,17 @@ def record_telemetry(
         if payload.applications and payload.installed_software is None:
             synth_software = []
             for app_item in payload.applications:
-                pkg_name = app_item.get("package_name") or app_item.get("name")
-                label = app_item.get("label") or pkg_name
-                ver_name = app_item.get("version_name") or app_item.get("version")
-                classification = app_item.get("classification", "USER_APP")
+                if isinstance(app_item, dict):
+                    pkg_name = app_item.get("package_name") or app_item.get("name")
+                    label = app_item.get("label") or pkg_name
+                    ver_name = app_item.get("version_name") or app_item.get("version")
+                    classification = app_item.get("classification", "USER_APP")
+                else:
+                    pkg_name = getattr(app_item, "package_name", None) or getattr(app_item, "name", None)
+                    label = getattr(app_item, "label", None) or pkg_name
+                    ver_name = getattr(app_item, "version_name", None) or getattr(app_item, "version", None)
+                    classification = getattr(app_item, "classification", "USER_APP")
+
                 if pkg_name:
                     synth_software.append({
                         "name": label or pkg_name,

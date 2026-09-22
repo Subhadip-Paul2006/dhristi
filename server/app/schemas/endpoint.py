@@ -137,6 +137,61 @@ class BrowserProcessTelemetryItem(BaseModel):
     observed_at: str | None = None
 
 
+class CpuTelemetry(BaseModel):
+    cores: int
+    usage_percent: float | None = None
+    per_core_supported: bool = False
+    per_core_usage: list[float] = Field(default_factory=list)
+    architecture: str = "arm64-v8a"
+
+
+class MemoryTelemetry(BaseModel):
+    total_bytes: int
+    available_bytes: int
+    used_bytes: int
+    low_memory: bool = False
+
+
+class StorageTelemetry(BaseModel):
+    total_bytes: int
+    available_bytes: int
+    used_bytes: int
+
+
+class BatteryTelemetry(BaseModel):
+    percentage: int
+    charging: bool
+    health: str = "GOOD"
+    temperature_c: float | None = None
+
+
+class NetworkTelemetry(BaseModel):
+    connection_type: str  # WI-FI, CELLULAR, ETHERNET, NONE
+    local_ip: str | None = None
+    interface_name: str | None = Field(default=None, alias="interface")
+    link_speed_kbps: int | None = None
+
+
+class SecurityPostureTelemetry(BaseModel):
+    screen_lock: bool = False
+    encryption: str = "ENCRYPTED"
+    developer_options: bool = False
+    usb_debugging: bool = False
+    verified_boot: str = "release-keys"
+    security_patch: str | None = None
+    biometric_capability: str = "AVAILABLE"
+    root_detected: bool = False
+
+
+class AppTelemetryItem(BaseModel):
+    package_name: str
+    label: str
+    version_name: str | None = None
+    version_code: int | None = None
+    classification: str = "USER_APP"
+    is_enabled: bool = True
+
+
 class EndpointTelemetrySubmitRequest(BaseModel):
     agent_id: str
     device_id: str
@@ -157,13 +212,13 @@ class EndpointTelemetrySubmitRequest(BaseModel):
     device_model: str | None = None
     manufacturer: str | None = None
     sdk_version: int | None = None
-    cpu_info: dict[str, Any] | None = None
-    memory_info: dict[str, Any] | None = None
-    storage_info: dict[str, Any] | None = None
-    battery_info: dict[str, Any] | None = None
-    network_info: dict[str, Any] | None = None
-    security_posture: dict[str, Any] | None = None
-    applications: list[dict[str, Any]] | None = None
+    cpu_info: CpuTelemetry | dict[str, Any] | None = None
+    memory_info: MemoryTelemetry | dict[str, Any] | None = None
+    storage_info: StorageTelemetry | dict[str, Any] | None = None
+    battery_info: BatteryTelemetry | dict[str, Any] | None = None
+    network_info: NetworkTelemetry | dict[str, Any] | None = None
+    security_posture: SecurityPostureTelemetry | dict[str, Any] | None = None
+    applications: list[AppTelemetryItem | dict[str, Any]] | None = None
 
 
 class EndpointTelemetrySubmitResponse(BaseModel):
@@ -199,13 +254,13 @@ class EndpointTelemetryOut(BaseModel):
     device_model: str | None = None
     manufacturer: str | None = None
     sdk_version: int | None = None
-    cpu_info: dict[str, Any] | None = None
-    memory_info: dict[str, Any] | None = None
-    storage_info: dict[str, Any] | None = None
-    battery_info: dict[str, Any] | None = None
-    network_info: dict[str, Any] | None = None
-    security_posture: dict[str, Any] | None = None
-    applications: list[dict[str, Any]] = Field(default_factory=list)
+    cpu_info: CpuTelemetry | dict[str, Any] | None = None
+    memory_info: MemoryTelemetry | dict[str, Any] | None = None
+    storage_info: StorageTelemetry | dict[str, Any] | None = None
+    battery_info: BatteryTelemetry | dict[str, Any] | None = None
+    network_info: NetworkTelemetry | dict[str, Any] | None = None
+    security_posture: SecurityPostureTelemetry | dict[str, Any] | None = None
+    applications: list[AppTelemetryItem | dict[str, Any]] = Field(default_factory=list)
 
 
 # Phase 03 — Vulnerability Intelligence Schemas
