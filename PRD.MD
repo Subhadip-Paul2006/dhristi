@@ -1,367 +1,367 @@
 # 👁️ Drishti: Product Requirements Document (PRD)
 
-> **Document Version:** 1.0.0  
+> **Document Version:** 2.1.0  
 > **Target Release:** Drishti Enterprise v1.0 / Hackathon Championship Edition  
-> **Status:** Approved & Active  
+> **Status:** Approved & Active Architecture Standard  
 > **Product Tagline:** *See the invisible. Price the risk. Fix it first.*  
 > **Core Tenet:** *Defensive only. Maps, prices, and remediates. Never attacks.*
 
 ---
 
-## 1. Executive Summary & Product Vision
+## Table of Contents
 
-Modern enterprise security teams are drowning in disjointed telemetry and context-free alerts. Security Operations Centers (SOCs) navigate separate tools for network vulnerability scanning, asset discovery, endpoint telemetry, threat hunting, and firewall configuration. When a high-severity Common Vulnerabilities and Exposures (CVE) identifier is flagged, analysts are left with three unanswered existential questions:
-1. **Reachability:** Can an external attacker actually reach this vulnerable service from the public Internet?
-2. **Impact in Dollars:** What is the actual financial exposure if this asset and downstream crown jewels are breached?
-3. **Actionable Remediation:** What exact configuration change or firewall Access Control List (ACL) will eliminate this attack path with zero disruption to benign production traffic?
+1. [Product Overview](#1-product-overview)
+2. [Problem Statement](#2-problem-statement)
+3. [Product Vision](#3-product-vision)
+4. [Goals](#4-goals)
+5. [Non-Goals](#5-non-goals)
+6. [Target Users](#6-target-users)
+7. [Authorized Use Cases](#7-authorized-use-cases)
+8. [User Stories](#8-user-stories)
+9. [Functional Requirements](#9-functional-requirements)
+10. [Endpoint Requirements](#10-endpoint-requirements)
+11. [Network Monitoring Requirements](#11-network-monitoring-requirements)
+12. [Detection Requirements](#12-detection-requirements)
+13. [Correlation Requirements](#13-correlation-requirements)
+14. [Attack-Path Requirements](#14-attack-path-requirements)
+15. [Dashboard Requirements](#15-dashboard-requirements)
+16. [Graph Requirements](#16-graph-requirements)
+17. [Grid View Requirements](#17-grid-view-requirements)
+18. [Alert Requirements](#18-alert-requirements)
+19. [Cross-Platform Requirements](#19-cross-platform-requirements)
+20. [Windows Requirements](#20-windows-requirements)
+21. [macOS Requirements](#21-macos-requirements)
+22. [Linux Requirements](#22-linux-requirements)
+23. [Android Requirements](#23-android-requirements)
+24. [Security Requirements](#24-security-requirements)
+25. [Privacy Requirements](#25-privacy-requirements)
+26. [Performance Requirements](#26-performance-requirements)
+27. [Reliability Requirements](#27-reliability-requirements)
+28. [Scalability Requirements](#28-scalability-requirements)
+29. [Future Enhancements](#29-future-enhancements)
+30. [Acceptance Criteria](#30-acceptance-criteria)
 
-**Drishti** solves this crisis by combining **graph-theoretic attack surface mapping**, **real dollar risk pricing**, **cross-platform endpoint observation (macOS & Windows)**, **real-time AI traffic detection & multi-step horizon forecasting**, and **automated remediation playbook generation** into a single, cohesive, dark-mode defensive intelligence console.
+---
+
+## 1. Product Overview
+
+Drishti is a unified, defensive cybersecurity platform designed for internal corporate networks, security operations centers (SOCs), cyber ranges, and authorized laboratory environments. Drishti combines **passive and active network asset discovery**, **cross-platform endpoint telemetry collection**, **real-time traffic flow anomaly detection**, **graph-theoretic attack-path modeling**, and **deterministic financial risk pricing** into a single cohesive interface.
+
+The platform provides comprehensive situational awareness by continuously monitoring network conversations and endpoint system metrics, identifying critical convergence points ("choke points") through which adversaries could pivot toward high-value corporate assets ("crown jewels"), and synthesizing non-destructive mitigation playbooks before vulnerabilities can be exploited.
 
 ```mermaid
-%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#1a1a2e', 'primaryTextColor': '#e0e0e0', 'primaryBorderColor': '#38c6f4', 'lineColor': '#38c6f4', 'secondaryColor': '#16213e', 'tertiaryColor': '#0f3460', 'background': '#0a0a1a', 'mainBkg': '#1a1a2e', 'nodeBorder': '#38c6f4', 'clusterBkg': '#0f3460', 'titleColor': '#e94560', 'edgeLabelBackground': '#16213e'}}}%%
+%%{init: {'theme': 'dark'}}%%
 flowchart LR
-    subgraph INGESTION ["📥 Multi-Source Ingestion"]
+    subgraph INGESTION ["Multi-Source Ingestion"]
         direction TB
-        NET_DISC["LAN Device Discovery<br/>(ARP, DNS, mDNS)"]
-        ACTIVE_SCAN["Autonomous DeepScan<br/>(Nmap Engine)"]
-        ENDPOINT_TEL["Endpoint Agent<br/>(Win/macOS Telemetry)"]
-        LIVE_TRAFFIC["Packet Capture Adapter<br/>(Raw Sockets / BPF)"]
-        BROWSER_GUARD["Chrome Extension<br/>(Active Tab URL Trust)"]
+        NET_DISC["Passive Network Discovery<br/>(ARP, DNS, mDNS)"]
+        ENDPOINT_TEL["Endpoint Agents<br/>(Windows · macOS · Android)"]
+        LIVE_TRAFFIC["Traffic Capture Pipeline<br/>(Zeek · TShark · Scapy)"]
     end
 
-    subgraph ENGINE ["⚙️ Drishti Core Engine"]
+    subgraph ENGINE ["Analytical Core"]
         direction TB
         GRAPH_ENGINE["Attack Graph Engine<br/>(NetworkX DiGraph)"]
-        RISK_PRICER["Risk Pricing Engine<br/>(Dollar Exposure Calc)"]
-        VULN_CORRELATOR["Deterministic Vuln Engine<br/>(NVD, CISA KEV, OSV)"]
-        AI_FORECASTER["Multi-Step AI Forecaster<br/>(LSTM, Transformer, GNN)"]
+        RISK_PRICER["Risk Pricing Engine<br/>(Dollar Exposure Model)"]
+        VULN_CORRELATOR["Vulnerability Intelligence<br/>(NVD · CISA KEV)"]
     end
 
-    subgraph ACTION ["🛡️ Actionable Output"]
+    subgraph ACTION ["Defensive Action"]
         direction TB
-        DASHBOARD["Dark-Mode SOC Console<br/>(ReactFlow Graph, ForceMap)"]
-        AUTO_FIX["Automated Playbooks<br/>(Ansible, Cisco IOS ACLs)"]
-        TELEGRAM_ALERTS["Targeted Notifications<br/>(Deduplicated Bot Push)"]
+        DASHBOARD["Dark-Mode SOC Console<br/>(Live Watch · Grid · Graph)"]
+        AUTO_FIX["Playbook Synthesizer<br/>(Ansible · Cisco ACLs)"]
     end
 
-    INGESTION ==> ENGINE
-    ENGINE ==> ACTION
-
-    classDef ingStyle fill:#16213e,stroke:#38c6f4,stroke-width:2px,color:#fff;
-    classDef engStyle fill:#0f3460,stroke:#e94560,stroke-width:2px,color:#fff;
-    classDef actStyle fill:#1a1a2e,stroke:#00ffcc,stroke-width:2px,color:#fff;
-
-    class NET_DISC,ACTIVE_SCAN,ENDPOINT_TEL,LIVE_TRAFFIC,BROWSER_GUARD ingStyle;
-    class GRAPH_ENGINE,RISK_PRICER,VULN_CORRELATOR,AI_FORECASTER engStyle;
-    class DASHBOARD,AUTO_FIX,TELEGRAM_ALERTS actStyle;
+    INGESTION ==> ENGINE ==> ACTION
 ```
 
 ---
 
-## 2. Target Personas & Stakeholder Value
+## 2. Problem Statement
 
-| Persona | Role & Mandate | Key Pain Points | Drishti Solution & Value |
-|---|---|---|---|
-| **Tier 1 / 2 SOC Analyst** | Daily triage, incident qualification, alert review | Overwhelmed by alert fatigue; thousands of unprioritized CVE warnings without context. | Unified Device Drawer with real-time process-to-socket evidence, live force-directed network topology, and clear distinction between *Observed* vs *Vulnerable*. |
-| **Lead Threat Hunter / Incident Responder** | Breach simulation, proactive hunt, containment | Lack of visibility into attacker traversal hops across VLANs and subnets. | Interactive Breach Simulator stepping hop-by-hop from Internet ingress to crown jewel databases; multi-step AI behavioral forecasting ($t+1, t+2, t+3$). |
-| **CISO / Head of Information Security** | Board reporting, capital allocation, compliance | Disconnect between CVSS scores (e.g., 9.8) and board-level risk; cannot justify security ROI. | Dollar-quantified risk pricing for every asset and breach path (e.g., "$725,000 total exposure, cut to $45,000 by applying Rule #3"). |
-| **Network & Infrastructure Engineer** | Patching, firewall configuration, change control | Fear that security patches will break production services; manual, error-prone ACL drafting. | Deterministic Min-Cut chokepoint identification; one-click Ansible playbooks and verified Cisco IOS ACL exports. |
+Modern enterprise cybersecurity teams face acute operational inefficiencies caused by fragmented telemetry silos:
+- **Disjointed Alerting**: Network intrusion detection alerts (e.g. anomalous port activity) exist completely disconnected from endpoint process telemetry (e.g. which executable opened the socket).
+- **Unquantified Risk**: Vulnerability scanners assign abstract CVSS scores (e.g. 7.5 or 9.8) that fail to convey actual reachability or financial exposure to executive decision-makers.
+- **Lateral Path Invisibility**: Analysts struggle to determine whether a compromised workstation at the network edge can actually traverse internal routing, firewall ACLs, and service dependencies to reach internal crown jewels.
 
----
-
-## 3. Product Principles & Absolute Non-Negotiables
-
-The following engineering and product non-negotiables govern every aspect of Drishti:
-
-### 3.1 Zero Fabrication Contract
-Drishti **never hallucinates or fabricates** security evidence.
-- It never invents open ports, processes, services, software packages, or browser tabs.
-- If a remote device's unicast traffic cannot be observed by the interface, the UI explicitly displays `TRAFFIC VISIBILITY UNAVAILABLE` or `LIMITED VISIBILITY`.
-- If an endpoint agent is not installed, the platform displays `ENDPOINT TELEMETRY UNAVAILABLE` rather than guessing processes.
-- An open port does not imply a vulnerability; a vulnerability does not imply an active exploit.
-
-### 3.2 Strict Evidence Hierarchy
-Data moves through four strictly enforced progressive states:
-```
-OBSERVED (Raw packet / process / port detected)
-   ↓
-CORRELATED (Mapped to software product / CPE / package)
-   ↓
-POTENTIAL (CVE exists for product, version bounds uncertain)
-   ↓
-CONFIRMED (Exact version match in NVD / CISA KEV verified)
-```
-
-### 3.3 Defense-Only Posture
-Drishti is an entirely defensive platform. It scans, inventories, prices, models, and remediates. It **never launches offensive exploits, packet floods, denial-of-service tests, or destructive payloads**.
-
-### 3.4 Cross-Device & Tenant Isolation
-All device telemetry, time-window sliding sequences, AI model states, network flows, and vulnerability findings are strictly partitioned by `device_id` and `org_id`. Telemetry from Device A never leaks into Device B.
+Drishti bridges this gap by unifying the investigative chain:
+$$\text{Live Network Traffic} \longrightarrow \text{Endpoint Telemetry} \longrightarrow \text{Active Applications} \longrightarrow \text{Topology Relationships} \longrightarrow \text{Attack Path Pricing}$$
 
 ---
 
-## 4. End-to-End User Journeys
+## 3. Product Vision
 
-### 4.1 User Journey 1: Rapid Device Discovery & Autonomous DeepScan
-1. **Discovery:** Analyst loads Drishti. The platform initiates passive LAN discovery via ARP cache sweeps, DNS resolution, and mDNS responder listening.
-2. **Visualization:** Devices appear on the dark-mode canvas categorized by subnet, presence status (`ONLINE`, `STALE`, `OFFLINE`), and interface type.
-3. **DeepScan Initiation:** Analyst clicks *Scan Device* on a target IP (`192.168.1.50`). The server runs an autonomous, bounded Nmap scan (`-sV -T4 -Pn --top-ports 100`).
-4. **Deterministic Correlation:** Listening ports and service banners are correlated against the local vulnerability cache (NVD, CISA KEV). Findings are categorized with CVSS scores and KEV exploit status without hallucinated CVEs.
+To transform complex, fragmented enterprise infrastructure into an intuitive, mathematically grounded, and financially quantified defensive map that enables security analysts to anticipate lateral attack paths and deploy automated, zero-downtime remediations before adversaries find them.
+
+---
+
+## 4. Goals
+
+1. **Deterministic Risk Quantification**: Express security risk in verifiable United States Dollars ($ USD) based on asset valuation, CVSS score, exploitability, and blast radius.
+2. **Comprehensive Visibility**: Automatically map physical workstations, virtual servers, and corporate mobile devices across subnets without manual asset entry.
+3. **Cross-Platform Telemetry**: Collect deep operational metrics from Windows, macOS, and Android devices using non-invasive, standard OS APIs.
+4. **Bounded Attack Path Analysis**: Rapidly identify candidate breach routes using Yen's $K$-shortest paths algorithm, pinpointing architectural choke points.
+5. **Zero-Falsification Reporting**: Honestly represent platform constraints (SELinux boundaries, TCC privacy controls) rather than fabricating telemetry.
+
+---
+
+## 5. Non-Goals
+
+1. **Offensive Exploitation**: Drishti will never generate exploits, weaponized payloads, or execute offensive penetration tests.
+2. **Covert Surveillance**: Drishti will not function as spyware; it contains no keystroke loggers, webcam listeners, or covert screen grabbers.
+3. **Deep Packet Payload Inspection**: Drishti inspects 5-tuple flow headers and protocol metadata; it does not decrypt or inspect raw TLS application payloads.
+4. **General-Purpose Mobile Device Management (MDM)**: Drishti is a security telemetry agent, not an MDM for enterprise wiping or app store distribution.
+
+---
+
+## 6. Target Users
 
 ```mermaid
 %%{init: {'theme': 'dark'}}%%
-sequenceDiagram
-    autonumber
-    actor Analyst as 👤 Security Analyst
-    participant UI as 🌐 Drishti Web UI
-    participant API as 🖥️ FastAPI Backend
-    participant Scanner as 🔎 DeepScan Engine (Nmap)
-    participant VulnDB as 🗄️ Vuln Intel Cache (NVD/KEV)
-
-    Analyst->>UI: Selects device "api.acme-retail.dev"
-    UI->>API: GET /api/devices/{device_id}
-    API-->>UI: Returns device profile & presence
-    Analyst->>UI: Clicks "Scan Device (DeepScan)"
-    UI->>API: POST /api/scan/trigger {ip: "192.168.1.50"}
-    API->>Scanner: Spawns bounded Nmap subprocess
-    Scanner-->>API: Streams parsed XML stdout (ports, banners)
-    API->>VulnDB: Query exact vendor/product/version
-    VulnDB-->>API: Returns verified CVEs & CISA KEV flags
-    API->>API: Recompute asset dollar exposure
-    API-->>UI: Emits completed findings & updated risk
-    UI->>Analyst: Renders updated findings table with CVSS & KEV badges
+mindmap
+  root((Drishti Personas))
+    SOC Analyst
+      Live Triage
+      Alert Investigation
+      Endpoint Inspection
+    Security Engineer
+      Attack Graph Traversal
+      Choke Point Analysis
+      Playbook Generation
+    CISO / Executive
+      Dollar Exposure Metrics
+      Compliance Auditing
+      Blast Radius Valuation
+    IT Fleet Admin
+      Agent Enrollment
+      Mobile Health Audit
+      Permission Verification
 ```
 
-### 4.2 User Journey 2: Endpoint Agent Secure Pairing & Telemetry Ingestion
-1. **Installation:** Workstation user runs `drishti-agent` (single binary on Windows or macOS).
-2. **One-Time Code:** Agent console displays a clean pairing prompt: `DRISHTI PAIRING CODE: AB7X-92KF (Expires in 5 mins)`.
-3. **Dashboard Pairing:** Analyst clicks *Pair Endpoint Agent* in the web console, inputs `AB7X-92KF`, and binds it to the device record.
-4. **Authentication & Heartbeat:** The agent exchanges the code for a cryptographically secure token, initiates a 30s heartbeat loop, and begins streaming:
-   - Real running applications (`VS Code`, `Chrome`, `Terminal`).
-   - Background services and system daemons.
-   - Exact process-to-listening-socket bindings (`PID 1234 -> 0.0.0.0:8000`).
-   - Read-only software inventory with exact installed versions.
-
-```mermaid
-%%{init: {'theme': 'dark'}}%%
-sequenceDiagram
-    autonumber
-    actor Target as 💻 Workstation (Win/macOS)
-    participant Agent as 👁️ Endpoint Agent Daemon
-    actor Analyst as 👤 Analyst (Dashboard)
-    participant Server as 🖥️ Drishti Server API
-    participant DB as 🗄️ Database
-
-    Target->>Agent: Starts agent daemon
-    Agent->>Server: POST /api/endpoint/pairing/request {device_id}
-    Server-->>Agent: Returns 6-char OTP: "AB7X-92KF" (TTL: 300s)
-    Agent->>Target: Displays pairing code on terminal/screen
-    Analyst->>Server: POST /api/endpoint/pairing/claim {code: "AB7X-92KF", device_id}
-    Server->>DB: Validates unexpired code, binds agent to device
-    Server-->>Analyst: Pairing verified
-    Agent->>Server: POST /api/endpoint/pairing/confirm {device_id}
-    Server-->>Agent: Issues authenticated Agent Bearer Token
-    loop Every 30-60 Seconds
-        Agent->>Server: POST /api/endpoint/heartbeat {agent_id, status}
-        Agent->>Server: POST /api/endpoint/telemetry {processes, services, sockets, software}
-        Server->>DB: Stores scoped telemetry with TTL enforcement
-    end
-```
-
-### 4.3 User Journey 3: Real-Time Traffic Tracking & AI Multi-Step Horizon Forecasting
-1. **Session Activation:** Analyst opens *Live Traffic Panel* for a specific host (`192.168.1.100`).
-2. **Packet Aggregation:** Drishti attaches a capture adapter (BPF/raw sockets), tracking bidirectional flows.
-3. **Feature Extraction:** Flows are transformed every 10 seconds into a **27-dimensional canonical feature vector** across a sliding sequence of 5 windows: $W(t-4), W(t-3), W(t-2), W(t-1), W(t)$.
-4. **AI Inference & Horizon Forecasting:**
-   - Pre-trained LSTM and Transformer detect current behavioral anomalies.
-   - Dynamic topological graph feeds into the Temporal GNN and Fusion network.
-   - The engine generates multi-step probabilistic forecasts for horizons $t+1, t+2, t+3$ across 5 progression classes (e.g., *Reconnaissance Continuation*, *Lateral Movement Progression*, *Privilege Escalation Attempt*).
-5. **MITRE ATT&CK & Explanation:** The predicted progression is mapped to verified MITRE techniques (e.g., `T1046 Network Service Discovery`) with factual feature attribution.
-
-```mermaid
-%%{init: {'theme': 'dark'}}%%
-flowchart TD
-    subgraph CAPTURE ["1. Network Capture Plane"]
-        PCAP["Live Packet Capture<br/>(BPF / AF_PACKET / Scapy)"] --> FLOWS["Flow Aggregator<br/>(5-Tuple Bidirectional Tracking)"]
-    end
-
-    subgraph PREPROC ["2. Temporal Feature Pipeline"]
-        FLOWS --> FEAT["Feature Extractor<br/>(27 Canonical Features)"]
-        FEAT --> WINDOWS["Sliding Window Engine<br/>(10s Windows, 5s Stride, Max 5 Windows)"]
-        WINDOWS --> SEQ_TENSOR["Sequence Tensor<br/>[1, 5, 27]"]
-        FLOWS --> TOPOLOGY["Dynamic Graph Engine<br/>(Adjacency + Degree Norm)"]
-        TOPOLOGY --> GRAPH_TENSOR["Topology Tensors<br/>(Node Feats + Norm Adj)"]
-    end
-
-    subgraph MODELS ["3. Neural Evaluation Engine"]
-        SEQ_TENSOR --> LSTM["LSTM Forecaster<br/>(Recurrent Sequence Model)"]
-        SEQ_TENSOR --> TRANSFORMER["Transformer Forecaster<br/>(Multi-Head Attention)"]
-        GRAPH_TENSOR --> GNN["Temporal GNN<br/>(Topology Embedding)"]
-        LSTM & TRANSFORMER & GNN --> FUSION["Fusion Forecaster<br/>(Multi-Modal Concatenation)"]
-    end
-
-    subgraph OUTPUT ["4. Actionable Forecast & Mapping"]
-        FUSION --> PROG["Multi-Step Horizon Predictions<br/>(t+1, t+2, t+3 Probabilities)"]
-        PROG --> MITRE["MITRE ATT&CK / CAPEC Engine<br/>(Tactic & Technique Attribution)"]
-        PROG --> RISK["Composite Risk Engine<br/>(Dynamic Threat Score Calculation)"]
-        MITRE & RISK --> UI_PANEL["Live Traffic & Forecasting Panel<br/>(Truthful Gating, No Hallucinations)"]
-    end
-
-    classDef capStyle fill:#16213e,stroke:#38c6f4,color:#fff;
-    classDef preStyle fill:#0f3460,stroke:#f4d03f,color:#fff;
-    classDef modStyle fill:#1a1a2e,stroke:#e94560,color:#fff;
-    classDef outStyle fill:#0f3460,stroke:#00ffcc,color:#fff;
-
-    class PCAP,FLOWS capStyle;
-    class FEAT,WINDOWS,SEQ_TENSOR,TOPOLOGY,GRAPH_TENSOR preStyle;
-    class LSTM,TRANSFORMER,GNN,FUSION modStyle;
-    class PROG,MITRE,RISK,UI_PANEL outStyle;
-```
+1. **SOC Tier-1 / Tier-2 Analyst**: Triages live anomalies, inspects endpoint process tables, and traces network connections.
+2. **Security Infrastructure Engineer**: Evaluates choke points, generates Ansible playbooks, and deploys Cisco firewall ACLs.
+3. **Chief Information Security Officer (CISO)**: Reviews aggregate organization dollar exposure, top vulnerable assets, and ROI on mitigation.
+4. **IT Fleet Administrator**: Manages cross-platform pairing, verifies device health, and monitors permission compliance.
 
 ---
 
-## 5. Comprehensive Functional Requirements
+## 7. Authorized Use Cases
 
-```mermaid
-%%{init: {'theme': 'dark'}}%%
-flowchart TD
-    FR["Drishti Functional Modules"]
-    FR --> M1["FR1: Discovery & LAN Ingestion"]
-    FR --> M2["FR2: Attack Graph Construction"]
-    FR --> M3["FR3: Risk Pricing Engine"]
-    FR --> M4["FR4: Breach Simulation"]
-    FR --> M5["FR5: Live Telemetry & ForceMap"]
-    FR --> M6["FR6: Endpoint Agent Subsystem"]
-    FR --> M7["FR7: Vuln Intel & Correlation"]
-    FR --> M8["FR8: Traffic AI & Forecasting"]
-    FR --> M9["FR9: Automated Remediation"]
-    FR --> M10["FR10: URL Trust & Chrome Guard"]
-    FR --> M11["FR11: Telegram Alerts"]
-    FR --> M12["FR12: Reporting & Audit Logs"]
-```
-
-### FR1: Network Discovery & Ingestion
-- **FR1.1:** Passively detect devices across local subnets using ARP cache inspection, reverse DNS queries, and mDNS broadcasts.
-- **FR1.2:** Support active, bounded ping/ARP sweeps for consented CIDRs without generating broadcast floods.
-- **FR1.3:** Record first-seen, last-seen, hardware MAC address (when available), IP, hostname, and operating system heuristics.
-
-### FR2: Attack Graph Construction
-- **FR2.1:** Construct a directed reachability graph ($\mathcal{G} = (\mathcal{V}, \mathcal{E})$) using NetworkX where nodes represent assets and edges represent reachable network paths.
-- **FR2.2:** Model ingress boundary nodes (`Internet`) and designated `Crown Jewel` target assets.
-- **FR2.3:** Execute Yen's $k$-Shortest Paths algorithm to compute top $k$ traversal paths from the Internet to crown jewels.
-- **FR2.4:** Execute Network Min-Cut analysis to identify the minimal set of edges whose severance completely isolates the crown jewel from unauthorized paths.
-
-### FR3: Dollar-Based Risk Quantification
-- **FR3.1:** Compute asset risk scores using the verified formulation:
-  $$\text{Asset Price} = \sum (\text{CVSS} \times 0.4 + \text{Criticality} \times 0.3 + \text{Exposure} \times 0.2 + \text{Blast Radius} \times 0.1) \times \text{Base Financial Unit}$$
-- **FR3.2:** Calculate cumulative path exposure dollars along each enumerated attack path.
-- **FR3.3:** Dynamically recompute aggregate organization exposure upon any asset addition, finding mitigation, or topology shift.
-
-### FR4: Breach Simulation
-- **FR4.1:** Provide step-by-step interactive breach simulation stepping from external entry point to target crown jewel.
-- **FR4.2:** At each hop, display required exploit prerequisites, CVSS exploitability sub-metrics, and the downstream blast radius.
-
-### FR5: Live Watch & Force-Directed Topology
-- **FR5.1:** Render a dynamic, force-directed D3 network graph displaying live node clusters grouped by subnet.
-- **FR5.2:** Graphically indicate node presence states (`ONLINE`, `STALE`, `OFFLINE`) with animated ring indicators.
-- **FR5.3:** Support node selection to instantly reveal the Device Detail drawer.
-
-### FR6: Cross-Platform Endpoint Agent Subsystem
-- **FR6.1:** Standalone, lightweight agent executable for macOS (ARM64/Intel) and Windows 10/11.
-- **FR6.2:** Interactive 6-character one-time pairing code generation with 5-minute expiration.
-- **FR6.3:** Enumerate active user applications, distinguishing them strictly from background processes and system daemons.
-- **FR6.4:** Map running PIDs to bound listening sockets and outbound connections.
-- **FR6.5:** Enumerate installed software packages with exact publisher and version strings.
-- **FR6.6:** Enforce configurable memory and TTL policies (60s for processes/sockets, 15m for installed software).
-
-### FR7: Deterministic Vulnerability Intelligence
-- **FR7.1:** Maintain a local SQLite/PostgreSQL vulnerability cache synchronized with NVD, CISA KEV, OSV, and GHSA.
-- **FR7.2:** Correlate observed software against CVE records using strict semantic version range matching (`version >= affected_start` AND `version < fixed_version`).
-- **FR7.3:** Distinctly flag CISA KEV entries with high-visibility `KNOWN EXPLOITED` tags.
-- **FR7.4:** Reject any synthetic or unverified CVE attribution.
-
-### FR8: Real-Time Traffic AI & Multi-Step Forecasting
-- **FR8.1:** Intercept live traffic via packet capture adapters and group packets into bidirectional 5-tuple flows.
-- **FR8.2:** Extract 27 canonical statistical features across 10-second sliding windows with 5-second strides.
-- **FR8.3:** Evaluate sequence tensors through pre-trained LSTM and Transformer models to produce current behavioral verdicts (*Benign*, *DDoS*, *PortScan*, *Infiltration*, *Botnet*, *WebAttack*, *BruteForce*).
-- **FR8.4:** Generate future progression probability distributions for horizons $t+1, t+2, t+3$ across 5 progression classes.
-- **FR8.5:** Correlate predicted attack behaviors with MITRE ATT&CK techniques and CAPEC patterns.
-
-### FR9: Automated Remediation Playbook Generation
-- **FR9.1:** Generate idempotent, production-ready Ansible playbooks targeting identified vulnerabilities and unpatched services.
-- **FR9.2:** Generate vendor-compliant Cisco IOS Access Control Lists (ACLs) to block attack paths identified by the Min-Cut engine.
-- **FR9.3:** Strictly isolate LLM generation: prompts receive only verified finding evidence; outputs are validated against schema parsers before rendering.
-
-### FR10: URL Trust & Chrome Extension Guard
-- **FR10.1:** Manifest V3 browser extension monitoring active tab URLs.
-- **FR10.2:** Evaluate URL reputation via 6-module analyzer (lexical patterns, domain age, WHOIS entropy, heuristic flags).
-- **FR10.3:** Intercept malicious or phishing URLs with an immediate block page and alert submission to the backend.
-
-### FR11: Telegram Security Alerting
-- **FR11.1:** Secure server-side Telegram bot adapter pushing real-time alerts to authorized chat IDs.
-- **FR11.2:** Implement fingerprint deduplication (`device_id + finding_id + version + severity`) to prevent alert fatigue.
-- **FR11.3:** Never expose bot tokens to client-side code, extensions, or git repositories.
-
-### FR12: Reporting & Audit Trail
-- **FR12.1:** Generate comprehensive executive PDF/JSON security posture reports.
-- **FR12.2:** Maintain immutable audit logs with unique 8-character request IDs for every administrative action and scan execution.
+1. **Enterprise SOC Triage**: Monitoring internal corporate networks to detect unauthorized lateral movement and infected hosts.
+2. **Authorized Laboratory & Cyber Range**: Evaluating defensive security controls against simulated threats in isolated testbeds.
+3. **Vulnerability Prioritization**: Identifying which unpatched CVEs sit on direct paths to business-critical databases.
+4. **Mobile Fleet Posture Auditing**: Monitoring employee Android devices for unpatched security patch levels, root status, and malicious outbound connections.
 
 ---
 
-## 6. Non-Functional Requirements (NFRs)
+## 8. User Stories
 
-| ID | Category | Requirement Specification | Measurement & Verification Method |
-|---|---|---|---|
-| **NFR1** | **Performance** | API endpoint latency $\le 100\text{ms}$ (P95) for dashboard, graph, and asset queries under 1,000 assets. | Measured via FastAPI structured logging latency headers. |
-| **NFR2** | **Agent Overhead** | Endpoint agent consumes $< 1.0\%$ average CPU and $< 45\text{MB}$ Resident Set Size (RSS) memory during telemetry sweeps. | Measured via `psutil` benchmarking tests on Windows & macOS. |
-| **NFR3** | **Network Traffic AI** | Time-window feature calculation and neural inference complete in $< 200\text{ms}$ per 10-second window. | Benchmarked in `test_forecasting_phase3.py`. |
-| **NFR4** | **Security & Auth** | JWT access tokens expire in 15 minutes; refresh tokens expire in 7 days with server-side version invalidation. | Verified in `test_auth_security.py`. |
-| **NFR5** | **Zero Fabrication** | 100% of displayed CVEs, processes, open ports, and predictions must trace directly to an evidentiary raw record. | Validated in `test_vuln_api_and_no_fabrication.py`. |
-| **NFR6** | **Tenant & Device Isolation** | Complete database, memory, and AI inference isolation across devices and organizations. Zero cross-device leakage. | Verified in `test_vuln_isolation.py` and `test_device_sessions.py`. |
-| **NFR7** | **Availability & Resilience** | Endpoint agent implements exponential backoff retry (1s, 2s, 4s) on server disconnection; resumes seamlessly upon reconnect. | Tested via simulated socket drop tests in `test_endpoint_agent.py`. |
-| **NFR8** | **Cross-Platform Parity** | 100% feature parity between Windows (10/11) and macOS (Sonoma/Sequoia) for endpoint telemetry collection. | Tested across native test harnesses on both operating systems. |
+- **US-01 [Analyst Triage]**: *As a SOC analyst*, I want to click any device in the Live Watch grid to view its top 20 processes and active socket connections so that I can immediately identify suspicious software.
+- **US-02 [Risk Pricing]**: *As a CISO*, I want to see the total financial exposure of my network in dollars so that I can allocate security budget based on quantifiable risk.
+- **US-03 [Choke Point Remediation]**: *As a security engineer*, I want Drishti to generate an Ansible playbook closing a critical choke point so that I can eliminate multiple lateral attack paths simultaneously.
+- **US-04 [Mobile Verification]**: *As an IT admin*, I want an authorized Android agent to report active network flows without capturing private message contents so that corporate compliance is maintained without violating user privacy.
 
 ---
 
-## 7. Success Metrics & Key Performance Indicators (KPIs)
+## 9. Functional Requirements
 
-```
-┌───────────────────────────────────────────────────────────┐
-│                     DRISHTI KPI SCORECARD                 │
-├───────────────────────────────┬────────────┬──────────────┤
-│ Metric                        │ Industry   │ Drishti Target│
-├───────────────────────────────┼────────────┼──────────────┤
-│ Mean Time to Detect (MTTD)    │ 16 days    │ < 10 seconds │
-│ Attack Path Pricing Precision │ 0% (Score) │ 100% ($ USD) │
-│ False Positive CVE Alerts     │ 38% avg    │ 0% (Strict)  │
-│ Remediation Playbook Speed    │ 4.5 hours  │ < 3 seconds  │
-│ Endpoint Footprint            │ 250+ MB    │ < 45 MB      │
-└───────────────────────────────┴────────────┴──────────────┘
-```
-
-1. **Exposure Reduction Ratio:** Measurement of total dollar risk eliminated post-playbook deployment (target: $> 80\%$ risk reduction via Min-Cut remediation).
-2. **Horizon Prediction Accuracy:** Multi-step prediction accuracy for $t+1, t+2, t+3$ evaluated against benchmark attack datasets (target: $> 88\%$ macro F1-score on CICIDS2017/2018).
-3. **Analyst Triage Velocity:** Reduction in time required to qualify a network finding from alert to verified fix (target: $< 2$ minutes).
+- **PRD-FUNC-001 [Autonomous Asset Inventory]**: System must automatically discover and maintain an asset inventory from network traffic and endpoint reports. `[IMPLEMENTED]`
+- **PRD-FUNC-002 [Asset Criticality Tagging]**: Operators must be able to designate assets as Low, Medium, High, or Crown Jewel. `[IMPLEMENTED]`
+- **PRD-FUNC-003 [Vulnerability Feed Ingestion]**: System must ingest and correlate CVEs from local NVD caches and CISA KEV feeds. `[IMPLEMENTED]`
+- **PRD-FUNC-004 [Automated Playbook Generation]**: System must synthesize Ansible playbooks, PowerShell scripts, and Cisco ACLs to remediate identified risks. `[IMPLEMENTED]`
+- **PRD-FUNC-005 [Defensive Guardrail Filter]**: All synthesized playbooks must pass automated AST checks to ensure zero destructive commands (`rm -rf`, format) exist. `[IMPLEMENTED]`
+- **PRD-FUNC-006 [Executive Reporting]**: System must export structured executive risk reports in PDF and Markdown formats. `[IMPLEMENTED]`
 
 ---
 
-## 8. Release Roadmap & Milestones
+## 10. Endpoint Requirements
 
-```mermaid
-%%{init: {'theme': 'dark'}}%%
-gantt
-    title Drishti Engineering & Delivery Timeline
-    dateFormat  YYYY-MM-DD
-    section Phase 01
-    Agent Lifecycle & Secure Pairing :done, p1, 2026-07-01, 2026-07-15
-    section Phase 02
-    Endpoint Telemetry & Process Sockets :done, p2, 2026-07-16, 2026-08-05
-    section Phase 03
-    Deterministic Vuln Intel (NVD/KEV) :done, p3, 2026-08-06, 2026-08-25
-    section Phase 04
-    AI Traffic Forecaster (LSTM/GNN) :done, p4, 2026-08-26, 2026-09-12
-    section Phase 05
-    Remediation Playbooks & Telegram :done, p5, 2026-09-13, 2026-09-20
-    section GA & Hackathon
-    Live Pitch & Enterprise Hardening :active, p6, 2026-09-21, 2026-09-25
-```
+- **PRD-EP-001 [Hardware & OS Telemetry]**: Agent must report hostname, OS version, architecture, uptime, CPU count, RAM, and storage free space. `[IMPLEMENTED]`
+- **PRD-EP-002 [Process Visibility]**: Agent must report active processes including PID, executable path, command-line arguments, and memory RSS. `[IMPLEMENTED]`
+- **PRD-EP-003 [Socket & Port Telemetry]**: Agent must report listening TCP/UDP ports and active connections with remote 5-tuples. `[IMPLEMENTED]`
+- **PRD-EP-004 [Installed Software Inventory]**: Agent must inventory installed desktop software and mobile applications with version strings. `[IMPLEMENTED]`
+- **PRD-EP-005 [Two-Stage Pairing Protocol]**: Agent must support short-lived (5 min) pairing codes approved via the dashboard before issuing persistent bearer tokens. `[IMPLEMENTED]`
+- **PRD-EP-006 [Force-Pair CLI Flag]**: Agent CLI must support `--force-pair` to purge cached credentials and reset pairing state. `[IMPLEMENTED]`
+- **PRD-EP-007 [Periodic Heartbeat Pulse]**: Agent must submit a periodic presence heartbeat (default 15–45s) to maintain `ONLINE` status. `[IMPLEMENTED]`
+
+---
+
+## 11. Network Monitoring Requirements
+
+- **PRD-NET-001 [Passive LAN Discovery]**: Agent daemon must sniff ARP, DNS, and mDNS to detect subnet hosts without active port knocking. `[IMPLEMENTED]`
+- **PRD-NET-002 [Multi-Backend Capture Adapter]**: Server must support packet capture via Zeek, TShark, or Scapy based on system availability. `[IMPLEMENTED]`
+- **PRD-NET-003 [5-Tuple Flow Aggregation]**: Captured packets must be grouped into bidirectional flows with protocol, byte, and packet counts. `[IMPLEMENTED]`
+- **PRD-NET-004 [Truthful Network Visibility Classification]**: Backend must evaluate whether remote peer packets are visible, limited by LAN switching, or unavailable. `[IMPLEMENTED]`
+- **PRD-NET-005 [Autonomous DeepScan]**: Server must support scheduled or on-demand full-TCP Nmap service audits against consented targets. `[IMPLEMENTED]`
+
+---
+
+## 12. Detection Requirements
+
+- **PRD-DET-001 [Real-Time Behavioral Classification]**: Engine must classify flows as `NORMAL`, `ANOMALOUS`, `SUSPICIOUS`, or `INSUFFICIENT_DATA`. `[IMPLEMENTED]`
+- **PRD-DET-002 [Volumetric DoS Detection]**: Engine must flag packet rates exceeding 600 pps or rapid TCP SYN bursts as DoS anomalies. `[IMPLEMENTED]`
+- **PRD-DET-003 [Port Scan Detection]**: Engine must flag connections spanning $\ge 5$ distinct destination ports as PortScan anomalies. `[IMPLEMENTED]`
+- **PRD-DET-004 [High Payload Entropy Detection]**: Engine must flag flows with payload entropy $> 7.1$ bits/byte as potential Infiltration/Exfiltration. `[IMPLEMENTED]`
+- **PRD-DET-005 [Brute-Force Anomaly Detection]**: Engine must flag repeated unacknowledged connection attempts to single authentication ports. `[IMPLEMENTED]`
+
+---
+
+## 13. Correlation Requirements
+
+- **PRD-CORR-001 [Multi-Identifier Device Upsert]**: Backend must correlate passive network signals, agent IDs, MACs, and IPs into a single `NetworkDevice`. `[IMPLEMENTED]`
+- **PRD-CORR-002 [Network-to-Process Binding]**: System must bind active socket connections to the originating local process executable. `[IMPLEMENTED]`
+- **PRD-CORR-003 [Vulnerability-to-Asset Mapping]**: Discovered software versions must automatically link to corresponding CVE findings. `[IMPLEMENTED]`
+- **PRD-CORR-004 [Presence State Transitions]**: Devices must transition: `ONLINE` $\rightarrow$ `STALE` (60s silence) $\rightarrow$ `OFFLINE` (600s silence). `[IMPLEMENTED]`
+
+---
+
+## 14. Attack-Path Requirements
+
+- **PRD-PATH-001 [Directed Graph Construction]**: Topology must be modeled as a NetworkX DiGraph with asset nodes and reachability edges. `[IMPLEMENTED]`
+- **PRD-PATH-002 [Yen's K-Shortest Paths]**: System must enumerate candidate breach routes using Yen's algorithm, bounded to avoid combinatorial explosion. `[IMPLEMENTED]`
+- **PRD-PATH-003 [Crown-Jewel Target Identification]**: Attack paths must automatically terminate at designated crown-jewel assets. `[IMPLEMENTED]`
+- **PRD-PATH-004 [Dollar Risk Pricing per Path]**: Every attack path must be priced in dollars using CVSS, asset value, and hop count ease. `[IMPLEMENTED]`
+- **PRD-PATH-005 [Choke Point Highlighting]**: Nodes or edges that intersect multiple attack paths must be flagged as priority choke points. `[IMPLEMENTED]`
+
+---
+
+## 15. Dashboard Requirements
+
+- **PRD-DASH-001 [Total Dollar Exposure KPI]**: Executive view must display aggregate organization dollar exposure prominently. `[IMPLEMENTED]`
+- **PRD-DASH-002 [Global Breach Probability]**: Dashboard must calculate a normalized 0–100% breach likelihood index. `[IMPLEMENTED]`
+- **PRD-DASH-003 [Top Vulnerabilities Feed]**: Dashboard must display top ranked CVEs weighted by reachability and CVSS score. `[IMPLEMENTED]`
+- **PRD-DASH-004 [Interactive Attack Surface Map]**: Dashboard must include an embedded visual representation of the network topology. `[IMPLEMENTED]`
+
+---
+
+## 16. Graph Requirements
+
+- **PRD-GRAPH-001 [ReactFlow Node-Based Canvas]**: Attack map must render via ReactFlow with pan, zoom, and node dragging support. `[IMPLEMENTED]`
+- **PRD-GRAPH-002 [Visual Zone Grouping]**: Nodes must be grouped visually by network zone (Internet, DMZ, Internal LAN, Crown Jewels). `[IMPLEMENTED]`
+- **PRD-GRAPH-003 [Animated Breach Traversal]**: Clicking an attack path must visually highlight and animate traversal across intermediate nodes. `[IMPLEMENTED]`
+- **PRD-GRAPH-004 [Click-to-Inspect Node Details]**: Selecting a graph node must open its correlated telemetry details. `[IMPLEMENTED]`
+
+---
+
+## 17. Grid View Requirements
+
+- **PRD-GRID-001 [Real-Time Device Cards]**: Live Watch grid must display cards with hostname, IP, OS icon, and status badge. `[IMPLEMENTED]`
+- **PRD-GRID-002 [Live Utilization Meters]**: Cards must display real-time CPU% and memory utilization bars. `[IMPLEMENTED]`
+- **PRD-GRID-003 [Slide-Out Detail Drawer]**: Clicking any card must open a comprehensive multi-tab telemetry inspection drawer. `[IMPLEMENTED]`
+- **PRD-GRID-004 [Fast Filter & Search]**: Grid must support filtering by OS (Windows, macOS, Android, Linux), status, and subnet. `[IMPLEMENTED]`
+
+---
+
+## 18. Alert Requirements
+
+- **PRD-ALRT-001 [Telegram Alert Bot]**: System must support outbound Telegram push notifications for High/Critical findings. `[IMPLEMENTED]`
+- **PRD-ALRT-002 [Deduplication Engine]**: Alert service must deduplicate notifications within 30-minute sliding windows. `[IMPLEMENTED]`
+- **PRD-ALRT-003 [In-App Alert Banners]**: Critical threats must trigger visible alert banners in the web console. `[IMPLEMENTED]`
+- **PRD-ALRT-004 [Webhook Alert Integration]**: Outbound webhook support for third-party SIEM platforms (Splunk, Sentinel). `[PLANNED]`
+
+---
+
+## 19. Cross-Platform Requirements
+
+- **PRD-XPLAT-001 [Unified Telemetry Schema]**: All endpoint platforms must submit telemetry conforming to a single validated JSON schema. `[IMPLEMENTED]`
+- **PRD-XPLAT-002 [Consistent Cryptographic Handshake]**: Pairing and token exchange must operate identically across desktop and mobile. `[IMPLEMENTED]`
+- **PRD-XPLAT-003 [Truthful Capability Reporting]**: Agents must report a `capability_status` matrix reflecting platform-specific constraints. `[IMPLEMENTED]`
+
+---
+
+## 20. Windows Requirements
+
+- **PRD-WIN-001 [Standalone Single-File Binary]**: Windows agent must package as a standalone `.exe` without requiring a local Python install. `[IMPLEMENTED]`
+- **PRD-WIN-002 [Registry Software Inventory]**: Agent must read `HKLM` and `HKCU` uninstall keys to inventory installed Windows applications. `[IMPLEMENTED]`
+- **PRD-WIN-003 [Windows Services Enumeration]**: Agent must query Windows Service Manager for active and stopped service states. `[IMPLEMENTED]`
+- **PRD-WIN-004 [Extended TCP Socket Table]**: Agent must query `GetExtendedTcpTable` via `psutil` to map PIDs to socket bindings. `[IMPLEMENTED]`
+
+---
+
+## 21. macOS Requirements
+
+- **PRD-MAC-001 [Apple Flat Package Installer]**: macOS agent must distribute as an installer package (`.pkg`) deploying to `/opt/drishti/agent`. `[IMPLEMENTED]`
+- **PRD-MAC-002 [POSIX Telemetry via sysctl]**: Agent must query CPU, RAM, and load via `sysctl` and `libproc`. `[IMPLEMENTED]`
+- **PRD-MAC-003 [TCC Privacy Conformance]**: Agent must respect Apple Transparency, Consent, and Control boundaries without triggering privacy alerts. `[IMPLEMENTED]`
+- **PRD-MAC-004 [Applications Directory Inventory]**: Agent must enumerate `/Applications` to inventory installed macOS bundles. `[IMPLEMENTED]`
+
+---
+
+## 22. Linux Requirements
+
+- **PRD-LNX-001 [Passive Scanner Execution]**: Python discovery scanner (`agent/drishti_watch.py`) must run on Linux distributions. `[IMPLEMENTED]`
+- **PRD-LNX-002 [Native Debian / RPM Package]**: Native `.deb` and `.rpm` systemd daemon packaging for Linux desktop telemetry. `[PLANNED]`
+- **PRD-LNX-003 [eBPF Network Flow Collector]**: Kernel-level eBPF socket monitoring for Linux servers. `[PLANNED]`
+
+---
+
+## 23. Android Requirements
+
+- **PRD-AND-001 [Android 14+ SDK Support]**: Native Kotlin app targeting API 34–35 with Java 17 compatibility. `[IMPLEMENTED]`
+- **PRD-AND-002 [Hardware Keystore Storage]**: Agent tokens must be stored in Android Keystore via `EncryptedSharedPreferences`. `[IMPLEMENTED]`
+- **PRD-AND-003 [Foreground App Observation]**: Agent must query `UsageStatsManager` (when permitted) to identify active apps. `[IMPLEMENTED]`
+- **PRD-AND-004 [Defensive Network Shield (VpnService)]**: Agent must provide an opt-in local VPN capturing outbound 5-tuple flows. `[IMPLEMENTED]`
+- **PRD-AND-005 [SELinux Sandbox Compliance]**: Agent must report restricted items (`/proc/stat`, randomized MAC) truthfully as `PLATFORM_RESTRICTED`. `[IMPLEMENTED]`
+- **PRD-AND-006 [Hackathon Demo Mode (`ABCD-1234`)]**: App must support static demo code pairing when server has `DRISHTI_DEMO_MODE=true`. `[IMPLEMENTED]`
+
+---
+
+## 24. Security Requirements
+
+- **PRD-SEC-001 [JWT Operator Authentication]**: Dashboard access must require bcrypt-verified credentials with 15-minute access JWTs. `[IMPLEMENTED]`
+- **PRD-SEC-002 [Cryptographic Agent Tokens]**: Agents must authenticate using 32-byte cryptographically secure random bearer tokens. `[IMPLEMENTED]`
+- **PRD-SEC-003 [Streaming MaxBodySize Middleware]**: Server must reject request streams exceeding configured limits before memory buffering. `[IMPLEMENTED]`
+- **PRD-SEC-004 [CORS Domain Whitelisting]**: Server must enforce strict CORS origin filtering, permitting Chrome extension schemas. `[IMPLEMENTED]`
+
+---
+
+## 25. Privacy Requirements
+
+- **PRD-PRIV-001 [Zero Keystroke / Media Capture]**: Platform must contain no code for keylogging, audio recording, or screen capture. `[IMPLEMENTED]`
+- **PRD-PRIV-002 [Zero Packet Payload Storage]**: Network monitoring must inspect packet headers only, discarding application payloads. `[IMPLEMENTED]`
+- **PRD-PRIV-003 [Explicit Consent Workflows]**: Mobile flow capture and usage access must require explicit user acceptance in OS settings. `[IMPLEMENTED]`
+
+---
+
+## 26. Performance Requirements
+
+- **PRD-PERF-001 [API Latency Ceiling]**: 95% of API requests must complete in $< 200\text{ ms}$ under 500 active endpoints. `[IMPLEMENTED]`
+- **PRD-PERF-002 [Lightweight Endpoint Footprint]**: Desktop agent must consume $< 45\text{ MB}$ RAM and $< 1.0\%$ average CPU. `[IMPLEMENTED]`
+- **PRD-PERF-003 [Mobile Battery Impact]**: Android agent must consume $< 3.0\%$ battery over 24 hours of background execution. `[IMPLEMENTED]`
+
+---
+
+## 27. Reliability Requirements
+
+- **PRD-REL-001 [Graceful Degradation]**: Failure of optional modules (Zeek, NVD API, Telegram) must not disrupt core telemetry ingestion. `[IMPLEMENTED]`
+- **PRD-REL-002 [Local Telemetry Buffering]**: Agents must buffer up to 100 telemetry batches during network disconnections. `[PARTIAL]`
+- **PRD-REL-003 [Schema Reconciliation]**: Server startup must reconcile missing database columns without data loss. `[IMPLEMENTED]`
+
+---
+
+## 28. Scalability Requirements
+
+- **PRD-SCAL-001 [Dual Database Backends]**: Architecture must support zero-code switching between SQLite (dev) and PostgreSQL (prod). `[IMPLEMENTED]`
+- **PRD-SCAL-002 [Stateless Application Tier]**: Backend must operate statelessly behind standard reverse proxies and load balancers. `[IMPLEMENTED]`
+- **PRD-SCAL-003 [Subnet Ingestion Partitioning]**: Ingestion worker queues partitioned by organization ID and subnet CIDR. `[PLANNED]`
+
+---
+
+## 29. Future Enhancements
+
+- **PRD-FUT-001 [Kubernetes Container Agent]**: DaemonSet deployment collecting container runtime telemetry and pod network flows. `[PLANNED]`
+- **PRD-FUT-002 [Cloud Security Posture (CSPM)]**: Ingestion connectors for AWS VPC Flow Logs, Azure NSGs, and Google Cloud telemetry. `[PLANNED]`
+- **PRD-FUT-003 [Native Linux Desktop Daemon]**: Single-binary `.deb`/`.rpm` package with systemd service unit. `[PLANNED]`
+- **PRD-FUT-004 [WebSocket Push Subscriptions]**: True bidirectional WebSocket streaming replacing high-frequency HTTP polling. `[PLANNED]`
+
+---
+
+## 30. Acceptance Criteria
+
+| Requirement Area | Acceptance Verification Standard | Verification Method |
+|---|---|---|
+| **Windows Endpoint** | Standalone `.exe` executes, connects to backend, pairs via code, and reports top 20 processes and ports within 45s. | Manual CLI execution + Live Watch inspection. |
+| **Android Endpoint** | Debug APK installs via ADB on API 34+, pairs via `ABCD-1234`, and populates Live Watch drawer with hardware & foreground app. | Real device test on Android 14/15. |
+| **Attack Graph** | NetworkX builds DiGraph, enumerates Yen's paths to crown jewels, and assigns dollar pricing. | Automated backend test suite (`pytest`). |
+| **Traffic Anomaly** | Volumetric SYN burst triggers `ANOMALOUS` (DoS) verdict with confidence $> 0.90$. | Unit test in `server/tests/`. |
+| **Remediation Guardrail** | Synthesizer rejects any playbook template containing destructive command patterns. | AST validator test suite. |
