@@ -40,12 +40,16 @@ import {
   Zap,
   Battery,
   HardDrive,
-  Lock,
   Check,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
   Cog,
+  MemoryStick,
+  MonitorCheck,
+  Plug,
+  Server,
+  Wifi,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
@@ -2065,6 +2069,11 @@ export function LiveActivitySection({
 export function EndpointAgentSection({ device: d }: { device: NetworkDevice }) {
   const isPaired = Boolean(d.paired_endpoint_agent_id);
   const [isOpen, setIsOpen] = useState(isPaired);
+  const [showProcesses, setShowProcesses] = useState(false);
+  const [showPorts, setShowPorts] = useState(false);
+  const [showConnections, setShowConnections] = useState(false);
+  const [showServices, setShowServices] = useState(false);
+  const [showInterfaces, setShowInterfaces] = useState(false);
   const status = d.paired_endpoint_status || (isPaired ? "ONLINE" : "UNPAIRED");
 
   const isOnline = status === "ONLINE";
@@ -2076,7 +2085,7 @@ export function EndpointAgentSection({ device: d }: { device: NetworkDevice }) {
     queryFn: () => api.getEndpointTelemetry(d.paired_endpoint_device_id || d.id),
     enabled: Boolean(d.paired_endpoint_device_id || d.id) && isPaired,
     staleTime: 5000,
-    refetchInterval: 10000,
+    refetchInterval: isOnline ? 8000 : 30000,
   });
   const telem = telemQuery.data;
 
@@ -2109,6 +2118,69 @@ export function EndpointAgentSection({ device: d }: { device: NetworkDevice }) {
     return `${mb.toFixed(0)} MB`;
   };
 
+  // Resolved CPU data — handles both old schema (cores/usage_percent) and new (logical_cores/overall_usage_percent)
+  const cpuInfo = telem?.cpu_info as Record<string, any> | null | undefined;
+  const memInfo = telem?.memory_info as Record<string, any> | null | undefined;
+  const netInfo = telem?.network_info as Record<string, any> | null | undefined;
+  const interfaces: any[] = netInfo?.interfaces ?? [];
+
+  // Resolve field aliases between Android-style and desktop-style telemetry
+  const cpuCores = cpuInfo?.logical_cores ?? cpuInfo?.cores;
+  const cpuUsage = cpuInfo?.overall_usage_percent ?? cpuInfo?.usage_percent;
+  const cpuModel = cpuInfo?.model;
+  const cpuArch = cpuInfo?.architecture;
+  const cpuPerCore: { core: number; usage_percent: number }[] = cpuInfo?.per_core ?? [];
+  const memTotal = memInfo?.total_bytes;
+  const memUsed = memInfo?.used_bytes;
+  const memAvail = memInfo?.available_bytes;
+  const memPct = memInfo?.percent_used ??
+    (memTotal && memUsed ? Math.round((memUsed / memTotal) * 100) : null);
+  const swapTotal = memInfo?.swap_total_bytes;
+  const swapUsed = memInfo?.swap_used_bytes;
+  const swapPct = memInfo?.swap_percent_used;
+
+  const processes: any[] = telem?.endpoint_processes ?? [];
+  const ports: any[] = telem?.listening_ports ?? [];
+  const connections: any[] = telem?.process_connections ?? [];
+  const services: any[] = telem?.services ?? [];
+
+  // Top processes sorted by CPU then memory
+  const topProcesses = [...processes]
+    .sort((a, b) => ((b.cpu_percent ?? 0) - (a.cpu_percent ?? 0)) || ((b.memory_mb ?? 0) - (a.memory_mb ?? 0)))
+    .slice(0, 20);
+
+  // CPU usage color
+  const cpuColor = (pct: number) =>
+    pct >= 90 ? "bg-rose-500" : pct >= 70 ? "bg-amber-400" : pct >= 40 ? "bg-sky-400" : "bg-emerald-400";
+
+  // Sub-section toggle header
+  const SubHeader = ({
+    icon: Icon,
+    label,
+    count,
+    open,
+    onToggle,
+    color = "text-sky-400",
+  }: {
+    icon: any; label: string; count?: number; open: boolean; onToggle: () => void; color?: string;
+  }) => (
+    <button
+      className="w-full flex items-center justify-between py-1.5 px-0 text-left hover:opacity-80 transition-opacity"
+      onClick={onToggle}
+    >
+      <span className={`flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider ${color}`}>
+        <Icon className="h-3 w-3 shrink-0" />
+        {label}
+        {count != null && (
+          <span className="rounded bg-surface-2 px-1 py-0.5 text-[8px] text-ink-muted font-normal ml-0.5">
+            {count}
+          </span>
+        )}
+      </span>
+      {open ? <ChevronUp className="h-3 w-3 text-ink-muted" /> : <ChevronDown className="h-3 w-3 text-ink-muted" />}
+    </button>
+  );
+
   return (
     <div className="mt-4 rounded-lg border border-sky-500/30 bg-surface-2/90 p-3.5 backdrop-blur-xs space-y-3">
       <div
@@ -2140,6 +2212,7 @@ export function EndpointAgentSection({ device: d }: { device: NetworkDevice }) {
         <div className="space-y-2.5 pt-1 border-t border-hairline/40">
           {isPaired ? (
             <>
+              {/* ── Identity grid ── */}
               <div className="grid grid-cols-2 gap-2 text-[10px] font-mono">
                 <div className="rounded border border-hairline bg-surface-1 p-2 space-y-0.5">
                   <div className="text-ink-muted uppercase tracking-wider text-[8.5px]">Agent ID</div>
@@ -2156,9 +2229,10 @@ export function EndpointAgentSection({ device: d }: { device: NetworkDevice }) {
                 </div>
 
                 <div className="rounded border border-hairline bg-surface-1 p-2 space-y-0.5">
-                  <div className="text-ink-muted uppercase tracking-wider text-[8.5px]">Hostname &amp; OS</div>
+                  <div className="text-ink-muted uppercase tracking-wider text-[8.5px]">Hostname & OS</div>
                   <div className="text-ink font-semibold truncate">
-                    {d.paired_endpoint_hostname || d.hostname || "—"} ({[d.paired_endpoint_os, d.paired_endpoint_os_version].filter(Boolean).join(" ") || "—"})
+                    {d.paired_endpoint_hostname || d.hostname || "—"}{" "}
+                    ({[d.paired_endpoint_os, d.paired_endpoint_os_version].filter(Boolean).join(" ") || "—"})
                   </div>
                 </div>
 
@@ -2184,78 +2258,387 @@ export function EndpointAgentSection({ device: d }: { device: NetworkDevice }) {
                 </div>
               </div>
 
-              {/* Hardware Telemetry (CPU, Memory, Storage, Battery) */}
-              {(telem?.cpu_info || telem?.memory_info || telem?.storage_info || telem?.battery_info) && (
-                <div className="rounded border border-sky-500/20 bg-surface-1 p-2.5 space-y-2 text-[10px] font-mono">
-                  <div className="text-[9px] font-bold text-sky-400 uppercase tracking-wider flex items-center gap-1.5 border-b border-hairline pb-1">
-                    <Cpu className="h-3 w-3 text-sky-400" />
-                    System Hardware Telemetry
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {/* CPU */}
-                    {telem.cpu_info && (
-                      <div className="space-y-0.5">
-                        <div className="text-ink-muted text-[8.5px] uppercase">CPU ({telem.cpu_info.cores ?? "—"} Cores)</div>
-                        <div className="text-ink font-semibold">
-                          {telem.cpu_info.usage_percent != null ? `${telem.cpu_info.usage_percent.toFixed(1)}%` : "Active"}
-                          <span className="text-[8.5px] text-ink-muted ml-1">({telem.cpu_info.architecture || "ARM"})</span>
-                        </div>
-                        <div className="text-[8px] text-ink-muted">
-                          {telem.cpu_info.per_core_supported ? "Per-core load enabled" : "SELinux: per-core restricted"}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Memory */}
-                    {telem.memory_info && (
-                      <div className="space-y-0.5">
-                        <div className="text-ink-muted text-[8.5px] uppercase">Memory (RAM)</div>
-                        <div className="text-ink font-semibold">
-                          {formatBytes(telem.memory_info.used_bytes)} / {formatBytes(telem.memory_info.total_bytes)}
-                        </div>
-                        <div className="text-[8px] text-ink-muted">
-                          Avail: {formatBytes(telem.memory_info.available_bytes)} {telem.memory_info.low_memory ? "· Low RAM alert" : ""}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Storage */}
-                    {telem.storage_info && (
-                      <div className="space-y-0.5">
-                        <div className="text-ink-muted text-[8.5px] uppercase flex items-center gap-1">
-                          <HardDrive className="h-2.5 w-2.5" /> Storage
-                        </div>
-                        <div className="text-ink font-semibold">
-                          {formatBytes(telem.storage_info.used_bytes)} / {formatBytes(telem.storage_info.total_bytes)}
-                        </div>
-                        <div className="text-[8px] text-ink-muted">
-                          Free: {formatBytes(telem.storage_info.available_bytes)}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Battery */}
-                    {telem.battery_info && (
-                      <div className="space-y-0.5">
-                        <div className="text-ink-muted text-[8.5px] uppercase flex items-center gap-1">
-                          <Battery className="h-2.5 w-2.5 text-emerald-400" /> Battery
-                        </div>
-                        <div className="text-ink font-semibold flex items-center gap-1">
-                          <span>{telem.battery_info.percentage ?? "—"}%</span>
-                          {telem.battery_info.charging && (
-                            <span className="text-emerald-400 text-[8.5px] font-bold">[CHARGING]</span>
-                          )}
-                        </div>
-                        <div className="text-[8px] text-ink-muted">
-                          Health: {telem.battery_info.health || "Good"} {telem.battery_info.temperature_c != null ? `· ${telem.battery_info.temperature_c}°C` : ""}
-                        </div>
-                      </div>
+              {/* ── CPU Panel ── */}
+              {cpuInfo && (
+                <div className="rounded border border-sky-500/25 bg-surface-1 p-2.5 space-y-2 text-[10px] font-mono">
+                  <div className="flex items-center justify-between border-b border-hairline/50 pb-1.5">
+                    <span className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider text-sky-400">
+                      <Cpu className="h-3 w-3" />
+                      CPU
+                      {cpuCores != null && (
+                        <span className="text-ink-muted font-normal">({cpuCores} cores)</span>
+                      )}
+                    </span>
+                    {cpuUsage != null && (
+                      <span className={`text-[10px] font-bold ${cpuUsage >= 80 ? "text-rose-400" : cpuUsage >= 50 ? "text-amber-400" : "text-emerald-400"}`}>
+                        {cpuUsage.toFixed(1)}%
+                      </span>
                     )}
                   </div>
+                  {cpuModel && (
+                    <div className="text-[8.5px] text-ink-muted truncate" title={cpuModel}>
+                      {cpuModel}{cpuArch ? ` · ${cpuArch}` : ""}
+                    </div>
+                  )}
+                  {/* Overall CPU bar */}
+                  {cpuUsage != null && (
+                    <div className="space-y-0.5">
+                      <div className="text-[8px] text-ink-muted uppercase">Overall Load</div>
+                      <div className="h-2 w-full rounded-full bg-surface-2 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${cpuColor(cpuUsage)}`}
+                          style={{ width: `${Math.min(cpuUsage, 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                  {/* Per-core bars */}
+                  {cpuPerCore.length > 0 && (
+                    <div className="space-y-0.5">
+                      <div className="text-[8px] text-ink-muted uppercase">Per-Core Load</div>
+                      <div className="grid gap-0.5" style={{ gridTemplateColumns: `repeat(${Math.min(cpuPerCore.length, 4)}, 1fr)` }}>
+                        {cpuPerCore.map((c) => (
+                          <div key={c.core} className="space-y-0.5">
+                            <div className="text-[7.5px] text-ink-muted text-center">C{c.core}</div>
+                            <div className="h-1.5 w-full rounded-full bg-surface-2 overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all duration-500 ${cpuColor(c.usage_percent)}`}
+                                style={{ width: `${Math.min(c.usage_percent, 100)}%` }}
+                              />
+                            </div>
+                            <div className="text-[7px] text-ink-muted text-center">{c.usage_percent.toFixed(0)}%</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
-              {/* Security Posture Telemetry */}
+              {/* ── Memory Panel ── */}
+              {memInfo && (
+                <div className="rounded border border-violet-500/25 bg-surface-1 p-2.5 space-y-2 text-[10px] font-mono">
+                  <div className="flex items-center justify-between border-b border-hairline/50 pb-1.5">
+                    <span className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider text-violet-400">
+                      <MemoryStick className="h-3 w-3" />
+                      Memory (RAM)
+                    </span>
+                    {memPct != null && (
+                      <span className={`text-[10px] font-bold ${memPct >= 85 ? "text-rose-400" : memPct >= 65 ? "text-amber-400" : "text-emerald-400"}`}>
+                        {memPct.toFixed(1)}%
+                      </span>
+                    )}
+                  </div>
+                  <div className="space-y-0.5">
+                    <div className="flex justify-between text-[8.5px] text-ink-muted">
+                      <span>Used: {formatBytes(memUsed)}</span>
+                      <span>Total: {formatBytes(memTotal)}</span>
+                    </div>
+                    {memPct != null && (
+                      <div className="h-2 w-full rounded-full bg-surface-2 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${memPct >= 85 ? "bg-rose-500" : memPct >= 65 ? "bg-amber-400" : "bg-violet-400"}`}
+                          style={{ width: `${Math.min(memPct, 100)}%` }}
+                        />
+                      </div>
+                    )}
+                    <div className="text-[8px] text-ink-muted">Available: {formatBytes(memAvail)}</div>
+                  </div>
+                  {swapTotal != null && swapTotal > 0 && (
+                    <div className="space-y-0.5 border-t border-hairline/40 pt-1.5">
+                      <div className="text-[8px] text-ink-muted uppercase">Swap</div>
+                      <div className="flex justify-between text-[8.5px] text-ink-muted">
+                        <span>Used: {formatBytes(swapUsed)}</span>
+                        <span>Total: {formatBytes(swapTotal)}</span>
+                      </div>
+                      {swapPct != null && (
+                        <div className="h-1.5 w-full rounded-full bg-surface-2 overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-amber-500/70 transition-all duration-500"
+                            style={{ width: `${Math.min(swapPct, 100)}%` }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── Storage + Battery (Android / extended) ── */}
+              {(telem?.storage_info || telem?.battery_info) && (
+                <div className="grid grid-cols-2 gap-2 text-[10px] font-mono">
+                  {telem?.storage_info && (
+                    <div className="rounded border border-hairline bg-surface-1 p-2 space-y-0.5">
+                      <div className="text-ink-muted text-[8.5px] uppercase flex items-center gap-1">
+                        <HardDrive className="h-2.5 w-2.5" /> Storage
+                      </div>
+                      <div className="text-ink font-semibold">
+                        {formatBytes((telem.storage_info as any).used_bytes)} / {formatBytes((telem.storage_info as any).total_bytes)}
+                      </div>
+                      <div className="text-[8px] text-ink-muted">
+                        Free: {formatBytes((telem.storage_info as any).available_bytes)}
+                      </div>
+                    </div>
+                  )}
+                  {telem?.battery_info && (
+                    <div className="rounded border border-hairline bg-surface-1 p-2 space-y-0.5">
+                      <div className="text-ink-muted text-[8.5px] uppercase flex items-center gap-1">
+                        <Battery className="h-2.5 w-2.5 text-emerald-400" /> Battery
+                      </div>
+                      <div className="text-ink font-semibold flex items-center gap-1">
+                        <span>{(telem.battery_info as any).percentage ?? "—"}%</span>
+                        {(telem.battery_info as any).charging && (
+                          <span className="text-emerald-400 text-[8.5px] font-bold">[CHARGING]</span>
+                        )}
+                      </div>
+                      <div className="text-[8px] text-ink-muted">
+                        Health: {(telem.battery_info as any).health || "Good"}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── Network Interfaces ── */}
+              {interfaces.length > 0 && (
+                <div className="rounded border border-cyan-500/20 bg-surface-1 text-[10px] font-mono">
+                  <div className="px-2.5 pt-2 pb-1 border-b border-hairline/40">
+                    <SubHeader
+                      icon={Wifi}
+                      label={`Network Interfaces`}
+                      count={interfaces.length}
+                      open={showInterfaces}
+                      onToggle={() => setShowInterfaces((p) => !p)}
+                      color="text-cyan-400"
+                    />
+                  </div>
+                  {showInterfaces && (
+                    <div className="px-2.5 pb-2 pt-1 space-y-1.5 max-h-40 overflow-y-auto">
+                      {interfaces.map((iface: any, i: number) => (
+                        <div key={`${iface.name}-${i}`} className="flex items-start justify-between rounded bg-surface-2 px-2 py-1.5 gap-2">
+                          <div className="space-y-0.5 min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${iface.is_up ? "bg-emerald-400" : "bg-rose-400"}`} />
+                              <span className="text-ink font-semibold truncate">{iface.name}</span>
+                              {iface.speed_mbps && (
+                                <span className="text-[8px] text-ink-muted shrink-0">{iface.speed_mbps} Mbps</span>
+                              )}
+                            </div>
+                            <div className="text-[8.5px] text-ink-muted space-y-0.5 pl-3">
+                              {(iface.addresses ?? []).map((addr: string, ai: number) => (
+                                <div key={ai} className="font-mono">{addr}</div>
+                              ))}
+                              {iface.mac && <div className="text-[8px] opacity-60">{iface.mac}</div>}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── Process List ── */}
+              {topProcesses.length > 0 && (
+                <div className="rounded border border-emerald-500/20 bg-surface-1 text-[10px] font-mono">
+                  <div className="px-2.5 pt-2 pb-1 border-b border-hairline/40">
+                    <SubHeader
+                      icon={MonitorCheck}
+                      label="Running Processes"
+                      count={processes.length}
+                      open={showProcesses}
+                      onToggle={() => setShowProcesses((p) => !p)}
+                      color="text-emerald-400"
+                    />
+                  </div>
+                  {showProcesses && (
+                    <div className="px-2.5 pb-2 pt-1">
+                      {/* Table header */}
+                      <div className="grid gap-2 text-[8px] text-ink-muted uppercase tracking-wider pb-1 border-b border-hairline/30 mb-1"
+                        style={{ gridTemplateColumns: "2fr 3fr 1fr 1fr" }}>
+                        <span>PID</span>
+                        <span>Name</span>
+                        <span className="text-right">CPU%</span>
+                        <span className="text-right">Mem</span>
+                      </div>
+                      <div className="max-h-48 overflow-y-auto space-y-px">
+                        {topProcesses.map((proc: any, i: number) => (
+                          <div
+                            key={`${proc.pid}-${i}`}
+                            className="grid gap-2 rounded px-1 py-0.5 hover:bg-surface-2 transition-colors"
+                            style={{ gridTemplateColumns: "2fr 3fr 1fr 1fr" }}
+                          >
+                            <span className="text-ink-muted text-[8.5px]">{proc.pid}</span>
+                            <span className="text-ink font-medium truncate text-[8.5px]" title={proc.name}>{proc.name}</span>
+                            <span className={`text-right text-[8.5px] font-mono ${
+                              (proc.cpu_percent ?? 0) >= 50 ? "text-rose-400" :
+                              (proc.cpu_percent ?? 0) >= 20 ? "text-amber-400" :
+                              "text-ink-muted"
+                            }`}>
+                              {proc.cpu_percent != null ? `${proc.cpu_percent.toFixed(1)}%` : "—"}
+                            </span>
+                            <span className="text-right text-ink-muted text-[8.5px]">
+                              {proc.memory_mb != null ? `${proc.memory_mb.toFixed(0)}M` : "—"}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      {processes.length > 20 && (
+                        <div className="text-[8px] text-ink-muted text-center pt-1">
+                          +{processes.length - 20} more (showing top 20 by CPU)
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── Listening Ports ── */}
+              {ports.length > 0 && (
+                <div className="rounded border border-amber-500/20 bg-surface-1 text-[10px] font-mono">
+                  <div className="px-2.5 pt-2 pb-1 border-b border-hairline/40">
+                    <SubHeader
+                      icon={Plug}
+                      label="Listening Ports"
+                      count={ports.length}
+                      open={showPorts}
+                      onToggle={() => setShowPorts((p) => !p)}
+                      color="text-amber-400"
+                    />
+                  </div>
+                  {showPorts && (
+                    <div className="px-2.5 pb-2 pt-1">
+                      <div className="grid gap-2 text-[8px] text-ink-muted uppercase tracking-wider pb-1 border-b border-hairline/30 mb-1"
+                        style={{ gridTemplateColumns: "1fr 1fr 2fr" }}>
+                        <span>Port</span>
+                        <span>Proto</span>
+                        <span>Process</span>
+                      </div>
+                      <div className="max-h-36 overflow-y-auto space-y-px">
+                        {ports.map((port: any, i: number) => (
+                          <div
+                            key={`${port.local_port}-${port.protocol}-${i}`}
+                            className="grid gap-2 rounded px-1 py-0.5 hover:bg-surface-2 transition-colors"
+                            style={{ gridTemplateColumns: "1fr 1fr 2fr" }}
+                          >
+                            <span className="text-amber-300 font-bold text-[8.5px]">{port.local_port}</span>
+                            <span className="text-ink-muted text-[8.5px]">{port.protocol}</span>
+                            <span className="text-ink text-[8.5px] truncate">{port.process_name || "—"}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── Active Connections ── */}
+              {connections.length > 0 && (
+                <div className="rounded border border-rose-500/20 bg-surface-1 text-[10px] font-mono">
+                  <div className="px-2.5 pt-2 pb-1 border-b border-hairline/40">
+                    <SubHeader
+                      icon={Network}
+                      label="Active Connections"
+                      count={connections.length}
+                      open={showConnections}
+                      onToggle={() => setShowConnections((p) => !p)}
+                      color="text-rose-400"
+                    />
+                  </div>
+                  {showConnections && (
+                    <div className="px-2.5 pb-2 pt-1">
+                      <div className="max-h-40 overflow-y-auto space-y-0.5">
+                        {connections.slice(0, 30).map((conn: any, i: number) => (
+                          <div
+                            key={`${conn.remote_address}-${conn.remote_port}-${i}`}
+                            className="rounded px-1.5 py-1 hover:bg-surface-2 transition-colors"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-ink-muted text-[8px] truncate">
+                                {conn.process_name || "—"} ({conn.pid})
+                              </span>
+                              <span className={`text-[8px] font-bold shrink-0 ${
+                                conn.state === "ESTABLISHED" ? "text-emerald-400" :
+                                conn.state === "TIME_WAIT" ? "text-amber-400" :
+                                "text-ink-muted"
+                              }`}>
+                                {conn.state}
+                              </span>
+                            </div>
+                            <div className="text-[8.5px] text-ink font-mono">
+                              {conn.local_address}:{conn.local_port}
+                              <span className="text-ink-muted mx-1">→</span>
+                              <span className="text-sky-300">{conn.remote_address}:{conn.remote_port}</span>
+                              <span className="text-[7.5px] text-ink-muted ml-1">({conn.protocol})</span>
+                            </div>
+                          </div>
+                        ))}
+                        {connections.length > 30 && (
+                          <div className="text-[8px] text-ink-muted text-center pt-1">
+                            +{connections.length - 30} more connections
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── System Services ── */}
+              {services.length > 0 && (
+                <div className="rounded border border-indigo-500/20 bg-surface-1 text-[10px] font-mono">
+                  <div className="px-2.5 pt-2 pb-1 border-b border-hairline/40">
+                    <SubHeader
+                      icon={Server}
+                      label="System Services"
+                      count={services.length}
+                      open={showServices}
+                      onToggle={() => setShowServices((p) => !p)}
+                      color="text-indigo-400"
+                    />
+                  </div>
+                  {showServices && (
+                    <div className="px-2.5 pb-2 pt-1">
+                      <div className="max-h-40 overflow-y-auto space-y-1">
+                        {services.slice(0, 30).map((svc: any, i: number) => {
+                          const isRunning = (svc.status || "").toLowerCase() === "running";
+                          return (
+                            <div
+                              key={`${svc.name}-${i}`}
+                              className="flex items-center justify-between gap-2 rounded px-1.5 py-1 hover:bg-surface-2 transition-colors"
+                            >
+                              <div className="min-w-0">
+                                <div className="text-ink font-medium text-[8.5px] truncate">
+                                  {svc.display_name || svc.name}
+                                </div>
+                                <div className="text-ink-muted text-[7.5px] truncate">
+                                  {svc.name}{svc.start_type ? ` · ${svc.start_type}` : ""}
+                                </div>
+                              </div>
+                              <span
+                                className={`text-[8px] font-bold shrink-0 px-1 py-0.5 rounded ${
+                                  isRunning
+                                    ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
+                                    : "bg-neutral-500/10 text-ink-muted border border-neutral-500/30"
+                                }`}
+                              >
+                                {svc.status || "UNKNOWN"}
+                              </span>
+                            </div>
+                          );
+                        })}
+                        {services.length > 30 && (
+                          <div className="text-[8px] text-ink-muted text-center pt-1">
+                            +{services.length - 30} more services
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── Security Posture Telemetry (Android/mobile) ── */}
               {telem?.security_posture && (
                 <div className="rounded border border-indigo-500/20 bg-surface-1 p-2.5 space-y-2 text-[10px] font-mono">
                   <div className="text-[9px] font-bold text-indigo-400 uppercase tracking-wider flex items-center gap-1.5 border-b border-hairline pb-1">
@@ -2265,37 +2648,37 @@ export function EndpointAgentSection({ device: d }: { device: NetworkDevice }) {
                   <div className="grid grid-cols-2 gap-1.5 text-[9px]">
                     <div>
                       <span className="text-ink-muted">Screen Lock: </span>
-                      <span className={telem.security_posture.screen_lock ? "text-emerald-400 font-bold" : "text-amber-400 font-bold"}>
-                        {telem.security_posture.screen_lock ? "SECURE" : "UNLOCKED"}
+                      <span className={(telem.security_posture as any).screen_lock ? "text-emerald-400 font-bold" : "text-amber-400 font-bold"}>
+                        {(telem.security_posture as any).screen_lock ? "SECURE" : "UNLOCKED"}
                       </span>
                     </div>
                     <div>
                       <span className="text-ink-muted">Storage: </span>
-                      <span className="text-emerald-400 font-bold">{telem.security_posture.encryption || "ENCRYPTED"}</span>
+                      <span className="text-emerald-400 font-bold">{(telem.security_posture as any).encryption || "ENCRYPTED"}</span>
                     </div>
                     <div>
                       <span className="text-ink-muted">Dev Options: </span>
-                      <span className={telem.security_posture.developer_options ? "text-amber-400 font-bold" : "text-emerald-400 font-bold"}>
-                        {telem.security_posture.developer_options ? "ENABLED" : "OFF"}
+                      <span className={(telem.security_posture as any).developer_options ? "text-amber-400 font-bold" : "text-emerald-400 font-bold"}>
+                        {(telem.security_posture as any).developer_options ? "ENABLED" : "OFF"}
                       </span>
                     </div>
                     <div>
-                      <span className="text-ink-muted">USB Debugging: </span>
-                      <span className={telem.security_posture.usb_debugging ? "text-amber-400 font-bold" : "text-emerald-400 font-bold"}>
-                        {telem.security_posture.usb_debugging ? "ENABLED" : "OFF"}
+                      <span className="text-ink-muted">USB Debug: </span>
+                      <span className={(telem.security_posture as any).usb_debugging ? "text-amber-400 font-bold" : "text-emerald-400 font-bold"}>
+                        {(telem.security_posture as any).usb_debugging ? "ENABLED" : "OFF"}
                       </span>
                     </div>
-                    {telem.security_posture.security_patch && (
+                    {(telem.security_posture as any).security_patch && (
                       <div className="col-span-2">
                         <span className="text-ink-muted">Security Patch: </span>
-                        <span className="text-ink font-semibold">{telem.security_posture.security_patch}</span>
+                        <span className="text-ink font-semibold">{(telem.security_posture as any).security_patch}</span>
                       </div>
                     )}
                   </div>
                 </div>
               )}
 
-              {/* Installed Android Applications */}
+              {/* ── Installed Android Applications ── */}
               {telem?.applications && telem.applications.length > 0 && (
                 <div className="rounded border border-hairline bg-surface-1 p-2.5 space-y-1.5 text-[10px] font-mono">
                   <div className="text-[9px] font-bold text-emerald-400 uppercase tracking-wider flex items-center justify-between border-b border-hairline pb-1">
@@ -2306,7 +2689,7 @@ export function EndpointAgentSection({ device: d }: { device: NetworkDevice }) {
                     <span className="text-[8px] text-ink-muted">Package Visibility Compliant</span>
                   </div>
                   <div className="max-h-36 overflow-y-auto space-y-1 pr-1">
-                    {telem.applications.map((app, idx) => (
+                    {telem.applications.map((app: any, idx: number) => (
                       <div key={`${app.package_name}-${idx}`} className="flex items-center justify-between rounded bg-surface-2 px-2 py-1">
                         <div className="flex items-center gap-1.5 truncate max-w-[200px]">
                           <span className="text-ink font-medium truncate">{app.label || app.package_name}</span>
