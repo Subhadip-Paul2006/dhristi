@@ -86,15 +86,38 @@ def _to_agent_out(agent: EndpointAgent, now: datetime | None = None) -> Endpoint
     )
 
 
+from app.config import get_settings
+
+DEMO_PAIRING_CODE = "ABCD-1234"
+
 @router.post("/pairing/init", response_model=PairingInitResponse)
 def init_pairing(
     body: PairingInitRequest,
     db: Session = Depends(get_db),
 ) -> PairingInitResponse:
     """Initialize a short-lived pairing session for a newly launched endpoint agent."""
-    code = generate_pairing_code()
-    code_h = hash_code(code)
-    expires_at = datetime.now(timezone.utc) + timedelta(minutes=PAIRING_EXPIRY_MINUTES)
+    import os
+    settings = get_settings()
+    is_demo_enabled = settings.drishti_demo_mode or os.environ.get("DRISHTI_DEMO_MODE", "false").lower() in ("true", "1", "yes")
+
+    if body.is_demo and is_demo_enabled:
+        code = DEMO_PAIRING_CODE
+        code_h = hash_code(code)
+        expires_at = datetime.now(timezone.utc) + timedelta(minutes=60)
+        # Clear prior unconsumed demo sessions to allow instant re-pairing in hackathon lab
+        prior_sessions = db.scalars(
+            select(EndpointPairingSession).where(
+                EndpointPairingSession.pairing_code_hash == code_h,
+                EndpointPairingSession.status == "WAITING_FOR_PAIR"
+            )
+        ).all()
+        for prior in prior_sessions:
+            prior.status = "EXPIRED"
+        db.commit()
+    else:
+        code = generate_pairing_code()
+        code_h = hash_code(code)
+        expires_at = datetime.now(timezone.utc) + timedelta(minutes=PAIRING_EXPIRY_MINUTES)
 
     session = EndpointPairingSession(
         pairing_code_hash=code_h,

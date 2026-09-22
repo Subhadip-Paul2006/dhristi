@@ -358,3 +358,130 @@ def test_android_defensive_remediation_guardrails(db_session: Session, seed_acme
         or "package update" in rem_result.script.lower()
     )
 
+
+def test_android_demo_mode_and_expanded_telemetry(
+    client: TestClient, db_session: Session, user_headers: dict, seed_acme_org, monkeypatch
+):
+    """Test demo pairing mode with ABCD-1234 and comprehensive expanded Android telemetry."""
+    import os
+    monkeypatch.setenv("DRISHTI_DEMO_MODE", "true")
+
+    agent_id = str(uuid.uuid4())
+    device_id = str(uuid.uuid4())
+
+    init_res = client.post(
+        "/api/endpoint/pairing/init",
+        json={
+            "agent_id": agent_id,
+            "device_id": device_id,
+            "hostname": "Pixel 9 Pro Demo",
+            "os": "android",
+            "os_version": "Android 15 (SDK 35)",
+            "is_demo": True,
+        },
+    )
+    assert init_res.status_code == 200
+    init_data = init_res.json()
+    assert init_data["pairing_code"] == "ABCD-1234"
+    session_id = init_data["session_id"]
+
+    # Operator enters ABCD-1234
+    pair_res = client.post(
+        "/api/endpoint/pairing/pair",
+        json={"pairing_code": "ABCD-1234"},
+        headers=user_headers,
+    )
+    assert pair_res.status_code == 200
+    assert pair_res.json()["success"] is True
+
+    # Agent polls and receives valid token
+    poll_res = client.post(
+        "/api/endpoint/pairing/status",
+        json={"session_id": session_id, "agent_id": agent_id},
+    )
+    assert poll_res.status_code == 200
+    token = poll_res.json()["agent_token"]
+    assert token is not None
+
+    # Submit comprehensive expanded telemetry batch
+    telemetry_payload = {
+        "agent_id": agent_id,
+        "device_id": device_id,
+        "timestamp": "2026-09-22T12:00:00Z",
+        "hostname": "Pixel 9 Pro Demo",
+        "os_name": "android",
+        "os_version": "Android 15 (SDK 35)",
+        "device_info": {
+            "manufacturer": "Google",
+            "model": "Pixel 9 Pro",
+            "device_name": "Pixel 9 Pro Demo",
+            "android_version": "15",
+            "sdk_version": 35,
+            "build_display": "AP2A.240905.003",
+            "architecture": "arm64-v8a",
+            "supported_abis": ["arm64-v8a"],
+            "kernel_version": "6.1.75-android15",
+            "locale": "en-US",
+            "timezone": "America/New_York",
+            "is_emulator": False,
+        },
+        "uptime_info": {
+            "uptime_seconds": 86400,
+            "boot_timestamp": "2026-09-21T12:00:00Z",
+            "last_heartbeat": "2026-09-22T11:59:00Z",
+            "agent_service_running": True,
+        },
+        "foreground_app": {
+            "package_name": "com.android.chrome",
+            "app_name": "Google Chrome",
+            "foreground_since": "2026-09-22T11:50:00Z",
+            "usage_duration_seconds": 600,
+            "capability_status": "ACTIVE",
+        },
+        "browser_visibility": {
+            "installed_browsers": ["Google Chrome", "Firefox"],
+            "chrome_detected": True,
+            "foreground_browser": "com.android.chrome",
+            "foreground_state": "FOREGROUND",
+            "tab_visibility_capability": "PLATFORM_RESTRICTED",
+            "history_capability": "PLATFORM_RESTRICTED",
+        },
+        "network_flows": [
+            {
+                "destination_ip": "1.1.1.1",
+                "destination_port": 443,
+                "protocol": "TCP",
+                "packet_count": 45,
+                "bytes_total": 12840,
+                "first_seen": "2026-09-22T11:55:00Z",
+                "last_seen": "2026-09-22T11:59:30Z",
+            }
+        ],
+        "capability_status": [
+            {"capability": "CPU_CORE_COUNT", "status": "SUPPORTED"},
+            {"capability": "CPU_USAGE_PERCENT", "status": "PLATFORM_RESTRICTED"},
+            {"capability": "BROWSER_TABS_HISTORY", "status": "PLATFORM_RESTRICTED"},
+            {"capability": "DEFENSIVE_VPN_FLOWS", "status": "ACTIVE"},
+        ],
+    }
+
+    tel_res = client.post(
+        "/api/endpoint/telemetry",
+        headers={"Authorization": f"Bearer {token}"},
+        json=telemetry_payload,
+    )
+    assert tel_res.status_code == 200
+    assert tel_res.json()["success"] is True
+
+    # Retrieve and verify all expanded telemetry fields
+    stored = get_telemetry_for_device(seed_acme_org.id, device_id)
+    assert stored is not None
+    assert stored.device_info["model"] == "Pixel 9 Pro"
+    assert stored.uptime_info["uptime_seconds"] == 86400
+    assert stored.foreground_app["package_name"] == "com.android.chrome"
+    assert stored.browser_visibility["chrome_detected"] is True
+    assert len(stored.network_flows) == 1
+    assert stored.network_flows[0]["destination_ip"] == "1.1.1.1"
+    assert len(stored.capability_status) == 4
+
+

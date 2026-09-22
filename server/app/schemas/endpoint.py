@@ -15,6 +15,7 @@ class PairingInitRequest(BaseModel):
     mac: str | None = Field(default=None, description="Hardware MAC address where available")
     current_ip: str | None = Field(default=None, description="Current primary IPv4/IPv6 address")
     agent_version: str = Field(default="0.1.0", description="Endpoint agent semantic version")
+    is_demo: bool = Field(default=False, description="Whether endpoint agent is requesting demo pairing session")
 
 
 class PairingInitResponse(BaseModel):
@@ -219,6 +220,12 @@ class EndpointTelemetrySubmitRequest(BaseModel):
     network_info: NetworkTelemetry | dict[str, Any] | None = None
     security_posture: SecurityPostureTelemetry | dict[str, Any] | None = None
     applications: list[AppTelemetryItem | dict[str, Any]] | None = None
+    device_info: dict[str, Any] | None = None
+    uptime_info: dict[str, Any] | None = None
+    foreground_app: dict[str, Any] | None = None
+    browser_visibility: dict[str, Any] | None = None
+    network_flows: list[dict[str, Any]] | None = None
+    capability_status: list[dict[str, Any]] | None = None
 
 
 class EndpointTelemetrySubmitResponse(BaseModel):
@@ -261,6 +268,12 @@ class EndpointTelemetryOut(BaseModel):
     network_info: NetworkTelemetry | dict[str, Any] | None = None
     security_posture: SecurityPostureTelemetry | dict[str, Any] | None = None
     applications: list[AppTelemetryItem | dict[str, Any]] = Field(default_factory=list)
+    device_info: dict[str, Any] | None = None
+    uptime_info: dict[str, Any] | None = None
+    foreground_app: dict[str, Any] | None = None
+    browser_visibility: dict[str, Any] | None = None
+    network_flows: list[dict[str, Any]] = Field(default_factory=list)
+    capability_status: list[dict[str, Any]] = Field(default_factory=list)
 
 
 # Phase 03 — Vulnerability Intelligence Schemas

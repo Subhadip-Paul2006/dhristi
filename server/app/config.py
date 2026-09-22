@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     jwt_access_minutes: int = 15
     jwt_refresh_days: int = 7
     cors_origins: str = "http://localhost:5173"
+    drishti_demo_mode: bool = False
 
     # AI provider: "groq", "nvidia", or "anthropic". The backend is the ONLY
     # caller of the LLM API; the frontend never holds a key (CLAUDE.md §6).
@@ -94,6 +95,8 @@ class Settings(BaseSettings):
     # Leave blank to disable (default). See server/app/services/telegram_alerts.py.
     telegram_bot_token: str = ""
     telegram_chat_id: str = ""
+    # Demonstration Pairing Mode — hackathon isolated demo mode (DRISHTI_DEMO_MODE=true)
+    drishti_demo_mode: bool = False
 
 
     @model_validator(mode="after")
