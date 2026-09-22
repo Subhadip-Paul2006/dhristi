@@ -1,11 +1,14 @@
-# Drishti v0.1 — Base Collector Interfaces | Phase 02
+# Drishti v0.1 — Base Collector Interfaces | Phase 02 (rev 2)
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from typing import Any
 from collectors.contracts import (
     BrowserProcessItem,
+    CpuInfo,
     ListeningPortItem,
+    MemoryInfo,
+    NetworkInterfaceInfo,
     ProcessItem,
     ServiceItem,
     SocketConnectionItem,
@@ -55,4 +58,27 @@ class BaseBrowserCollector(ABC):
     @abstractmethod
     def collect_browsers(self) -> tuple[list[str], list[BrowserProcessItem]]:
         """Return (installed_or_running_browser_names, browser_process_items)."""
+        pass
+
+
+class BaseHardwareCollector(ABC):
+    """Abstract base class for CPU, Memory, and Network interface collection.
+
+    This replaces the missing hardware telemetry layer for desktop/laptop endpoints.
+    Android uses its own mobile-specific telemetry path.
+    """
+
+    @abstractmethod
+    def collect_cpu(self) -> CpuInfo:
+        """Return a CpuInfo snapshot with overall and per-core usage."""
+        pass
+
+    @abstractmethod
+    def collect_memory(self) -> MemoryInfo:
+        """Return a MemoryInfo snapshot with total/available/used bytes."""
+        pass
+
+    @abstractmethod
+    def collect_network_interfaces(self) -> list[NetworkInterfaceInfo]:
+        """Return a list of active network interfaces with their addresses."""
         pass

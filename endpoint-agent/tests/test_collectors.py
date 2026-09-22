@@ -11,7 +11,11 @@ import pytest
 
 from collectors.contracts import (
     BrowserProcessItem,
+    CpuInfo,
     ListeningPortItem,
+    MemoryInfo,
+    NetworkInterfaceInfo,
+    PerCoreUsage,
     ProcessCategory,
     ProcessItem,
     ServiceItem,
@@ -23,6 +27,7 @@ from collectors.manager import CollectorManager
 from common.identity import create_new_identity
 from windows.collectors import (
     WindowsBrowserCollector,
+    WindowsHardwareCollector,
     WindowsProcessCollector,
     WindowsServiceCollector,
     WindowsSocketCollector,
@@ -30,6 +35,7 @@ from windows.collectors import (
 )
 from macos.collectors import (
     MacOSBrowserCollector,
+    MacOSHardwareCollector,
     MacOSProcessCollector,
     MacOSServiceCollector,
     MacOSSocketCollector,
@@ -237,4 +243,115 @@ def test_telemetry_batch_serialization(mock_identity):
     assert len(data["process_connections"]) == 1
     assert data["process_connections"][0]["remote_port"] == 443
     assert "Microsoft Edge" in data["installed_browsers"]
+
+
+def test_hardware_telemetry_batch_serialization(mock_identity):
+    batch = TelemetryBatch(
+        agent_id=mock_identity.agent_id,
+        device_id=mock_identity.device_id,
+        hostname=mock_identity.hostname,
+        os_name=mock_identity.os,
+        os_version=mock_identity.os_version,
+        cpu_info=CpuInfo(
+            model="Intel Core i7-12700H",
+            physical_cores=14,
+            logical_cores=20,
+            overall_usage_percent=32.5,
+            per_core=[
+                PerCoreUsage(core=0, usage_percent=40.0),
+                PerCoreUsage(core=1, usage_percent=25.0),
+            ],
+            architecture="x86_64",
+        ),
+        memory_info=MemoryInfo(
+            total_bytes=34359738368,
+            available_bytes=17179869184,
+            used_bytes=17179869184,
+            percent_used=50.0,
+            swap_total_bytes=8589934592,
+            swap_used_bytes=2147483648,
+            swap_percent_used=25.0,
+        ),
+        network_interfaces=[
+            NetworkInterfaceInfo(
+                name="Ethernet",
+                addresses=["192.168.1.100"],
+                mac="00:1A:2B:3C:4D:5E",
+                is_up=True,
+                speed_mbps=1000,
+            )
+        ],
+    )
+
+    data = batch.to_dict()
+    assert data["cpu_info"] is not None
+    assert data["cpu_info"]["model"] == "Intel Core i7-12700H"
+    assert data["cpu_info"]["logical_cores"] == 20
+    assert len(data["cpu_info"]["per_core"]) == 2
+    assert data["cpu_info"]["per_core"][0]["usage_percent"] == 40.0
+
+    assert data["memory_info"] is not None
+    assert data["memory_info"]["total_bytes"] == 34359738368
+    assert data["memory_info"]["percent_used"] == 50.0
+
+    assert data["network_info"] is not None
+    assert len(data["network_info"]["interfaces"]) == 1
+    assert data["network_info"]["interfaces"][0]["name"] == "Ethernet"
+    assert data["network_info"]["interfaces"][0]["addresses"] == ["192.168.1.100"]
+
+
+def test_windows_hardware_collector_mocked():
+    collector = WindowsHardwareCollector()
+
+    class MockVM:
+        total = 16000000000
+        available = 8000000000
+        used = 8000000000
+        percent = 50.0
+
+    class MockSwap:
+        total = 4000000000
+        used = 1000000000
+        percent = 25.0
+
+    with patch("psutil.cpu_percent", side_effect=[[10.0, 20.0], 15.0]), \
+         patch("psutil.cpu_count", side_effect=[4, 8]), \
+         patch("psutil.virtual_memory", return_value=MockVM()), \
+         patch("psutil.swap_memory", return_value=MockSwap()):
+        cpu = collector.collect_cpu()
+        assert cpu.logical_cores == 8
+        assert cpu.physical_cores == 4
+        assert len(cpu.per_core) == 2
+
+        mem = collector.collect_memory()
+        assert mem.total_bytes == 16000000000
+        assert mem.percent_used == 50.0
+
+
+def test_macos_hardware_collector_mocked():
+    collector = MacOSHardwareCollector()
+
+    class MockVM:
+        total = 32000000000
+        available = 16000000000
+        used = 16000000000
+        percent = 50.0
+
+    class MockSwap:
+        total = 8000000000
+        used = 0
+        percent = 0.0
+
+    with patch("psutil.cpu_percent", side_effect=[[5.0, 15.0], 10.0]), \
+         patch("psutil.cpu_count", side_effect=[8, 8]), \
+         patch("psutil.virtual_memory", return_value=MockVM()), \
+         patch("psutil.swap_memory", return_value=MockSwap()):
+        cpu = collector.collect_cpu()
+        assert cpu.logical_cores == 8
+        assert len(cpu.per_core) == 2
+
+        mem = collector.collect_memory()
+        assert mem.total_bytes == 32000000000
+        assert mem.percent_used == 50.0
+
 

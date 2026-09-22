@@ -12,6 +12,7 @@ import psutil
 
 from collectors.base import (
     BaseBrowserCollector,
+    BaseHardwareCollector,
     BaseProcessCollector,
     BaseServiceCollector,
     BaseSocketCollector,
@@ -19,7 +20,11 @@ from collectors.base import (
 )
 from collectors.contracts import (
     BrowserProcessItem,
+    CpuInfo,
     ListeningPortItem,
+    MemoryInfo,
+    NetworkInterfaceInfo,
+    PerCoreUsage,
     ProcessCategory,
     ProcessItem,
     ServiceItem,
@@ -89,6 +94,19 @@ class MacOSProcessCollector(BaseProcessCollector):
         active_apps_set: set[str] = set()
         now_iso = datetime.now(timezone.utc).isoformat()
 
+        # Prime the cpu_percent counters (non-blocking first call)
+        try:
+            for proc in psutil.process_iter(["pid"]):
+                try:
+                    proc.cpu_percent(interval=None)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        import time
+        time.sleep(0.12)
+
         for proc in psutil.process_iter(["pid", "ppid", "name", "exe", "cmdline", "create_time"]):
             try:
                 info = proc.info
@@ -112,6 +130,18 @@ class MacOSProcessCollector(BaseProcessCollector):
                 if category == ProcessCategory.USER_APPLICATION.value:
                     active_apps_set.add(name)
 
+                cpu_pct: float | None = None
+                mem_mb: float | None = None
+                try:
+                    cpu_pct = proc.cpu_percent(interval=None)
+                except Exception:
+                    pass
+                try:
+                    mem_info = proc.memory_info()
+                    mem_mb = round(mem_info.rss / (1024 * 1024), 2)
+                except Exception:
+                    pass
+
                 processes.append(
                     ProcessItem(
                         pid=pid,
@@ -121,6 +151,8 @@ class MacOSProcessCollector(BaseProcessCollector):
                         cmdline=cmdline,
                         category=category,
                         start_time=start_time_iso,
+                        cpu_percent=cpu_pct,
+                        memory_mb=mem_mb,
                         observed_at=now_iso,
                         source=self.source_label,
                     )
@@ -290,3 +322,104 @@ class MacOSBrowserCollector(BaseBrowserCollector):
                 continue
 
         return sorted(list(running_names)), browser_processes
+
+
+class MacOSHardwareCollector(BaseHardwareCollector):
+    """Collects CPU, memory, and network interface telemetry on macOS via psutil."""
+
+    def __init__(self, source_label: str = "macos_endpoint"):
+        self.source_label = source_label
+
+    def collect_cpu(self) -> CpuInfo:
+        import platform
+        now_iso = datetime.now(timezone.utc).isoformat()
+
+        try:
+            per_core_raw = psutil.cpu_percent(interval=0.2, percpu=True)
+            overall = psutil.cpu_percent(interval=None)
+        except Exception:
+            per_core_raw = []
+            overall = None
+
+        per_core = [
+            PerCoreUsage(core=i, usage_percent=round(pct, 1))
+            for i, pct in enumerate(per_core_raw)
+        ]
+
+        try:
+            physical = psutil.cpu_count(logical=False) or 1
+            logical = psutil.cpu_count(logical=True) or 1
+        except Exception:
+            physical = 1
+            logical = 1
+
+        # macOS: use platform.processor() for model string
+        model = platform.processor() or None
+        arch = platform.machine() or None
+
+        return CpuInfo(
+            model=model,
+            physical_cores=physical,
+            logical_cores=logical,
+            overall_usage_percent=round(overall, 1) if overall is not None else None,
+            per_core=per_core,
+            architecture=arch,
+            observed_at=now_iso,
+        )
+
+    def collect_memory(self) -> MemoryInfo:
+        now_iso = datetime.now(timezone.utc).isoformat()
+        try:
+            vm = psutil.virtual_memory()
+            swap = psutil.swap_memory()
+            return MemoryInfo(
+                total_bytes=vm.total,
+                available_bytes=vm.available,
+                used_bytes=vm.used,
+                percent_used=round(vm.percent, 1),
+                swap_total_bytes=swap.total,
+                swap_used_bytes=swap.used,
+                swap_percent_used=round(swap.percent, 1),
+                observed_at=now_iso,
+            )
+        except Exception as e:
+            logger.debug("Memory collection error: %s", e)
+            return MemoryInfo(observed_at=now_iso)
+
+    def collect_network_interfaces(self) -> list[NetworkInterfaceInfo]:
+        interfaces: list[NetworkInterfaceInfo] = []
+        try:
+            addrs = psutil.net_if_addrs()
+            stats = psutil.net_if_stats()
+            for iface_name, addr_list in addrs.items():
+                if iface_name.lower() == "lo0":
+                    continue
+                iface_stats = stats.get(iface_name)
+                is_up = iface_stats.isup if iface_stats else True
+                speed = iface_stats.speed if iface_stats else None
+
+                ip_addrs: list[str] = []
+                mac_addr: str | None = None
+                for addr in addr_list:
+                    if addr.family == socket.AF_INET and addr.address:
+                        ip_addrs.append(addr.address)
+                    elif addr.family == socket.AF_INET6 and addr.address:
+                        ip_addrs.append(addr.address.split("%")[0])
+                    elif addr.family == psutil.AF_LINK and addr.address:
+                        mac_addr = addr.address
+
+                if not ip_addrs and not mac_addr:
+                    continue
+
+                interfaces.append(
+                    NetworkInterfaceInfo(
+                        name=iface_name,
+                        addresses=ip_addrs,
+                        mac=mac_addr,
+                        is_up=is_up,
+                        speed_mbps=speed if speed and speed > 0 else None,
+                    )
+                )
+        except Exception as e:
+            logger.debug("Network interface collection error: %s", e)
+        return interfaces

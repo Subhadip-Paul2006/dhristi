@@ -1,4 +1,4 @@
-# Drishti v0.1 — Collector Manager | Phase 02
+# Drishti v0.1 — Collector Manager | Phase 02 (rev 2 — hardware telemetry)
 from __future__ import annotations
 
 import logging
@@ -9,6 +9,7 @@ from typing import Any
 
 from collectors.base import (
     BaseBrowserCollector,
+    BaseHardwareCollector,
     BaseProcessCollector,
     BaseServiceCollector,
     BaseSocketCollector,
@@ -16,7 +17,10 @@ from collectors.base import (
 )
 from collectors.contracts import (
     BrowserProcessItem,
+    CpuInfo,
     ListeningPortItem,
+    MemoryInfo,
+    NetworkInterfaceInfo,
     ProcessItem,
     ServiceItem,
     SocketConnectionItem,
@@ -39,6 +43,7 @@ class CollectorManager:
         service_collector: BaseServiceCollector | None = None,
         socket_collector: BaseSocketCollector | None = None,
         browser_collector: BaseBrowserCollector | None = None,
+        hardware_collector: BaseHardwareCollector | None = None,
         software_interval_seconds: float = 300.0,
     ):
         self.identity = identity
@@ -49,6 +54,7 @@ class CollectorManager:
         if os_name == "windows":
             from windows.collectors import (
                 WindowsBrowserCollector,
+                WindowsHardwareCollector,
                 WindowsProcessCollector,
                 WindowsServiceCollector,
                 WindowsSocketCollector,
@@ -59,9 +65,11 @@ class CollectorManager:
             self.service_collector = service_collector or WindowsServiceCollector()
             self.socket_collector = socket_collector or WindowsSocketCollector()
             self.browser_collector = browser_collector or WindowsBrowserCollector()
+            self.hardware_collector = hardware_collector or WindowsHardwareCollector()
         else:
             from macos.collectors import (
                 MacOSBrowserCollector,
+                MacOSHardwareCollector,
                 MacOSProcessCollector,
                 MacOSServiceCollector,
                 MacOSSocketCollector,
@@ -72,6 +80,7 @@ class CollectorManager:
             self.service_collector = service_collector or MacOSServiceCollector()
             self.socket_collector = socket_collector or MacOSSocketCollector()
             self.browser_collector = browser_collector or MacOSBrowserCollector()
+            self.hardware_collector = hardware_collector or MacOSHardwareCollector()
 
         # Cache for slow-cycle software inventory
         self._cached_software: list[SoftwareItem] = []
@@ -86,34 +95,53 @@ class CollectorManager:
         connections: list[SocketConnectionItem] = []
         running_browsers: list[str] = []
         browser_procs: list[BrowserProcessItem] = []
+        cpu_info: CpuInfo | None = None
+        memory_info: MemoryInfo | None = None
+        network_interfaces: list[NetworkInterfaceInfo] = []
 
         now_mono = time.monotonic()
 
-        # 1. Process Collection
+        # 1. Hardware Collection (CPU, Memory, Network Interfaces) — always fast-cycle
+        try:
+            cpu_info = self.hardware_collector.collect_cpu()
+        except Exception as e:
+            logger.warning("[Drishti Collector] CPU collection failed: %s", e)
+
+        try:
+            memory_info = self.hardware_collector.collect_memory()
+        except Exception as e:
+            logger.warning("[Drishti Collector] Memory collection failed: %s", e)
+
+        try:
+            network_interfaces = self.hardware_collector.collect_network_interfaces()
+        except Exception as e:
+            logger.warning("[Drishti Collector] Network interface collection failed: %s", e)
+
+        # 2. Process Collection
         try:
             processes, active_apps = self.process_collector.collect_processes()
         except Exception as e:
             logger.warning("[Drishti Collector] Process collection failed: %s", e)
 
-        # 2. Service Collection
+        # 3. Service Collection
         try:
             services = self.service_collector.collect_services()
         except Exception as e:
             logger.warning("[Drishti Collector] Service collection failed: %s", e)
 
-        # 3. Socket Collection
+        # 4. Socket Collection
         try:
             listening_ports, connections = self.socket_collector.collect_sockets()
         except Exception as e:
             logger.warning("[Drishti Collector] Socket collection failed: %s", e)
 
-        # 4. Browser Process Collection
+        # 5. Browser Process Collection
         try:
             running_browsers, browser_procs = self.browser_collector.collect_browsers()
         except Exception as e:
             logger.warning("[Drishti Collector] Browser collection failed: %s", e)
 
-        # 5. Software Inventory (Slow Cycle)
+        # 6. Software Inventory (Slow Cycle)
         if force_slow_collect or (now_mono - self._last_software_collect >= self.software_interval_seconds):
             try:
                 self._cached_software = self.software_collector.collect_software()
@@ -144,4 +172,7 @@ class CollectorManager:
             installed_browsers=running_browsers,
             browser_processes=browser_procs,
             os_info=os_info_str,
+            cpu_info=cpu_info,
+            memory_info=memory_info,
+            network_interfaces=network_interfaces,
         )

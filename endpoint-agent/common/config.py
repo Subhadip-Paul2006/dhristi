@@ -10,7 +10,7 @@ from pathlib import Path
 class AgentConfig:
     server_url: str = "http://localhost:8000"
     pairing_poll_interval_seconds: float = 3.0
-    heartbeat_interval_seconds: float = 45.0
+    heartbeat_interval_seconds: float = 30.0
     telemetry_interval_seconds: float = 60.0
     software_interval_seconds: float = 300.0
     reconnect_initial_delay_seconds: float = 2.0

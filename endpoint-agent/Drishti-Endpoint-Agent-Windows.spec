@@ -2,11 +2,11 @@
 
 
 a = Analysis(
-    ['cli.py'],
-    pathex=[],
+    ['D:/Drishti-Innofusion/endpoint-agent/cli.py'],
+    pathex=['D:/Drishti-Innofusion/endpoint-agent'],
     binaries=[],
     datas=[],
-    hiddenimports=[],
+    hiddenimports=['agent', 'common.config', 'common.identity', 'common.lifecycle', 'common.platform', 'windows.platform', 'windows.collectors', 'collectors.base', 'collectors.contracts', 'collectors.manager', 'transport.client', 'storage.state', 'psutil'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
