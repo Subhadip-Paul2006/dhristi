@@ -2074,6 +2074,8 @@ export function EndpointAgentSection({ device: d }: { device: NetworkDevice }) {
   const [showConnections, setShowConnections] = useState(false);
   const [showServices, setShowServices] = useState(false);
   const [showInterfaces, setShowInterfaces] = useState(false);
+  const [showFlows, setShowFlows] = useState(false);
+  const [showCapabilities, setShowCapabilities] = useState(false);
   const status = d.paired_endpoint_status || (isPaired ? "ONLINE" : "UNPAIRED");
 
   const isOnline = status === "ONLINE";
@@ -2143,6 +2145,12 @@ export function EndpointAgentSection({ device: d }: { device: NetworkDevice }) {
   const ports: any[] = telem?.listening_ports ?? [];
   const connections: any[] = telem?.process_connections ?? [];
   const services: any[] = telem?.services ?? [];
+  const devInfo = telem?.device_info;
+  const uptimeInfo = telem?.uptime_info;
+  const foregroundApp = telem?.foreground_app;
+  const browserVis = telem?.browser_visibility;
+  const networkFlows: any[] = telem?.network_flows ?? [];
+  const capabilityStatus: any[] = telem?.capability_status ?? [];
 
   // Top processes sorted by CPU then memory
   const topProcesses = [...processes]
@@ -2703,6 +2711,209 @@ export function EndpointAgentSection({ device: d }: { device: NetworkDevice }) {
                       </div>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* ── Android Device Specs & Uptime ── */}
+              {(devInfo || uptimeInfo) && (
+                <div className="rounded border border-sky-500/20 bg-surface-1 p-2.5 space-y-2 text-[10px] font-mono">
+                  <div className="text-[9px] font-bold text-sky-400 uppercase tracking-wider flex items-center justify-between border-b border-hairline pb-1">
+                    <span className="flex items-center gap-1.5">
+                      <Smartphone className="h-3 w-3 text-sky-400" />
+                      Platform &amp; Uptime Telemetry
+                    </span>
+                    {devInfo?.is_emulator && (
+                      <span className="rounded bg-amber-500/10 border border-amber-500/30 px-1.5 py-0.5 text-[8px] text-amber-400 font-bold">
+                        EMULATOR
+                      </span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-1.5 text-[8.5px]">
+                    {devInfo?.model && (
+                      <div>
+                        <span className="text-ink-muted">Device: </span>
+                        <span className="text-ink font-semibold">{devInfo.manufacturer} {devInfo.model}</span>
+                      </div>
+                    )}
+                    {devInfo?.android_version && (
+                      <div>
+                        <span className="text-ink-muted">OS Release: </span>
+                        <span className="text-ink font-semibold">Android {devInfo.android_version} (API {devInfo.sdk_version})</span>
+                      </div>
+                    )}
+                    {devInfo?.architecture && (
+                      <div>
+                        <span className="text-ink-muted">ABI: </span>
+                        <span className="text-ink">{devInfo.architecture}</span>
+                      </div>
+                    )}
+                    {devInfo?.kernel_version && (
+                      <div>
+                        <span className="text-ink-muted">Kernel: </span>
+                        <span className="text-ink truncate" title={devInfo.kernel_version}>{devInfo.kernel_version}</span>
+                      </div>
+                    )}
+                    {uptimeInfo?.uptime_seconds != null && (
+                      <div>
+                        <span className="text-ink-muted">Uptime: </span>
+                        <span className="text-emerald-400 font-bold">
+                          {Math.floor(uptimeInfo.uptime_seconds / 3600)}h {Math.floor((uptimeInfo.uptime_seconds % 3600) / 60)}m
+                        </span>
+                      </div>
+                    )}
+                    {uptimeInfo?.boot_timestamp && (
+                      <div>
+                        <span className="text-ink-muted">Boot Time: </span>
+                        <span className="text-ink">{new Date(uptimeInfo.boot_timestamp).toLocaleTimeString()}</span>
+                      </div>
+                    )}
+                    {devInfo?.timezone && (
+                      <div className="col-span-2">
+                        <span className="text-ink-muted">Locale / Timezone: </span>
+                        <span className="text-ink">{devInfo.locale || "en"} · {devInfo.timezone}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* ── Foreground App & Browser Visibility ── */}
+              {(foregroundApp || browserVis) && (
+                <div className="rounded border border-amber-500/20 bg-surface-1 p-2.5 space-y-2 text-[10px] font-mono">
+                  <div className="text-[9px] font-bold text-amber-400 uppercase tracking-wider flex items-center justify-between border-b border-hairline pb-1">
+                    <span className="flex items-center gap-1.5">
+                      <Activity className="h-3 w-3 text-amber-400" />
+                      Foreground App &amp; Browser Tracking
+                    </span>
+                    <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded ${
+                      foregroundApp?.capability_status === "ACTIVE"
+                        ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
+                        : "bg-neutral-500/10 text-ink-muted border border-neutral-500/30"
+                    }`}>
+                      {foregroundApp?.capability_status || "RESTRICTED"}
+                    </span>
+                  </div>
+                  {foregroundApp?.package_name ? (
+                    <div className="flex items-center justify-between bg-surface-2 rounded p-1.5">
+                      <div>
+                        <div className="text-ink font-bold text-[9px]">{foregroundApp.app_name || foregroundApp.package_name}</div>
+                        <div className="text-ink-muted text-[8px]">{foregroundApp.package_name}</div>
+                      </div>
+                      {foregroundApp.usage_duration_seconds != null && (
+                        <div className="text-right">
+                          <div className="text-amber-400 font-bold text-[9px]">{foregroundApp.usage_duration_seconds}s active</div>
+                          <div className="text-ink-muted text-[7.5px]">UsageStats</div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-[8px] text-ink-muted">
+                      {foregroundApp?.capability_status === "PERMISSION_REQUIRED"
+                        ? "Requires Usage Access permission to view active foreground app."
+                        : "No foreground app currently active."}
+                    </div>
+                  )}
+
+                  {browserVis && (
+                    <div className="border-t border-hairline/40 pt-1.5 space-y-1">
+                      <div className="text-[8px] text-ink-muted uppercase">Installed Browsers &amp; Sandboxing</div>
+                      <div className="flex flex-wrap gap-1">
+                        {browserVis.installed_browsers?.map((b: string) => (
+                          <span key={b} className="rounded bg-surface-2 px-1.5 py-0.5 text-[8px] text-ink border border-hairline">
+                            {b}
+                          </span>
+                        ))}
+                      </div>
+                      {browserVis.note && (
+                        <div className="text-[7.5px] text-ink-muted italic">
+                          ℹ {browserVis.note}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── Defensive Shield Network Flows ── */}
+              {networkFlows.length > 0 && (
+                <div className="rounded border border-cyan-500/20 bg-surface-1 text-[10px] font-mono">
+                  <div className="px-2.5 pt-2 pb-1 border-b border-hairline/40">
+                    <SubHeader
+                      icon={Shield}
+                      label="Defensive Shield Flows"
+                      count={networkFlows.length}
+                      open={showFlows}
+                      onToggle={() => setShowFlows((p) => !p)}
+                      color="text-cyan-400"
+                    />
+                  </div>
+                  {showFlows && (
+                    <div className="px-2.5 pb-2 pt-1 max-h-40 overflow-y-auto space-y-1">
+                      {networkFlows.slice(0, 30).map((flow: any, idx: number) => (
+                        <div key={`${flow.destination_ip}-${idx}`} className="flex items-center justify-between rounded bg-surface-2 px-2 py-1">
+                          <div className="min-w-0">
+                            <span className="text-ink font-semibold">{flow.destination_ip}</span>
+                            {flow.destination_port && (
+                              <span className="text-cyan-300">:{flow.destination_port}</span>
+                            )}
+                            <span className="text-[8px] text-ink-muted ml-1.5">({flow.protocol || "IP"})</span>
+                          </div>
+                          <div className="text-right text-[8px] text-ink-muted shrink-0">
+                            <span className="text-emerald-400 font-bold">{flow.packet_count} pkts</span>
+                            {flow.bytes_total > 0 && (
+                              <span className="ml-1 text-ink-muted">· {formatBytes(flow.bytes_total)}</span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── Android Platform Capability Transparency Matrix ── */}
+              {capabilityStatus.length > 0 && (
+                <div className="rounded border border-indigo-500/20 bg-surface-1 text-[10px] font-mono">
+                  <div className="px-2.5 pt-2 pb-1 border-b border-hairline/40">
+                    <SubHeader
+                      icon={Cpu}
+                      label="Platform Capability Matrix"
+                      count={capabilityStatus.length}
+                      open={showCapabilities}
+                      onToggle={() => setShowCapabilities((p) => !p)}
+                      color="text-indigo-400"
+                    />
+                  </div>
+                  {showCapabilities && (
+                    <div className="px-2.5 pb-2 pt-1 max-h-48 overflow-y-auto space-y-1">
+                      {capabilityStatus.map((cap: any, idx: number) => {
+                        const isSupported = cap.status === "SUPPORTED" || cap.status === "ACTIVE";
+                        const isRestricted = cap.status === "PLATFORM_RESTRICTED";
+                        const isPermRequired = cap.status === "PERMISSION_REQUIRED" || cap.status === "REQUIRES_USER_CONSENT";
+                        const badgeColor = isSupported
+                          ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                          : isRestricted
+                          ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                          : isPermRequired
+                          ? "bg-violet-500/10 text-violet-400 border-violet-500/30"
+                          : "bg-neutral-500/10 text-ink-muted border-neutral-500/30";
+
+                        return (
+                          <div key={`${cap.capability}-${idx}`} className="rounded bg-surface-2 px-2 py-1 space-y-0.5">
+                            <div className="flex items-center justify-between">
+                              <span className="text-ink font-semibold text-[8.5px]">{cap.capability}</span>
+                              <span className={`rounded border px-1.5 py-0.2 text-[7.5px] font-bold ${badgeColor}`}>
+                                {cap.status}
+                              </span>
+                            </div>
+                            {cap.detail && (
+                              <div className="text-[7.5px] text-ink-muted">{cap.detail}</div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
 

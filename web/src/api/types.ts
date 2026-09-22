@@ -983,5 +983,55 @@ export interface EndpointTelemetryOut {
     classification?: "USER_APP" | "SYSTEM_APP" | string;
     is_enabled?: boolean;
   }[];
+  device_info?: {
+    manufacturer?: string;
+    model?: string;
+    device_name?: string | null;
+    android_version?: string;
+    sdk_version?: number;
+    build_display?: string | null;
+    architecture?: string;
+    supported_abis?: string[];
+    kernel_version?: string | null;
+    locale?: string | null;
+    timezone?: string | null;
+    is_emulator?: boolean;
+  } | null;
+  uptime_info?: {
+    uptime_seconds?: number;
+    boot_timestamp?: string | null;
+    last_heartbeat?: string | null;
+    agent_service_running?: boolean;
+  } | null;
+  foreground_app?: {
+    package_name?: string | null;
+    app_name?: string | null;
+    foreground_since?: string | null;
+    usage_duration_seconds?: number | null;
+    capability_status?: string;
+  } | null;
+  browser_visibility?: {
+    installed_browsers?: string[];
+    chrome_detected?: boolean;
+    foreground_browser?: string | null;
+    foreground_state?: string | null;
+    tab_visibility_capability?: string;
+    history_capability?: string;
+    note?: string;
+  } | null;
+  network_flows?: {
+    destination_ip: string;
+    destination_port?: number | null;
+    protocol?: string | null;
+    packet_count?: number;
+    bytes_total?: number;
+    first_seen?: string | null;
+    last_seen?: string | null;
+  }[];
+  capability_status?: {
+    capability: string;
+    status: string;
+    detail?: string | null;
+  }[];
 }
 
