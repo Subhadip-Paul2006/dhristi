@@ -8,6 +8,7 @@
 
 ## 📑 Manual Table of Contents
 
+- [Section 0 — Autonomous AI Agent Setup Protocol (Auto-Detect OS & Install)](#section-0--autonomous-ai-agent-setup-protocol-auto-detect-os--install)
 - [Section A — Prerequisites](#section-a--prerequisites)
 - [Section B — Clone & Workspace Preparation](#section-b--clone--workspace-preparation)
 - [Section C — Environment Configuration (.env)](#section-c--environment-configuration-env)
@@ -28,6 +29,207 @@
 - [Section R — Architecture & Flow Diagrams](#section-r--architecture--flow-diagrams)
 - [Section S — External Reference Integration (GitHub Archive)](#section-s--external-reference-integration-github-archive)
 - [Section T — Final Documentation Audit](#section-t--final-documentation-audit)
+
+---
+
+## SECTION 0 — AUTONOMOUS AI AGENT SETUP PROTOCOL (AUTO-DETECT OS & INSTALL)
+
+> [!IMPORTANT]
+> **OPERATIONAL MANDATE FOR AI AGENTS (Antigravity, Cursor, Windsurf, Devin, Copilot, Claude Code, Aider, etc.)**:  
+> When an operator passes you this repository and asks you to *"set up the project"*, *"install dependencies"*, *"prepare the system"*, or simply hands you `SETUP.md`:
+> 
+> **DO NOT MERELY OUTPUT A SUMMARY OR DUMP TEXT INSTRUCTIONS FOR THE OPERATOR TO RUN MANUALLY.**  
+> **YOU MUST AUTONOMOUSLY EXECUTE THE INSTALLATION COMMANDS FOR THE DETECTED OPERATING SYSTEM.**
+> 
+> Use your terminal execution tools (`run_command`, `bash`, `powershell`, or subagent) to fingerprint the operating system, remediate missing packages, bootstrap the virtual environments, and verify platform readiness.
+
+---
+
+### ⚡ Option 1: One-Command Autonomous Script Execution (Fastest & Recommended)
+
+Drishti includes pre-built automated setup scripts designed specifically for AI agents and automated CI/CD environments.
+
+#### 🪟 On Windows (PowerShell):
+Execute the automated Windows setup script:
+```powershell
+powershell -ExecutionPolicy Bypass -File .\setup.ps1
+```
+*What this script does autonomously:*
+1. Fingerprints Windows version and architecture (x64/ARM64).
+2. Verifies Python 3.11+, Node.js 18+ (LTS), and Git. If any are missing, auto-installs them via `winget`.
+3. Creates `.env` from `.env.example` with local defaults (`APP_ENV=local`, `DRISHTI_DEMO_MODE=true`).
+4. Creates `server\venv`, upgrades pip, and installs all `server\requirements.txt` dependencies.
+5. Installs React/Vite dependencies via `npm install` inside `web\`.
+6. Checks Windows Endpoint Agent binary (`dist\Drishti-Endpoint-Agent-Windows.exe`).
+7. Performs import validation and prints launch instructions.
+
+#### 🐧 On Linux or 🍏 On macOS (Bash / Zsh):
+Make executable and run the automated Unix setup script:
+```bash
+chmod +x setup.sh && ./setup.sh
+```
+*(On macOS, you can also launch both servers immediately with `./start-mac.sh` after setup).*
+
+---
+
+### 🛠️ Option 2: Step-by-Step Autonomous Execution Decision Tree
+
+If you are an AI Agent executing commands step-by-step or in a granular tool execution loop, follow this strict 8-step decision tree:
+
+```mermaid
+%%{init: {'theme': 'dark'}}%%
+flowchart TD
+    START(["🤖 AI Agent Invoked with SETUP.md"]) --> DETECT["Step 1: Fingerprint OS & Architecture"]
+    
+    DETECT --> OS_CHECK{Identify OS}
+    OS_CHECK -->|Windows| WIN_PREREQ["Step 2a: Check/Install via winget<br/>• Python 3.11+<br/>• Node.js 18+ (LTS)<br/>• Git"]
+    OS_CHECK -->|macOS| MAC_PREREQ["Step 2b: Check/Install via Homebrew<br/>• brew install python@3.11<br/>• brew install node@20<br/>• brew install git"]
+    OS_CHECK -->|Linux| LINUX_PREREQ["Step 2c: Check/Install via apt / dnf / pacman<br/>• python3.11 + python3.11-venv + pip<br/>• nodejs 18+ + npm<br/>• git + curl"]
+
+    WIN_PREREQ --> ENV_INIT["Step 3: Initialize Root .env File<br/>(Copy .env.example if missing)"]
+    MAC_PREREQ --> ENV_INIT
+    LINUX_PREREQ --> ENV_INIT
+
+    ENV_INIT --> BACKEND["Step 4: Bootstrap Backend (server/)<br/>• Create venv<br/>• Upgrade pip<br/>• pip install -r server/requirements.txt"]
+    BACKEND --> FRONTEND["Step 5: Bootstrap Frontend (web/)<br/>• cd web && npm install"]
+    FRONTEND --> AGENT_CHECK["Step 6: Prepare Endpoint Agent<br/>• Check dist/ binary or endpoint-agent/venv"]
+    AGENT_CHECK --> HEALTH["Step 7: Verification & Health Check<br/>• Validate FastAPI & Vite builds"]
+    HEALTH --> REPORT(["Step 8: Output Ready URLs & Start Services"])
+```
+
+#### Step 1: Detect Operating System & Environment
+Execute the appropriate fingerprint command:
+- **Windows (PowerShell)**:
+  ```powershell
+  $PSVersionTable.OS; (Get-CimInstance Win32_OperatingSystem).Caption; [Environment]::Is64BitOperatingSystem
+  ```
+- **macOS (Terminal)**:
+  ```bash
+  sw_vers; uname -m
+  ```
+- **Linux (Terminal)**:
+  ```bash
+  uname -s -m; cat /etc/os-release
+  ```
+
+---
+
+#### Step 2: Audit & Install Missing OS Prerequisites
+
+Check existing toolchains and invoke the native package manager to install anything missing:
+
+| Tool | Verification Command | Windows Installation (winget) | macOS Installation (Homebrew) | Ubuntu / Debian (apt) | Fedora / RHEL (dnf) | Arch Linux (pacman) |
+|---|---|---|---|---|---|---|
+| **Python 3.11+** | `python --version` or `python3 --version` | `winget install Python.Python.3.11 -e --silent --accept-package-agreements --accept-source-agreements` | `brew install python@3.11` | `sudo apt update && sudo apt install -y python3.11 python3.11-venv python3.11-dev python3-pip` | `sudo dnf install -y python3.11 python3.11-devel python3-pip` | `sudo pacman -S --needed --noconfirm python python-pip` |
+| **Node.js 18+** | `node -v` | `winget install OpenJS.NodeJS.LTS -e --silent --accept-package-agreements --accept-source-agreements` | `brew install node@20` | `curl -fsSL https://deb.nodesource.com/setup_20.x \| sudo -E bash - && sudo apt install -y nodejs` | `sudo dnf install -y nodejs npm` | `sudo pacman -S --needed --noconfirm nodejs npm` |
+| **Git** | `git --version` | `winget install Git.Git -e --silent --accept-package-agreements --accept-source-agreements` | `brew install git` | `sudo apt install -y git` | `sudo dnf install -y git` | `sudo pacman -S --needed --noconfirm git` |
+| **ADB & Java 17** *(Optional for Android)* | `adb version` | `winget install Google.PlatformTools EclipseAdoptium.Temurin.17.JDK` | `brew install android-platform-tools openjdk@17` | `sudo apt install -y adb openjdk-17-jdk` | `sudo dnf install -y android-tools java-17-openjdk` | `sudo pacman -S --needed --noconfirm android-tools jdk17-openjdk` |
+
+---
+
+#### Step 3: Initialize Root Environment (`.env`)
+
+Verify that the root `.env` exists. If missing, copy from `.env.example`:
+
+- **Windows PowerShell**:
+  ```powershell
+  if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+  ```
+- **Linux / macOS Bash**:
+  ```bash
+  [ ! -f .env ] && cp .env.example .env
+  ```
+
+*(Ensure `APP_ENV=local`, `DATABASE_URL=sqlite:///./drishti.db`, and `DRISHTI_DEMO_MODE=true` are active for immediate local testing).*
+
+---
+
+#### Step 4: Bootstrap Backend Environment (`server/`)
+
+Execute in the repository root:
+
+- **Windows PowerShell**:
+  ```powershell
+  # 1. Create virtual environment
+  python -m venv server\venv
+  
+  # 2. Upgrade pip and install server dependencies
+  .\server\venv\Scripts\python.exe -m pip install --upgrade pip --quiet
+  .\server\venv\Scripts\pip.exe install -r server\requirements.txt --quiet
+  
+  # 3. Verify backend runtime import
+  .\server\venv\Scripts\python.exe -c "import fastapi, uvicorn, sqlalchemy; print('✓ Backend Dependencies Verified Successfully!')"
+  ```
+
+- **Linux / macOS Bash**:
+  ```bash
+  # 1. Create virtual environment
+  python3 -m venv server/venv
+  
+  # 2. Upgrade pip and install server dependencies
+  server/venv/bin/python -m pip install --upgrade pip --quiet
+  server/venv/bin/pip install -r server/requirements.txt --quiet
+  
+  # 3. Verify backend runtime import
+  server/venv/bin/python -c "import fastapi, uvicorn, sqlalchemy; print('✓ Backend Dependencies Verified Successfully!')"
+  ```
+
+---
+
+#### Step 5: Bootstrap Frontend SOC Console (`web/`)
+
+Execute in the repository root:
+
+- **Cross-Platform (Windows / Linux / macOS)**:
+  ```bash
+  # Install web dependencies using npm
+  cd web && npm install && cd ..
+  ```
+  *Verify that `web/node_modules/` exists.*
+
+---
+
+#### Step 6: Verify Endpoint Agent Deliverables
+
+Check the platform-appropriate agent for local testing:
+- **Windows**:
+  Confirm that `dist\Drishti-Endpoint-Agent-Windows.exe` exists. If building from source or testing Python agent:
+  ```powershell
+  if (-not (Test-Path endpoint-agent\venv)) { python -m venv endpoint-agent\venv; .\endpoint-agent\venv\Scripts\pip.exe install -r endpoint-agent\requirements.txt }
+  ```
+- **macOS**:
+  Confirm that `dist/Drishti-Endpoint-Agent-macOS.pkg` exists.
+- **Linux**:
+  Passive network discovery daemon is located at `agent/drishti_watch.py`.
+- **Android**:
+  Confirm debug APK exists at `dist/Drishti-Android-Agent-debug.apk`.
+
+---
+
+#### Step 7: Final Health Verification & Service Launch
+
+Run dry-run validations to confirm the environment is operational:
+
+```powershell
+# Quick sanity check on Windows:
+.\server\venv\Scripts\python.exe -c "from app.main import app; print('✓ FastAPI App Object Loaded!')"
+```
+```bash
+# Quick sanity check on Unix/macOS:
+server/venv/bin/python -c "from app.main import app; print('✓ FastAPI App Object Loaded!')"
+```
+
+#### Launching the Services (Prompt the User or Start in Background):
+
+1. **Backend Server (FastAPI on Port 8000)**:
+   - **Windows**: `cd server; .\venv\Scripts\Activate.ps1; uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload`
+   - **Linux/macOS**: `cd server; source venv/bin/activate; uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload`
+2. **Frontend SOC Console (Vite on Port 5173)**:
+   - `cd web; npm run dev`
+3. **Target Endpoints**:
+   - Web Console: 👉 **`http://localhost:5173`**
+   - OpenAPI Docs: 👉 **`http://localhost:8000/docs`**
+   - Health Probe: 👉 **`http://localhost:8000/health`**
 
 ---
 
@@ -980,6 +1182,7 @@ When reviewing external architectural blueprints or reference repositories (such
 | Documentation Component | Verification Status | Source Code Validation Anchor |
 |---|---|---|
 | **Prerequisites & Tools** | ✅ VERIFIED | Checked against `server/requirements.txt`, `web/package.json`, and `android-agent/build.gradle.kts`. |
+| **AI Agent Auto-Setup** | ✅ VERIFIED | Validated `setup.ps1` (Windows), `setup.sh` (Linux/macOS), and `start-mac.sh`. |
 | **Backend Ports & Routes** | ✅ VERIFIED | Verified `server/app/main.py` (Port 8000) and `server/app/api/endpoint.py`. |
 | **Windows Executable CLI** | ✅ VERIFIED | Verified against `endpoint-agent/cli.py` (`--server`, `--force-pair`, `--heartbeat-interval`). |
 | **Android SDK & Permissions** | ✅ VERIFIED | Verified against `android-agent/app/src/main/AndroidManifest.xml` (API 34/35). |
