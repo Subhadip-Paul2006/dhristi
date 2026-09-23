@@ -1,0 +1,275 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1020 600" width="100%" height="100%" aria-label="Drishti Full-System Architectural Overview">
+  <defs>
+    <linearGradient id="so-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#070a13" />
+      <stop offset="50%" stop-color="#0d1424" />
+      <stop offset="100%" stop-color="#05070e" />
+    </linearGradient>
+
+    <linearGradient id="so-cyan-glow" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#06b6d4" />
+      <stop offset="100%" stop-color="#3b82f6" />
+    </linearGradient>
+
+    <filter id="so-glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3.5" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+
+    <marker id="so-arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#06b6d4" />
+    </marker>
+    <marker id="so-arrow-emerald" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#10b981" />
+    </marker>
+  </defs>
+
+  <style>
+    .font-sans { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    .font-mono { font-family: "JetBrains Mono", "SF Mono", Consolas, monospace; }
+
+    @keyframes so-dash {
+      to { stroke-dashoffset: -32; }
+    }
+    @keyframes so-pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+
+    .so-stream { stroke-dasharray: 6 6; animation: so-dash 1.4s linear infinite; }
+    .so-stream-fast { stroke-dasharray: 6 4; animation: so-dash 0.9s linear infinite; }
+    .so-pulse-dot { animation: so-pulse 2s infinite ease-in-out; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .so-stream, .so-stream-fast, .so-pulse-dot {
+        animation: none !important;
+        stroke-dasharray: none !important;
+      }
+    }
+  </style>
+
+  <!-- Background -->
+  <rect width="1020" height="600" fill="url(#so-bg)" rx="16" />
+
+  <!-- Master Title Header -->
+  <g transform="translate(40, 25)">
+    <rect x="0" y="0" width="940" height="44" rx="8" fill="#111827" stroke="#1e293b" stroke-width="1.2" />
+    <circle cx="20" cy="22" r="6" fill="#06b6d4" class="so-pulse-dot" />
+    <text x="36" y="27" class="font-mono" fill="#38bdf8" font-size="12.5" font-weight="700" letter-spacing="1.5">DRISHTI // FULL-STACK SYSTEM TOPOLOGY &amp; ARCHITECTURAL SPECIFICATION</text>
+    <text x="760" y="27" class="font-mono" fill="#10b981" font-size="11">PRODUCTION READY</text>
+  </g>
+
+  <!-- LAYER 1: SENSING & ENDPOINT INGESTION (Left Column: X: 40, W: 210) -->
+  <g transform="translate(40, 85)">
+    <rect width="210" height="455" rx="10" fill="#0d172a" stroke="#1e3a5f" stroke-width="1.4" />
+    <rect x="15" y="12" width="180" height="26" rx="4" fill="#0e3a5a" />
+    <text x="105" y="29" text-anchor="middle" class="font-mono" fill="#7dd3fc" font-size="10.5" font-weight="700">1. SENSING PLANE</text>
+
+    <!-- Component 1: Windows Agent -->
+    <g transform="translate(15, 50)">
+      <rect width="180" height="85" rx="6" fill="#111827" stroke="#06b6d4" />
+      <circle cx="18" cy="20" r="5" fill="#06b6d4" />
+      <text x="30" y="21" class="font-sans" fill="#ffffff" font-size="10.5" font-weight="700">Windows Daemon</text>
+      <text x="30" y="36" class="font-mono" fill="#67e8f9" font-size="8.5">Drishti-Agent.exe</text>
+      <text x="15" y="52" class="font-sans" fill="#94a3b8" font-size="8">• Win32 GetExtendedTcpTable</text>
+      <text x="15" y="66" class="font-sans" fill="#94a3b8" font-size="8">• Registry &amp; Process PID Trace</text>
+      <text x="15" y="79" class="font-mono" fill="#34d399" font-size="7.5">Standalone PyInstaller Binary</text>
+    </g>
+
+    <!-- Component 2: macOS Agent -->
+    <g transform="translate(15, 145)">
+      <rect width="180" height="85" rx="6" fill="#111827" stroke="#3b82f6" />
+      <circle cx="18" cy="20" r="5" fill="#3b82f6" />
+      <text x="30" y="21" class="font-sans" fill="#ffffff" font-size="10.5" font-weight="700">macOS Agent</text>
+      <text x="30" y="36" class="font-mono" fill="#93c5fd" font-size="8.5">Drishti-Agent.pkg</text>
+      <text x="15" y="52" class="font-sans" fill="#94a3b8" font-size="8">• sysctl &amp; libproc Telemetry</text>
+      <text x="15" y="66" class="font-sans" fill="#94a3b8" font-size="8">• Launchd Background Daemon</text>
+      <text x="15" y="79" class="font-mono" fill="#34d399" font-size="7.5">User-Space Least Privilege</text>
+    </g>
+
+    <!-- Component 3: Android Agent -->
+    <g transform="translate(15, 240)">
+      <rect width="180" height="90" rx="6" fill="#111827" stroke="#10b981" />
+      <circle cx="18" cy="20" r="5" fill="#10b981" />
+      <text x="30" y="21" class="font-sans" fill="#ffffff" font-size="10.5" font-weight="700">Android Agent</text>
+      <text x="30" y="36" class="font-mono" fill="#6ee7b7" font-size="8.5">Drishti-Agent.apk (API 34+)</text>
+      <text x="15" y="52" class="font-sans" fill="#94a3b8" font-size="8">• Android Keystore Encryption</text>
+      <text x="15" y="66" class="font-sans" fill="#94a3b8" font-size="8">• VpnService Traffic Inspection</text>
+      <text x="15" y="80" class="font-mono" fill="#34d399" font-size="7.5">Compiled Release: dist/apk</text>
+    </g>
+
+    <!-- Component 4: Passive Network Sniffer -->
+    <g transform="translate(15, 340)">
+      <rect width="180" height="95" rx="6" fill="#111827" stroke="#f59e0b" />
+      <circle cx="18" cy="20" r="5" fill="#f59e0b" />
+      <text x="30" y="21" class="font-sans" fill="#ffffff" font-size="10.5" font-weight="700">Passive LAN Watcher</text>
+      <text x="30" y="36" class="font-mono" fill="#fbbf24" font-size="8.5">drishti_watch.py</text>
+      <text x="15" y="52" class="font-sans" fill="#94a3b8" font-size="8">• ARP Table / mDNS / DNS PTR</text>
+      <text x="15" y="66" class="font-sans" fill="#94a3b8" font-size="8">• Zeek / TShark / Scapy Seam</text>
+      <text x="15" y="80" class="font-mono" fill="#34d399" font-size="7.5">Zero Packet Injection</text>
+    </g>
+  </g>
+
+  <!-- LAYER 2: FASTAPI BACKEND GATEWAY (X: 280, W: 220) -->
+  <g transform="translate(280, 85)">
+    <rect width="220" height="455" rx="10" fill="#0d172a" stroke="#1e3a5f" stroke-width="1.4" />
+    <rect x="15" y="12" width="190" height="26" rx="4" fill="#172554" />
+    <text x="110" y="29" text-anchor="middle" class="font-mono" fill="#93c5fd" font-size="10.5" font-weight="700">2. FASTAPI SERVER CORE</text>
+
+    <!-- Starlette Gateway Middleware -->
+    <g transform="translate(15, 50)">
+      <rect width="190" height="75" rx="6" fill="#111827" stroke="#38bdf8" />
+      <text x="15" y="20" class="font-mono" fill="#38bdf8" font-size="9.5" font-weight="700">GATEWAY MIDDLEWARE</text>
+      <text x="15" y="36" class="font-sans" fill="#e2e8f0" font-size="8.5">• CORS Validation &amp; Origin Guard</text>
+      <text x="15" y="50" class="font-sans" fill="#e2e8f0" font-size="8.5">• Max Body Size Limit (50MB)</text>
+      <text x="15" y="64" class="font-mono" fill="#a7f3d0" font-size="8">Rate Limiting: 120 req/min</text>
+    </g>
+
+    <!-- Auth & Pairing Engine -->
+    <g transform="translate(15, 135)">
+      <rect width="190" height="85" rx="6" fill="#111827" stroke="#3b82f6" />
+      <text x="15" y="20" class="font-mono" fill="#93c5fd" font-size="9.5" font-weight="700">AUTH &amp; PAIRING SYSTEM</text>
+      <text x="15" y="36" class="font-sans" fill="#e2e8f0" font-size="8.5">• JWT HS256 Bearer Tokens</text>
+      <text x="15" y="50" class="font-sans" fill="#e2e8f0" font-size="8.5">• Token Version Invalidation</text>
+      <text x="15" y="64" class="font-sans" fill="#e2e8f0" font-size="8.5">• 2-Stage Cryptographic Pairing</text>
+      <text x="15" y="78" class="font-mono" fill="#fde047" font-size="7.5">POST /api/auth/register-agent</text>
+    </g>
+
+    <!-- 16 FastAPI Routers -->
+    <g transform="translate(15, 230)">
+      <rect width="190" height="110" rx="6" fill="#111827" stroke="#a855f7" />
+      <text x="15" y="20" class="font-mono" fill="#c084fc" font-size="9.5" font-weight="700">16 ROUTER FACADES</text>
+      <text x="15" y="36" class="font-mono" fill="#94a3b8" font-size="8">/api/auth | /api/endpoint</text>
+      <text x="15" y="50" class="font-mono" fill="#94a3b8" font-size="8">/api/live | /api/graph</text>
+      <text x="15" y="64" class="font-mono" fill="#94a3b8" font-size="8">/api/paths | /api/ai</text>
+      <text x="15" y="78" class="font-mono" fill="#94a3b8" font-size="8">/api/findings | /api/reports</text>
+      <text x="15" y="94" class="font-mono" fill="#34d399" font-size="7.5">Pydantic v2 Type Invariants</text>
+    </g>
+
+    <!-- Persistence Layer -->
+    <g transform="translate(15, 350)">
+      <rect width="190" height="85" rx="6" fill="#182235" stroke="#64748b" />
+      <text x="15" y="20" class="font-mono" fill="#e2e8f0" font-size="9.5" font-weight="700">STORAGE SUBSYSTEM</text>
+      <text x="15" y="36" class="font-sans" fill="#e2e8f0" font-size="8.5">• SQLAlchemy 2.0 ORM</text>
+      <text x="15" y="50" class="font-sans" fill="#94a3b8" font-size="8.5">• SQLite (Dev/Demo) / Postgres</text>
+      <text x="15" y="64" class="font-sans" fill="#94a3b8" font-size="8.5">• Connection Pooling (QueuePool)</text>
+      <text x="15" y="78" class="font-mono" fill="#38bdf8" font-size="7.5">Alembic Versioned Migrations</text>
+    </g>
+  </g>
+
+  <!-- LAYER 3: ANALYTICAL & AI CORE (X: 530, W: 220) -->
+  <g transform="translate(530, 85)">
+    <rect width="220" height="455" rx="10" fill="#0d172a" stroke="#1e3a5f" stroke-width="1.4" />
+    <rect x="15" y="12" width="190" height="26" rx="4" fill="#311042" />
+    <text x="105" y="29" text-anchor="middle" class="font-mono" fill="#f5d0fe" font-size="10.5" font-weight="700">3. ANALYTICAL &amp; AI CORE</text>
+
+    <!-- NetworkX Graph & Pricing -->
+    <g transform="translate(15, 50)">
+      <rect width="190" height="95" rx="6" fill="#18181b" stroke="#ef4444" />
+      <text x="15" y="20" class="font-mono" fill="#f87171" font-size="9.5" font-weight="700">NETWORKX GRAPH ENGINE</text>
+      <text x="15" y="36" class="font-sans" fill="#e2e8f0" font-size="8.5">• Directed Graph G = (V, E)</text>
+      <text x="15" y="50" class="font-mono" fill="#fca5a5" font-size="8">• Yen's K-Shortest Paths</text>
+      <text x="15" y="64" class="font-mono" fill="#fca5a5" font-size="8">• Min-Cut Chokepoint Engine</text>
+      <text x="15" y="78" class="font-mono" fill="#ef4444" font-size="8">Dollar Risk Pricing Model</text>
+      <text x="15" y="90" class="font-mono" fill="#34d399" font-size="7.5">Crown Jewel Valuation: $3.5M</text>
+    </g>
+
+    <!-- Vulnerability Correlation -->
+    <g transform="translate(15, 155)">
+      <rect width="190" height="85" rx="6" fill="#18181b" stroke="#f59e0b" />
+      <text x="15" y="20" class="font-mono" fill="#fbbf24" font-size="9.5" font-weight="700">VULN CORRELATOR</text>
+      <text x="15" y="36" class="font-sans" fill="#e2e8f0" font-size="8.5">• Offline NVD &amp; CISA KEV</text>
+      <text x="15" y="50" class="font-sans" fill="#e2e8f0" font-size="8.5">• [start, fixed) Version Math</text>
+      <text x="15" y="64" class="font-mono" fill="#fde047" font-size="8">4-Tier Evidence Hierarchy</text>
+      <text x="15" y="78" class="font-mono" fill="#34d399" font-size="7.5">Zero-Fabrication Contract</text>
+    </g>
+
+    <!-- Neural Temporal Forecaster -->
+    <g transform="translate(15, 250)">
+      <rect width="190" height="85" rx="6" fill="#18181b" stroke="#a855f7" />
+      <text x="15" y="20" class="font-mono" fill="#c084fc" font-size="9.5" font-weight="700">TEMPORAL FORECASTER</text>
+      <text x="15" y="36" class="font-sans" fill="#e2e8f0" font-size="8.5">• PyTorch 2.x Neural Core</text>
+      <text x="15" y="50" class="font-mono" fill="#d8b4fe" font-size="8">• LSTM + Transformer + GNN</text>
+      <text x="15" y="64" class="font-sans" fill="#e2e8f0" font-size="8.5">• 27 Flow Feature Vector</text>
+      <text x="15" y="78" class="font-mono" fill="#34d399" font-size="7.5">MITRE ATT&amp;CK Dynamic Map</text>
+    </g>
+
+    <!-- Claude LLM & AST Guardrail -->
+    <g transform="translate(15, 345)">
+      <rect width="190" height="90" rx="6" fill="#1e1b4b" stroke="#10b981" />
+      <text x="15" y="20" class="font-mono" fill="#6ee7b7" font-size="9.5" font-weight="700">CLAUDE + AST GUARDRAIL</text>
+      <text x="15" y="36" class="font-sans" fill="#e2e8f0" font-size="8.5">• Anthropic Claude 3.5 Sonnet</text>
+      <text x="15" y="50" class="font-mono" fill="#a7f3d0" font-size="8">• Python ast.parse() Filter</text>
+      <text x="15" y="64" class="font-sans" fill="#94a3b8" font-size="8.5">• Ansible / Cisco ACL Output</text>
+      <text x="15" y="78" class="font-mono" fill="#10b981" font-size="7.5">100% Non-Destructive Proof</text>
+    </g>
+  </g>
+
+  <!-- LAYER 4: PRESENTATION & SOC CONSOLE (X: 780, W: 200) -->
+  <g transform="translate(780, 85)">
+    <rect width="200" height="455" rx="10" fill="#0d172a" stroke="#1e3a5f" stroke-width="1.4" />
+    <rect x="15" y="12" width="170" height="26" rx="4" fill="#064e3b" />
+    <text x="100" y="29" text-anchor="middle" class="font-mono" fill="#a7f3d0" font-size="10.5" font-weight="700">4. SOC CONSOLE</text>
+
+    <!-- React 18 SPA Shell -->
+    <g transform="translate(15, 50)">
+      <rect width="170" height="85" rx="6" fill="#111827" stroke="#10b981" />
+      <text x="15" y="20" class="font-mono" fill="#34d399" font-size="9.5" font-weight="700">REACT 18 &amp; VITE 5</text>
+      <text x="15" y="36" class="font-sans" fill="#e2e8f0" font-size="8.5">• TypeScript 5.5 Strict Mode</text>
+      <text x="15" y="50" class="font-sans" fill="#e2e8f0" font-size="8.5">• TailwindCSS Dark Theme</text>
+      <text x="15" y="64" class="font-sans" fill="#e2e8f0" font-size="8.5">• Lucide React Cyber Icons</text>
+      <text x="15" y="78" class="font-mono" fill="#38bdf8" font-size="7.5">TanStack React Query v5</text>
+    </g>
+
+    <!-- ReactFlow Attack Map -->
+    <g transform="translate(15, 145)">
+      <rect width="170" height="85" rx="6" fill="#111827" stroke="#ef4444" />
+      <text x="15" y="20" class="font-mono" fill="#f87171" font-size="9.5" font-weight="700">REACTFLOW CANVAS</text>
+      <text x="15" y="36" class="font-sans" fill="#e2e8f0" font-size="8.5">• Interactive Directed Graph</text>
+      <text x="15" y="50" class="font-sans" fill="#e2e8f0" font-size="8.5">• Choke Point Highlighting</text>
+      <text x="15" y="64" class="font-sans" fill="#e2e8f0" font-size="8.5">• Node Drilldown &amp; CVEs</text>
+      <text x="15" y="78" class="font-mono" fill="#fca5a5" font-size="7.5">Dynamic Risk Path Coloring</text>
+    </g>
+
+    <!-- Live Watch Grid -->
+    <g transform="translate(15, 240)">
+      <rect width="170" height="85" rx="6" fill="#111827" stroke="#38bdf8" />
+      <text x="15" y="20" class="font-mono" fill="#38bdf8" font-size="9.5" font-weight="700">LIVE WATCH CONSOLE</text>
+      <text x="15" y="36" class="font-sans" fill="#e2e8f0" font-size="8.5">• Real-time Socket Stream</text>
+      <text x="15" y="50" class="font-sans" fill="#e2e8f0" font-size="8.5">• CPU / RAM Process Meters</text>
+      <text x="15" y="64" class="font-sans" fill="#e2e8f0" font-size="8.5">• One-Click Packet Trace</text>
+      <text x="15" y="78" class="font-mono" fill="#67e8f9" font-size="7.5">Polling + Streaming Engine</text>
+    </g>
+
+    <!-- Vercel Demo Mode Badge -->
+    <g transform="translate(15, 335)">
+      <rect width="170" height="100" rx="6" fill="#0f172a" stroke="#f59e0b" />
+      <text x="15" y="20" class="font-mono" fill="#fbbf24" font-size="9.5" font-weight="700">DEPLOYMENT MODES</text>
+      <text x="15" y="36" class="font-mono" fill="#34d399" font-size="8">• Local Full-Stack (Default)</text>
+      <text x="25" y="48" class="font-sans" fill="#94a3b8" font-size="7.5">End-to-end backend + live raw taps</text>
+      <text x="15" y="62" class="font-mono" fill="#fbbf24" font-size="8">• Vercel Demo Preview</text>
+      <text x="25" y="74" class="font-sans" fill="#94a3b8" font-size="7.5">VITE_DEMO_MODE=true</text>
+      <text x="25" y="86" class="font-sans" fill="#94a3b8" font-size="7.5">Deterministic synthetic telemetry</text>
+    </g>
+  </g>
+
+  <!-- Connective Arrows Between Planes -->
+  <path d="M 250 280 L 280 280" stroke="#06b6d4" stroke-width="2.2" class="so-stream" marker-end="url(#so-arrow)" />
+  <path d="M 500 280 L 530 280" stroke="#06b6d4" stroke-width="2.2" class="so-stream" marker-end="url(#so-arrow)" />
+  <path d="M 750 280 L 780 280" stroke="#10b981" stroke-width="2.2" class="so-stream-fast" marker-end="url(#so-arrow-emerald)" />
+
+  <!-- Bottom Legend -->
+  <g transform="translate(60, 560)">
+    <circle cx="10" cy="10" r="5" fill="#06b6d4" />
+    <text x="25" y="14" class="font-mono" fill="#94a3b8" font-size="9.5">Cross-Platform Sensing</text>
+
+    <circle cx="240" cy="10" r="5" fill="#3b82f6" />
+    <text x="255" y="14" class="font-mono" fill="#94a3b8" font-size="9.5">FastAPI Micro-Modular Core</text>
+
+    <circle cx="490" cy="10" r="5" fill="#c084fc" />
+    <text x="505" y="14" class="font-mono" fill="#94a3b8" font-size="9.5">Graph-Theoretic &amp; Claude AI</text>
+
+    <circle cx="730" cy="10" r="5" fill="#10b981" />
+    <text x="745" y="14" class="font-mono" fill="#94a3b8" font-size="9.5">Dark-Mode React SOC Console</text>
+  </g>
+</svg>

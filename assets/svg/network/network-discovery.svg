@@ -1,0 +1,179 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 520" width="100%" height="100%" aria-label="Drishti Network Discovery Architecture">
+  <defs>
+    <linearGradient id="nd-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0a0f1d" />
+      <stop offset="60%" stop-color="#0a1426" />
+      <stop offset="100%" stop-color="#070a14" />
+    </linearGradient>
+
+    <filter id="nd-glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+
+    <marker id="nd-arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#06b6d4" />
+    </marker>
+    <marker id="nd-arrow-green" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#10b981" />
+    </marker>
+  </defs>
+
+  <style>
+    .font-sans { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    .font-mono { font-family: "JetBrains Mono", "SF Mono", Consolas, monospace; }
+
+    @keyframes scan-radar {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    @keyframes pulse-disc {
+      0%, 100% { r: 6px; opacity: 1; }
+      50% { r: 12px; opacity: 0.4; }
+    }
+    @keyframes dash-disc {
+      to { stroke-dashoffset: -28; }
+    }
+
+    .disc-sweep { transform-origin: 240px 250px; animation: scan-radar 8s linear infinite; }
+    .disc-pulse { animation: pulse-disc 2s infinite ease-in-out; }
+    .disc-dash { stroke-dasharray: 6 6; animation: dash-disc 1.5s linear infinite; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .disc-sweep, .disc-pulse, .disc-dash {
+        animation: none !important;
+        stroke-dasharray: none !important;
+      }
+    }
+  </style>
+
+  <!-- Background -->
+  <rect width="960" height="520" fill="url(#nd-bg)" rx="14" />
+
+  <!-- Title Header -->
+  <g transform="translate(40, 30)">
+    <rect x="0" y="0" width="880" height="42" rx="8" fill="#111c30" stroke="#1e293b" stroke-width="1.2" />
+    <circle cx="20" cy="21" r="5" fill="#06b6d4" />
+    <text x="36" y="25" class="font-mono" fill="#38bdf8" font-size="12" font-weight="700" letter-spacing="1.2">DRISHTI // PASSIVE &amp; ACTIVE PRE-PAIRING NETWORK DISCOVERY</text>
+    <text x="690" y="25" class="font-mono" fill="#10b981" font-size="10.5">ZERO-INTRUSION RECON</text>
+  </g>
+
+  <!-- SUB-PLANE 1: PASSIVE LISTENING RADAR (Left 420px) -->
+  <g transform="translate(40, 95)">
+    <rect width="420" height="370" rx="10" fill="#0d172a" stroke="#1e3a5f" stroke-width="1.4" />
+    <rect x="15" y="15" width="230" height="26" rx="4" fill="#0c4a6e" />
+    <text x="25" y="32" class="font-mono" fill="#bae6fd" font-size="11" font-weight="700">1. PASSIVE DISCOVERY PLANE</text>
+    <text x="260" y="32" class="font-mono" fill="#38bdf8" font-size="10">Zero Packet Injection</text>
+
+    <!-- Radar Graphic -->
+    <g transform="translate(0, 0)">
+      <!-- Radar Concentric Rings -->
+      <circle cx="200" cy="180" r="120" fill="none" stroke="#1e3a5f" stroke-width="1" stroke-dasharray="3 3" />
+      <circle cx="200" cy="180" r="85" fill="none" stroke="#0e7490" stroke-width="1" opacity="0.6" />
+      <circle cx="200" cy="180" r="50" fill="none" stroke="#06b6d4" stroke-width="1" opacity="0.8" />
+      <circle cx="200" cy="180" r="6" fill="#06b6d4" />
+
+      <!-- Radar Sweep Beam -->
+      <g class="disc-sweep" style="transform-origin: 200px 180px;">
+        <path d="M 200 180 L 320 180 A 120 120 0 0 0 284 95 Z" fill="url(#nd-bg)" opacity="0.35" />
+        <line x1="200" y1="180" x2="320" y2="180" stroke="#06b6d4" stroke-width="2" />
+      </g>
+
+      <!-- Discovered Blips -->
+      <!-- Blip 1: ARP Broadcast -->
+      <circle cx="150" cy="130" r="5" fill="#38bdf8" class="disc-pulse" />
+      <text x="105" y="115" class="font-mono" fill="#93c5fd" font-size="8.5">ARP: 192.168.1.1</text>
+
+      <!-- Blip 2: mDNS Workstation -->
+      <circle cx="270" cy="140" r="5" fill="#10b981" class="disc-pulse" />
+      <text x="280" y="142" class="font-mono" fill="#6ee7b7" font-size="8.5">mDNS: macbook.local</text>
+
+      <!-- Blip 3: Reverse DNS -->
+      <circle cx="240" cy="250" r="5" fill="#f59e0b" class="disc-pulse" />
+      <text x="180" y="275" class="font-mono" fill="#fde047" font-size="8.5">PTR: win-dc01.corp</text>
+    </g>
+
+    <!-- Methods Summary Box -->
+    <g transform="translate(15, 290)">
+      <rect width="390" height="65" rx="6" fill="#111827" stroke="#1f2937" />
+      <text x="15" y="20" class="font-mono" fill="#38bdf8" font-size="9.5" font-weight="700">PASSIVE TECHNIQUES APPLIED:</text>
+      <text x="15" y="36" class="font-sans" fill="#e2e8f0" font-size="9">• ARP Cache Table Inspection (`arp -a` / OS kernel)</text>
+      <text x="15" y="52" class="font-sans" fill="#e2e8f0" font-size="9">• Multicast DNS (mDNS) 224.0.0.251 &amp; NetBIOS Name Service (NBNS)</text>
+    </g>
+  </g>
+
+  <!-- SUB-PLANE 2: AUTONOMOUS DEEPSCAN & CORRELATION (Right 440px) -->
+  <g transform="translate(480, 95)">
+    <rect width="440" height="370" rx="10" fill="#0d172a" stroke="#1e3a5f" stroke-width="1.4" />
+    <rect x="15" y="15" width="260" height="26" rx="4" fill="#1e1b4b" />
+    <text x="25" y="32" class="font-mono" fill="#c7d2fe" font-size="11" font-weight="700">2. ACTIVE DEEPSCAN &amp; CORRELATION</text>
+    <text x="285" y="32" class="font-mono" fill="#818cf8" font-size="10">Targeted &amp; Bounded</text>
+
+    <!-- Nmap Subprocess Seam Card -->
+    <g transform="translate(15, 55)">
+      <rect width="410" height="65" rx="6" fill="#111827" stroke="#334155" />
+      <text x="15" y="20" class="font-mono" fill="#a78bfa" font-size="10" font-weight="700">NMAP SERVICE ENUMERATION SEAM</text>
+      <text x="15" y="38" class="font-mono" fill="#38bdf8" font-size="9">Command: nmap -sV -Pn --open --min-rate 1500 -T4</text>
+      <text x="15" y="54" class="font-sans" fill="#94a3b8" font-size="8.5">Extracts exact software banners, daemon names, and patch versions</text>
+    </g>
+
+    <!-- Product Version Evidence Matcher -->
+    <g transform="translate(15, 130)">
+      <rect width="410" height="110" rx="6" fill="#111827" stroke="#059669" />
+      <text x="15" y="20" class="font-mono" fill="#34d399" font-size="10" font-weight="700">EVIDENCE-BASED ASSET PROFILER</text>
+      
+      <!-- Evidence Table -->
+      <g transform="translate(15, 30)" class="font-mono" font-size="8.5">
+        <text x="0" y="15" fill="#64748b">PORT</text>
+        <text x="60" y="15" fill="#64748b">DETECTED PRODUCT</text>
+        <text x="230" y="15" fill="#64748b">VERSION</text>
+        <text x="310" y="15" fill="#64748b">EVIDENCE TIER</text>
+
+        <line x1="0" y1="22" x2="380" y2="22" stroke="#1f2937" />
+
+        <text x="0" y="38" fill="#38bdf8">80/tcp</text>
+        <text x="60" y="38" fill="#ffffff">Apache Tomcat</text>
+        <text x="230" y="38" fill="#f43f5e">9.0.43 (VULN)</text>
+        <text x="310" y="38" fill="#34d399">CONFIRMED</text>
+
+        <text x="0" y="56" fill="#38bdf8">445/tcp</text>
+        <text x="60" y="56" fill="#ffffff">Microsoft SMBv1</text>
+        <text x="230" y="56" fill="#f43f5e">Build 17763</text>
+        <text x="310" y="56" fill="#34d399">CONFIRMED</text>
+
+        <text x="0" y="74" fill="#38bdf8">3389/tcp</text>
+        <text x="60" y="74" fill="#ffffff">MS Terminal Services</text>
+        <text x="230" y="74" fill="#fbbf24">Network Level Auth</text>
+        <text x="310" y="74" fill="#60a5fa">CORRELATED</text>
+      </g>
+    </g>
+
+    <!-- Offline CVE & CISA KEV Correlator -->
+    <g transform="translate(15, 250)">
+      <rect width="410" height="105" rx="6" fill="#18181b" stroke="#dc2626" />
+      <text x="15" y="20" class="font-mono" fill="#f87171" font-size="10" font-weight="700">DETERMINISTIC VULN INTELLIGENCE (OFFLINE)</text>
+      <text x="15" y="38" class="font-sans" fill="#e2e8f0" font-size="9">• Direct match against NVD &amp; CISA Known Exploited Vulnerabilities</text>
+      <text x="15" y="54" class="font-sans" fill="#e2e8f0" font-size="9">• Evaluates exact version bounds: [affected_start, fixed_version)</text>
+      <text x="15" y="70" class="font-mono" fill="#fca5a5" font-size="8.5">• Output: CVE-2021-44228 | CVSS 10.0 | KEV Exploit Observed: TRUE</text>
+      <text x="15" y="88" class="font-mono" fill="#f59e0b" font-size="8.5">• Injects weighted vertex into NetworkX Attack Graph</text>
+    </g>
+  </g>
+
+  <!-- Connective Arrows -->
+  <path d="M 460 280 L 480 280" stroke="#06b6d4" stroke-width="2.5" class="disc-dash" marker-end="url(#nd-arrow)" />
+
+  <!-- Bottom Legend -->
+  <g transform="translate(60, 485)">
+    <circle cx="10" cy="10" r="5" fill="#38bdf8" />
+    <text x="25" y="14" class="font-mono" fill="#94a3b8" font-size="9.5">Passive Telemetry Sensor</text>
+
+    <circle cx="240" cy="10" r="5" fill="#a78bfa" />
+    <text x="255" y="14" class="font-mono" fill="#94a3b8" font-size="9.5">DeepScan Nmap Seam</text>
+
+    <circle cx="470" cy="10" r="5" fill="#34d399" />
+    <text x="485" y="14" class="font-mono" fill="#94a3b8" font-size="9.5">Evidence-Confirmed Product</text>
+
+    <circle cx="700" cy="10" r="5" fill="#f87171" />
+    <text x="715" y="14" class="font-mono" fill="#94a3b8" font-size="9.5">CISA KEV / NVD Correlated</text>
+  </g>
+</svg>

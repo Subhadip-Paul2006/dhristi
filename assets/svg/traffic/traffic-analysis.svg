@@ -1,0 +1,232 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 520" width="100%" height="100%" aria-label="Drishti Traffic Analysis and Anomaly Pipeline">
+  <defs>
+    <linearGradient id="ta-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0b101d" />
+      <stop offset="50%" stop-color="#0a1426" />
+      <stop offset="100%" stop-color="#060912" />
+    </linearGradient>
+
+    <filter id="ta-glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+
+    <marker id="ta-arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#06b6d4" />
+    </marker>
+    <marker id="ta-arrow-red" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#ef4444" />
+    </marker>
+  </defs>
+
+  <style>
+    .font-sans { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    .font-mono { font-family: "JetBrains Mono", "SF Mono", Consolas, monospace; }
+
+    @keyframes ta-dash {
+      to { stroke-dashoffset: -30; }
+    }
+    @keyframes ta-pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.05); opacity: 0.8; }
+    }
+
+    .ta-stream { stroke-dasharray: 6 6; animation: ta-dash 1.3s linear infinite; }
+    .ta-stream-red { stroke-dasharray: 6 6; animation: ta-dash 1s linear infinite; }
+    .ta-alert-pulse { animation: ta-pulse 1.8s infinite ease-in-out; transform-origin: center; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .ta-stream, .ta-stream-red, .ta-alert-pulse {
+        animation: none !important;
+        stroke-dasharray: none !important;
+      }
+    }
+  </style>
+
+  <!-- Background -->
+  <rect width="960" height="520" fill="url(#ta-bg)" rx="14" />
+
+  <!-- Title Header -->
+  <g transform="translate(40, 30)">
+    <rect x="0" y="0" width="880" height="42" rx="8" fill="#111c30" stroke="#1e293b" stroke-width="1.2" />
+    <circle cx="20" cy="21" r="5" fill="#06b6d4" />
+    <text x="36" y="25" class="font-mono" fill="#38bdf8" font-size="12" font-weight="700" letter-spacing="1.2">DRISHTI // 27-FEATURE CANONICAL FLOW PROFILING &amp; DETECTION PIPELINE</text>
+    <text x="710" y="25" class="font-mono" fill="#eab308" font-size="10.5">STATISTICAL + ML FUSION</text>
+  </g>
+
+  <!-- COLUMN 1: 5-TUPLE AGGREGATED FLOWS (Left) -->
+  <g transform="translate(40, 95)">
+    <rect width="200" height="370" rx="10" fill="#0d172a" stroke="#1e3a5f" stroke-width="1.3" />
+    <rect x="15" y="15" width="170" height="24" rx="4" fill="#0e3a5a" />
+    <text x="100" y="31" text-anchor="middle" class="font-mono" fill="#7dd3fc" font-size="10" font-weight="700">1. AGGREGATED FLOWS</text>
+
+    <!-- Flow Card 1 (Normal HTTPS) -->
+    <g transform="translate(15, 55)">
+      <rect width="170" height="85" rx="6" fill="#111827" stroke="#059669" />
+      <text x="12" y="20" class="font-mono" fill="#34d399" font-size="9" font-weight="700">FLOW #9124 [HTTPS]</text>
+      <text x="12" y="36" class="font-mono" fill="#94a3b8" font-size="8">192.168.1.45:49812</text>
+      <text x="12" y="48" class="font-mono" fill="#94a3b8" font-size="8">&lt;--&gt; 104.244.42.1:443</text>
+      <text x="12" y="64" class="font-mono" fill="#e2e8f0" font-size="8">Pkts: 142 | Bytes: 88.4 KB</text>
+      <text x="12" y="76" class="font-mono" fill="#34d399" font-size="7.5">Duration: 8.2s (BENIGN)</text>
+    </g>
+
+    <!-- Flow Card 2 (Scan Flow) -->
+    <g transform="translate(15, 155)">
+      <rect width="170" height="95" rx="6" fill="#18181b" stroke="#dc2626" />
+      <text x="12" y="20" class="font-mono" fill="#f87171" font-size="9" font-weight="700">FLOW #9125 [SYN SCAN]</text>
+      <text x="12" y="36" class="font-mono" fill="#fca5a5" font-size="8">192.168.1.205:54210</text>
+      <text x="12" y="48" class="font-mono" fill="#fca5a5" font-size="8">--&gt; 192.168.1.0/24</text>
+      <text x="12" y="64" class="font-mono" fill="#f87171" font-size="8">Ports: 21, 22, 80, 445, 3389</text>
+      <text x="12" y="76" class="font-mono" fill="#f87171" font-size="8">SYN Pkts: 500 | ACK: 2</text>
+      <text x="12" y="88" class="font-mono" fill="#fca5a5" font-size="7.5">ANOMALY DETECTED</text>
+    </g>
+
+    <!-- Flow Card 3 (Data Transfer) -->
+    <g transform="translate(15, 265)">
+      <rect width="170" height="85" rx="6" fill="#111827" stroke="#3b82f6" />
+      <text x="12" y="20" class="font-mono" fill="#60a5fa" font-size="9" font-weight="700">FLOW #9126 [DATABASE]</text>
+      <text x="12" y="36" class="font-mono" fill="#94a3b8" font-size="8">10.0.1.10:38192</text>
+      <text x="12" y="48" class="font-mono" fill="#94a3b8" font-size="8">&lt;--&gt; 10.0.3.100:5432</text>
+      <text x="12" y="64" class="font-mono" fill="#e2e8f0" font-size="8">High Volume Outbound</text>
+      <text x="12" y="76" class="font-mono" fill="#fbbf24" font-size="7.5">Crown Jewel Query</text>
+    </g>
+  </g>
+
+  <!-- COLUMN 2: 27 CANONICAL FEATURE EXTRACTOR -->
+  <g transform="translate(260, 95)">
+    <rect width="210" height="370" rx="10" fill="#0d172a" stroke="#1e3a5f" stroke-width="1.3" />
+    <rect x="15" y="15" width="180" height="24" rx="4" fill="#1e1b4b" />
+    <text x="105" y="31" text-anchor="middle" class="font-mono" fill="#c7d2fe" font-size="10" font-weight="700">2. 27 FLOW FEATURES</text>
+
+    <!-- Feature Groups -->
+    <g transform="translate(15, 52)">
+      <!-- Group A: Packet Lengths -->
+      <rect width="180" height="68" rx="5" fill="#181e33" stroke="#334155" />
+      <text x="10" y="18" class="font-mono" fill="#38bdf8" font-size="8.5" font-weight="700">A. PACKET METRICS (7)</text>
+      <text x="10" y="32" class="font-mono" fill="#94a3b8" font-size="7.5">• pkt_len_mean, std, max, min</text>
+      <text x="10" y="44" class="font-mono" fill="#94a3b8" font-size="7.5">• fwd_pkt_len_mean</text>
+      <text x="10" y="56" class="font-mono" fill="#94a3b8" font-size="7.5">• bwd_pkt_len_mean, skew</text>
+    </g>
+
+    <g transform="translate(15, 128)">
+      <!-- Group B: Timing & IAT -->
+      <rect width="180" height="68" rx="5" fill="#181e33" stroke="#334155" />
+      <text x="10" y="18" class="font-mono" fill="#a78bfa" font-size="8.5" font-weight="700">B. INTER-ARRIVAL TIME (6)</text>
+      <text x="10" y="32" class="font-mono" fill="#94a3b8" font-size="7.5">• flow_iat_mean, std, max</text>
+      <text x="10" y="44" class="font-mono" fill="#94a3b8" font-size="7.5">• fwd_iat_mean, bwd_iat_mean</text>
+      <text x="10" y="56" class="font-mono" fill="#94a3b8" font-size="7.5">• flow_duration_ms</text>
+    </g>
+
+    <g transform="translate(15, 204)">
+      <!-- Group C: Flags & Ratios -->
+      <rect width="180" height="74" rx="5" fill="#181e33" stroke="#334155" />
+      <text x="10" y="18" class="font-mono" fill="#f43f5e" font-size="8.5" font-weight="700">C. TCP FLAGS &amp; RATIOS (8)</text>
+      <text x="10" y="32" class="font-mono" fill="#94a3b8" font-size="7.5">• syn_flag_count, ack_count</text>
+      <text x="10" y="44" class="font-mono" fill="#f43f5e" font-size="7.5">• syn_to_ack_ratio [SPIKE: 250.0]</text>
+      <text x="10" y="56" class="font-mono" fill="#94a3b8" font-size="7.5">• rst_count, psh_count</text>
+      <text x="10" y="68" class="font-mono" fill="#94a3b8" font-size="7.5">• down_up_ratio</text>
+    </g>
+
+    <g transform="translate(15, 286)">
+      <!-- Group D: Entropy & Direction -->
+      <rect width="180" height="68" rx="5" fill="#181e33" stroke="#334155" />
+      <text x="10" y="18" class="font-mono" fill="#34d399" font-size="8.5" font-weight="700">D. ENTROPY &amp; SYMMETRY (6)</text>
+      <text x="10" y="32" class="font-mono" fill="#94a3b8" font-size="7.5">• dst_port_entropy</text>
+      <text x="10" y="44" class="font-mono" fill="#94a3b8" font-size="7.5">• byte_rate, pkt_rate</text>
+      <text x="10" y="56" class="font-mono" fill="#94a3b8" font-size="7.5">• flow_symmetry_score</text>
+    </g>
+  </g>
+
+  <!-- COLUMN 3: ANOMALY DETECTION ENGINE -->
+  <g transform="translate(490, 95)">
+    <rect width="210" height="370" rx="10" fill="#0d172a" stroke="#1e3a5f" stroke-width="1.3" />
+    <rect x="15" y="15" width="180" height="24" rx="4" fill="#311042" />
+    <text x="105" y="31" text-anchor="middle" class="font-mono" fill="#f5d0fe" font-size="10" font-weight="700">3. ANOMALY ENGINE</text>
+
+    <!-- Dual Detection Mechanism -->
+    <!-- Method 1: Statistical Thresholding -->
+    <g transform="translate(15, 52)">
+      <rect width="180" height="95" rx="6" fill="#18181b" stroke="#f59e0b" />
+      <text x="12" y="20" class="font-mono" fill="#fbbf24" font-size="9" font-weight="700">STATISTICAL Z-SCORE</text>
+      <text x="12" y="38" class="font-sans" fill="#e2e8f0" font-size="8.5">Sliding window baseline</text>
+      <text x="12" y="54" class="font-mono" fill="#fde047" font-size="8">μ_syn = 1.05, σ = 0.22</text>
+      <text x="12" y="68" class="font-mono" fill="#f43f5e" font-size="8">Observed: 250 (Z &gt; 10.0)</text>
+      <text x="12" y="82" class="font-mono" fill="#ef4444" font-size="8">Threshold Exceeded!</text>
+    </g>
+
+    <!-- Method 2: Neural Temporal Forecaster -->
+    <g transform="translate(15, 160)">
+      <rect width="180" height="110" rx="6" fill="#18181b" stroke="#a855f7" />
+      <text x="12" y="20" class="font-mono" fill="#c084fc" font-size="9" font-weight="700">NEURAL FORECASTER</text>
+      <text x="12" y="36" class="font-mono" fill="#e9d5ff" font-size="8">Architecture: LSTM + Trans</text>
+      <text x="12" y="50" class="font-sans" fill="#e2e8f0" font-size="8.5">Forecasts traffic t+1, t+2</text>
+      <text x="12" y="66" class="font-mono" fill="#94a3b8" font-size="8">Predicted: 14 pkts/sec</text>
+      <text x="12" y="80" class="font-mono" fill="#f43f5e" font-size="8">Actual: 840 pkts/sec</text>
+      <text x="12" y="96" class="font-mono" fill="#ef4444" font-size="8">Divergence Loss &gt; 8.4</text>
+    </g>
+
+    <!-- Model Status -->
+    <g transform="translate(15, 285)">
+      <rect width="180" height="68" rx="6" fill="#111c30" stroke="#06b6d4" />
+      <text x="90" y="22" text-anchor="middle" class="font-mono" fill="#38bdf8" font-size="9" font-weight="700">ETHICAL GUARD</text>
+      <text x="90" y="38" text-anchor="middle" class="font-sans" fill="#e2e8f0" font-size="8">Zero-Fabrication Contract</text>
+      <text x="90" y="52" text-anchor="middle" class="font-mono" fill="#34d399" font-size="8">Probabilistic, Never Asserted</text>
+    </g>
+  </g>
+
+  <!-- COLUMN 4: ACTIONABLE CYBER INTELLIGENCE -->
+  <g transform="translate(720, 95)">
+    <rect width="200" height="370" rx="10" fill="#0d172a" stroke="#1e3a5f" stroke-width="1.3" />
+    <rect x="15" y="15" width="170" height="24" rx="4" fill="#450a0a" />
+    <text x="100" y="31" text-anchor="middle" class="font-mono" fill="#fca5a5" font-size="10" font-weight="700">4. SECURITY INSIGHT</text>
+
+    <!-- MITRE ATT&CK Mapping Card -->
+    <g transform="translate(15, 52)">
+      <rect width="170" height="95" rx="6" fill="#18181b" stroke="#ef4444" class="ta-alert-pulse" />
+      <text x="12" y="20" class="font-mono" fill="#f87171" font-size="9" font-weight="700">MITRE ATT&amp;CK T1046</text>
+      <text x="12" y="36" class="font-sans" fill="#ffffff" font-size="8.5">Network Service Scanning</text>
+      <text x="12" y="52" class="font-mono" fill="#fca5a5" font-size="8">Tactics: Discovery</text>
+      <text x="12" y="66" class="font-mono" fill="#fca5a5" font-size="8">CAPEC: CAPEC-291</text>
+      <text x="12" y="82" class="font-mono" fill="#f87171" font-size="8">Severity: HIGH (8.5)</text>
+    </g>
+
+    <!-- Dynamic Graph Weighting -->
+    <g transform="translate(15, 160)">
+      <rect width="170" height="90" rx="6" fill="#111827" stroke="#8b5cf6" />
+      <text x="12" y="20" class="font-mono" fill="#c4b5fd" font-size="9" font-weight="700">GRAPH WEIGHT UPDATE</text>
+      <text x="12" y="38" class="font-sans" fill="#e2e8f0" font-size="8.5">Reduces edge traversal cost</text>
+      <text x="12" y="54" class="font-mono" fill="#a78bfa" font-size="8">weight = 1.0 / P(reach)</text>
+      <text x="12" y="70" class="font-mono" fill="#d8b4fe" font-size="8">Elevates Path to Top-1</text>
+    </g>
+
+    <!-- Playbook Trigger -->
+    <g transform="translate(15, 262)">
+      <rect width="170" height="92" rx="6" fill="#111827" stroke="#10b981" />
+      <text x="12" y="20" class="font-mono" fill="#6ee7b7" font-size="9" font-weight="700">REMEDIATION TRIGGER</text>
+      <text x="12" y="38" class="font-sans" fill="#e2e8f0" font-size="8.5">Generates Cisco ACL Rule:</text>
+      <text x="12" y="54" class="font-mono" fill="#34d399" font-size="7.5">access-list 101 deny tcp</text>
+      <text x="12" y="66" class="font-mono" fill="#34d399" font-size="7.5">host 192.168.1.205 any</text>
+      <text x="12" y="82" class="font-mono" fill="#10b981" font-size="7.5">AST Filter Verified</text>
+    </g>
+  </g>
+
+  <!-- Connective Arrows -->
+  <path d="M 240 280 L 260 280" stroke="#06b6d4" stroke-width="2" class="ta-stream" marker-end="url(#ta-arrow)" />
+  <path d="M 470 280 L 490 280" stroke="#06b6d4" stroke-width="2" class="ta-stream" marker-end="url(#ta-arrow)" />
+  <path d="M 700 280 L 720 280" stroke="#ef4444" stroke-width="2" class="ta-stream-red" marker-end="url(#ta-arrow-red)" />
+
+  <!-- Bottom Legend -->
+  <g transform="translate(60, 485)">
+    <circle cx="10" cy="10" r="5" fill="#38bdf8" />
+    <text x="25" y="14" class="font-mono" fill="#94a3b8" font-size="9.5">5-Tuple Ingestion</text>
+
+    <circle cx="210" cy="10" r="5" fill="#a78bfa" />
+    <text x="225" y="14" class="font-mono" fill="#94a3b8" font-size="9.5">Canonical Profiling</text>
+
+    <circle cx="430" cy="10" r="5" fill="#f59e0b" />
+    <text x="445" y="14" class="font-mono" fill="#94a3b8" font-size="9.5">Anomaly Scoring</text>
+
+    <circle cx="650" cy="10" r="5" fill="#ef4444" />
+    <text x="665" y="14" class="font-mono" fill="#94a3b8" font-size="9.5">MITRE Technique &amp; ACL</text>
+  </g>
+</svg>
