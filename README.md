@@ -746,6 +746,24 @@ npm run dev -- --host 0.0.0.0 --port 5173
 
 ---
 
+### 🌐 Frontend-Only Vercel Demo Mode (No Backend Required)
+
+For presentation and online jury evaluation, the Drishti web console can be deployed standalone to **Vercel** with **ZERO backend dependencies**:
+
+- **Purpose**: A frontend-only presentation sandbox using deterministic, synthetic telemetry.
+- **Backend Disconnected**: The Vercel deployment operates completely without the FastAPI server, database, or network capture adapters.
+- **Full-Stack Invariant**: Real network scanning, Nmap deep scans, cross-platform telemetry ingestion, Yen's shortest paths, and agent pairing require the local full-stack environment described above.
+- **Deterministic Demo Data**: All demo findings carry synthetic IDs (`DEMO-VULN-001` through `DEMO-VULN-006`) labeled `SYNTHETIC DEMO FINDING`. Telemetry is watermarked with `[SIMULATED LAB // DEMO MODE]`.
+- **Demo Credentials**:
+  - **Email**: `analyst@acme-retail.dev`
+  - **Password**: `drishti-demo`
+- **Vercel Deployment Setting**: Add one environment variable in the Vercel dashboard:
+  ```text
+  VITE_DEMO_MODE=true
+  ```
+
+---
+
 ## 22. Platform-by-Platform Setup Guide
 
 | Operating System | Deployment Method | Execution Command | Machine Role |

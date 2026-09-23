@@ -50,8 +50,8 @@ export function LoginPage() {
         </>
       }
     >
-      {/* Demo creds are dev-only — never shipped in a production bundle. */}
-      {import.meta.env.DEV && (
+      {/* Demo creds for dev or demo mode */}
+      {(import.meta.env.DEV || import.meta.env.VITE_DEMO_MODE === "true") && (
         <button
           type="button"
           onClick={() => {

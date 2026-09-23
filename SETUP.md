@@ -577,6 +577,34 @@ This executes `tsc -b && vite build` and outputs optimized assets into `web/dist
 
 ---
 
+### 5. Frontend-Only Vercel Demo Mode (No Backend Required)
+
+For online evaluation, presentation, and cloud preview deployments (e.g. on [Vercel](https://vercel.com)), Drishti provides a **Frontend-Only Demo Mode**.
+
+> [!NOTE]
+> **Architecture & Scope Distinction:**
+> - **Vercel Deployment**: A standalone frontend presentation and evaluation sandbox running entirely in the browser. It uses deterministic synthetic data and requires **ZERO backend services** (no FastAPI server, no SQLite/PostgreSQL database, no live packet capture, no endpoint agents).
+> - **Real Security Platform**: Full live network scanning, Nmap integration, cross-platform telemetry streaming, Yen's shortest path calculations, and agent pairing require the local/full-stack environment documented in Sections D, F, G, and I.
+> - **Demo Credentials**:
+>   - **Email**: `analyst@acme-retail.dev`
+>   - **Password**: `drishti-demo`
+> - **All telemetry and findings in this mode are strictly labeled** with `[SIMULATED LAB // DEMO MODE]`, `[SYNTHETIC DEMO FINDING]`, and `[SIMULATED INFERENCE]`.
+
+#### Deploying to Vercel:
+1. Import the repository into your Vercel dashboard.
+2. In **Environment Variables**, set:
+   ```text
+   VITE_DEMO_MODE=true
+   ```
+3. The included `vercel.json` automatically configures:
+   - **Build Command**: `npm run build --prefix web`
+   - **Output Directory**: `web/dist`
+   - **Install Command**: `npm install --prefix web`
+   - **SPA Rewrites**: Wildcard route handling mapped to `/index.html`
+4. The deployment will boot into the standalone demo console without any backend connectivity errors, CORS issues, or broken pages.
+
+---
+
 ## SECTION F — WINDOWS ENDPOINT SETUP (AGENT .EXE)
 
 This section explains how to enroll an authorized remote Windows workstation into Drishti monitoring.

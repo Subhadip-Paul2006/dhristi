@@ -22,7 +22,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { AuroraBackground } from "./ui/AuroraBackground";
-import { api } from "../api/client";
+import { api, isDemoMode } from "../api/client";
 import { useAuth } from "../auth";
 import { useToast } from "../store/graphStore";
 import { Button } from "./Button";
@@ -104,7 +104,7 @@ export function Shell({ children }: { children: ReactNode }) {
 
           {/* Workspace org name */}
           <span className="hidden rounded border border-hairline bg-surface-2/60 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-ink-muted sm:inline">
-            ORG: {user?.org_name || "LOCAL"}
+            ORG: {user?.org_name || (isDemoMode() ? "ACME-RETAIL (DEMO)" : "LOCAL")}
           </span>
 
           {/* Breadcrumb current page tag */}
@@ -120,14 +120,22 @@ export function Shell({ children }: { children: ReactNode }) {
 
         {/* Top Header Telemetry + Quick Actions */}
         <div className="flex items-center gap-3">
+          {/* Subtle demo badge compliant with requirements 8 & 20 */}
+          {isDemoMode() && (
+            <div className="flex items-center gap-1.5 rounded border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 font-mono text-[10px] font-semibold tracking-wider text-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.15)]">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+              <span>SIMULATED LAB // DEMO MODE</span>
+            </div>
+          )}
+
           {/* Real-time Telemetry Status Badges */}
           <div className="hidden xl:flex items-center gap-2 border border-hairline bg-surface-2/40 px-2.5 py-1 rounded font-mono text-[10px] text-ink-muted">
             <span className="flex items-center gap-1.5 text-accent-400">
               <span className="h-1.5 w-1.5 rounded-full bg-accent-400 animate-pulse" />
-              SYS: ONLINE
+              SYS: {isDemoMode() ? "SIMULATED" : "ONLINE"}
             </span>
             <span className="text-hairline">·</span>
-            <span>NET: MONITORED</span>
+            <span>NET: {isDemoMode() ? "SYNTHETIC" : "MONITORED"}</span>
             <span className="text-hairline">·</span>
             <span className="text-ink-secondary">ENGINE: ACTIVE</span>
           </div>
