@@ -18,7 +18,7 @@
 
 **Open-Source Defensive Cybersecurity Platform · Unified Network Telemetry & Lateral Graph Intelligence**
 
-[Live Web Preview (Vercel)](#15-deployment-transparency) · [Evaluator Walkthrough](#14-hackathon-evaluator-experience) · [Quick Start](#13-installation--quick-start) · [Architecture Guide](#10-system-architecture) · [API Specification](API.md)
+[Live Web Preview (Vercel)](#15-deployment-transparency) · [Evaluator Walkthrough](#14-hackathon-evaluator-experience) · [Quick Start](#13-installation--quick-start) · [Architecture Guide](#10-system-architecture)
 
 </div>
 
@@ -48,15 +48,18 @@
 
 ## 1. Project Introduction
 
-**Drishti** (दृष्टि — Sanskrit for *Vision / Insight*) is an open-source, defensive cybersecurity intelligence platform designed for enterprise subnets, security operations centers (SOCs), cyber ranges, and institutional IT networks (such as IITs, NITs, and universities).
+**Drishti** (दृष्टि — Sanskrit for *Vision / Insight*) is an open-source, defensive cybersecurity intelligence platform designed for enterprise subnets, security operations centers (SOCs), and digital defense teams.
 
-Traditional security operations suffer from an **asymmetric defense crisis**: defenders must secure every possible edge, while an adversary only needs to chain together a single sequence of misconfigurations or vulnerabilities to compromise critical data. Security tools generate thousands of isolated alerts:
+Traditional security operations suffer from an **asymmetric defense crisis**: defenders must secure every possible edge, while an adversary only needs to chain together a single sequence of misconfigurations.
+
 - A network flow analyzer sees an anomalous port scan.
 - An endpoint detection agent logs an isolated process spawn.
 - A vulnerability scanner generates a static, hundred-page PDF of uncontextualized CVEs.
 
 **What makes attack-path intelligence fundamentally different from isolated alerts?**  
-Isolated alerts show *symptoms* without relationships. A vulnerability with CVSS 9.8 on an isolated, air-gapped lab printer receives the same alert priority as a CVSS 9.8 flaw on an Internet-facing edge server. Attack-path intelligence connects the dots: it combines real-time network reachability, operating system socket states, and software evidence to answer:
+Isolated alerts show *symptoms* without relationships. A vulnerability with CVSS 9.8 on an isolated, air-gapped lab printer receives the same alert priority as a CVSS 9.8 flaw on an Internet-facing database server, even though only one can be exploited in practice.
+
+Drishti answers five operational questions:
 1. *Can an external adversary actually reach this vulnerability?*
 2. *If compromised, what internal assets can the attacker pivot to?*
 3. *What high-value corporate "crown jewels" (databases, Active Directory) lie in the adversary's lateral trajectory?*
@@ -72,10 +75,10 @@ Drishti maps, prices, and remediates. It **never attacks**, injects exploits, or
 Complex enterprise networks contain heterogeneous, interconnected workstations, servers, and mobile devices across multiple subnets and VLANs:
 
 ```text
-┌─────────────────────────────────┐           ┌─────────────────────────────────┐
+┌─────────────────────────────────┐           ┌───────────────────────────┐
 │     NETWORK INTRUSION LOGS      │           │    ENDPOINT DETECTION LOGS      │
 │  "Inbound connection port 445"  │           │   "PID 5120 spawned powershell" │
-└────────────────┬────────────────┘           └────────────────┬────────────────┘
+└────────────────┬────────────────┘           └────────────────┬───────────┘
                  │                                             │
                  └──────────────────────┬──────────────────────┘
                                         ▼
@@ -85,13 +88,13 @@ Complex enterprise networks contain heterogeneous, interconnected workstations, 
                      - Which subnet relationships permit lateral hops?
                      - What is the dollar impact if breached?
                                         ▼
-┌───────────────────────────────────────────────────────────────────────────────┐
-│ Vulnerable Endpoint ──► Subnet Routing ──► Pivot Node ──► Crown Jewel ($$$)   │
-└───────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│ Vulnerable Endpoint ──► Subnet Routing ──► Pivot Node ──► Crown Jewel ($$$) │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 Security teams face four major bottlenecks:
-1. **Host-Network Blindness:** Network flow monitors observe IP traffic but cannot identify the owning process, PID, or user. Endpoint agents see internal processes but cannot determine if intermediate firewalls block external reachability.
+1. **Host-Network Blindness:** Network flow monitors observe IP traffic but cannot identify the owning process, PID, or user. Endpoint agents see internal processes but cannot determine if intermediate hosts are reachable without network-path validation.
 2. **Abstract Severity vs. Financial Reality:** Abstract CVSS scores fail to communicate operational risk to corporate leadership and budget allocators.
 3. **Lateral Propagation Invisibility:** Security teams cannot visualize how an adversary can chain multiple medium-severity misconfigurations across workstations to compromise high-value assets.
 4. **Remediation Fatigue:** Generating custom firewall rules or configuration playbooks across multi-vendor equipment (Windows, Linux, Cisco) is slow, error-prone, and risks production outages.
@@ -210,7 +213,7 @@ Over 10-second sliding windows, Drishti extracts 27 statistical flow features:
 1. **Packet Lengths (7):** Mean, standard deviation, max, min, forward mean, backward mean, skewness.
 2. **Inter-Arrival Times (6):** Flow IAT mean, standard deviation, max, forward IAT mean, backward IAT mean, flow duration.
 3. **TCP Flags & Ratios (8):** SYN count, ACK count, SYN-to-ACK ratio, RST count, PSH count, FIN count, download-to-upload ratio, packet ratio.
-4. **Entropy & Symmetry (6):** Destination port entropy $H(\text{dst\_port})$, byte rate, packet rate, flow symmetry score.
+4. **Entropy & Symmetry (6):** Destination port entropy (H(dst_port)), byte rate, packet rate, flow symmetry score.
 
 ### Behavioral Detection
 - **Port Scanning (MITRE T1046):** Triggered when SYN-to-ACK ratio exceeds $4.8$ or destination port entropy $H > 3.5$.
@@ -252,7 +255,7 @@ For any attack path $\mathcal{P} = (v_0, v_1, \dots, v_n)$ terminating at crown 
 $$\text{PathRisk}_{\text{USD}}(\mathcal{P}) = \text{Valuation}(v_n) \times \prod_{i=0}^{n-1} P_{\text{exploit}}(v_i, v_{i+1})$$
 
 ### Minimum-Cut Chokepoint Defense
-Instead of requiring an organization to patch 50 vulnerabilities across 20 machines, Drishti's Min-Cut algorithm computes the minimal edge cut separating external threats from internal crown jewels. Severing a single strategic choke point (e.g. blocking lateral SMB 445 from corporate workstations to the database enclave) neutralizes multiple breach trajectories simultaneously, delivering **$> 90\%$ Return on Mitigation (ROM)**.
+Instead of requiring an organization to patch 50 vulnerabilities across 20 machines, Drishti's Min-Cut algorithm computes the minimal edge cut separating external threats from internal crown jewels.
 
 ---
 
@@ -268,7 +271,7 @@ Drishti uses AI strictly to accelerate defensive hardening:
 - **Output Formats:** Ansible Playbooks (`.yml`), Cisco IOS Access Control Lists (ACLs), or PowerShell hardening scripts.
 
 ### The Abstract Syntax Tree (AST) Guardrail
-To protect enterprise production environments from dangerous or hallucinated code, `server/app/services/ai.py` parses all candidate scripts through Python's `ast.parse()` and regex filters before delivering them to the analyst:
+To protect enterprise production environments from dangerous or hallucinated code, `server/app/services/ai.py` parses all candidate scripts through Python's `ast.parse()` and regex filters before delivery.
 
 ```python
 # Unconditionally blocked patterns:
@@ -486,19 +489,19 @@ npm run dev
 This section provides direct, unambiguous answers to the 12 primary questions asked by hackathon judges, security researchers, and technical evaluators:
 
 ### 1. What is Drishti?
-Drishti is an open-source defensive cybersecurity intelligence platform that unifies passive network traffic monitoring, cross-platform host telemetry, graph-theoretic lateral attack-path modeling, and deterministic financial risk quantification.
+Drishti is an open-source defensive cybersecurity intelligence platform that unifies passive network traffic monitoring, cross-platform host telemetry, graph-theoretic lateral attack-path modeling, and AI-assisted defensive validation.
 
 ### 2. What problem does it solve?
-It eliminates the "context vacuum" between isolated network flow alerts and host process logs. It shows how low- and medium-severity misconfigurations across workstations can be chained together by an adversary to reach high-value corporate crown jewels.
+It eliminates the "context vacuum" between isolated network flow alerts and host process logs. It shows how low- and medium-severity misconfigurations across workstations can be chained together by an attacker to reach high-value assets.
 
 ### 3. How does it work?
-It ingests packets and host telemetry, correlates them with offline CVE and CISA KEV catalogs, constructs a directed graph of reachability, traverses the graph using Yen's $K$-shortest paths algorithm, prices financial exposure ($ USD), and synthesizes AST-validated hardening playbooks.
+It ingests packets and host telemetry, correlates them with offline CVE and CISA KEV catalogs, constructs a directed graph of reachability, traverses the graph using Yen's $K$-shortest paths algorithm, and quantifies the financial exposure of each path.
 
 ### 4. What technologies does it use?
 Python 3.11+, FastAPI, React 18, TypeScript, TailwindCSS, NetworkX 3.4, SQLAlchemy, Scapy, Anthropic Claude 3.5 Sonnet, and Kotlin (Android 14+).
 
 ### 5. What is actually implemented?
-- **Fully Implemented:** FastAPI backend (16 routers), React SOC console, Windows `.exe`, macOS `.pkg`, Android `.apk`, Yen's $K$-shortest paths, dollar pricing math, offline CVE correlation, 27-feature flow extraction, and AST guardrailed Claude remediation.
+- **Fully Implemented:** FastAPI backend (16 routers), React SOC console, Windows `.exe`, macOS `.pkg`, Android `.apk`, Yen's $K$-shortest paths, dollar pricing math, offline CVE correlation, 27-feature flow analysis, and AST safety logic.
 - **Partially Implemented:** Bidirectional WebSockets (Server-Sent Events and polling are active; full WebSockets are planned).
 - **Planned:** Native Linux `.deb`/`.rpm` packages, Kubernetes container daemonsets, and cloud CSPM connectors.
 
@@ -506,7 +509,7 @@ Python 3.11+, FastAPI, React 18, TypeScript, TailwindCSS, NetworkX 3.4, SQLAlche
 Run `uvicorn server.app.main:app --port 8000` in the backend and `npm run dev` in `web/`. See [SETUP.md](SETUP.md) for automated OS detection scripts.
 
 ### 7. How do I use it?
-Log in at `http://localhost:5173` (username: `admin`, password: `admin`), explore the Executive Dashboard, inspect the ReactFlow Attack Map, monitor socket-to-PID bindings in Live Watch, and generate an Ansible mitigation playbook. See [USAGE.md](USAGE.md) for a screenshot guide.
+Log in at `http://localhost:5173` (username: `admin`, password: `admin`), explore the Executive Dashboard, inspect the ReactFlow Attack Map, monitor socket-to-PID bindings in Live Watch, and generate or review remediation playbooks.
 
 ### 8. Where is the architecture documented?
 See [Section 10](#10-system-architecture), [ARCHITECTURE.md](ARCHITECTURE.md), and [docs/architecture/system-architecture.md](docs/architecture/system-architecture.md).
@@ -554,7 +557,7 @@ Drishti maintains total transparency regarding its deployment posture:
    - The React web console is deployed to Vercel as an interactive, fully navigable preview.
    - Operating under `VITE_DEMO_MODE=true`, it consumes deterministic synthetic telemetry, allowing evaluators to inspect every UI view, chart, and attack map without configuring local servers.
 2. **Backend Execution Environment:**
-   - The backend is **not publicly deployed to an unauthenticated cloud endpoint** because it integrates with proprietary, paid cloud services (Anthropic Claude API, Google Safe Browsing, VirusTotal) and requires low-level kernel drivers (`AF_PACKET`, `/dev/bpf*`, Npcap) that are strictly prohibited on serverless cloud platforms.
+   - The backend is **not publicly deployed to an unauthenticated cloud endpoint** because it integrates with proprietary, paid cloud services (Anthropic Claude API, Google Safe Browsing, VirusTotal).
    - **Zero Secret Exposure:** In compliance with security best practices, no API keys, credentials, or private tokens are committed to this repository.
 3. **End-to-End Verification:**
    - The complete full-stack platform has been tested end-to-end with 408 backend tests passing. Full-stack workflows are demonstrated in the submitted evaluation videos.
